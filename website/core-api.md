@@ -146,6 +146,22 @@ scope.set(query, 'an');
 console.log(scope.get(filtered)); // ['Banana', 'Orange']
 ```
 
+## Type Inference Preview (Twoslash)
+
+```ts twoslash
+type Cell<T> = { kind: 'cell'; value: T };
+
+declare function cell<T>(init: T): Cell<T>;
+declare function computed<A, B, R>(
+  deps: [Cell<A>, Cell<B>],
+  read: (a: A, b: B) => R,
+): Cell<R>;
+
+const count = cell(1);
+const step = cell(2);
+const total = computed([count, step], (c, s) => c + s);
+```
+
 ## Suggested Project Structure
 
 - `state/units.ts`: `cell`, `computed`, `event`, `effect` definitions
