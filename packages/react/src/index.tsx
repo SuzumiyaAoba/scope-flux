@@ -176,6 +176,15 @@ export function useCellAction<T>(
   );
 }
 
+export function useCell<T>(
+  cell: Cell<T>,
+  options?: { priority?: Priority; reason?: string }
+): [T, (next: T | ((prev: T) => T)) => void] {
+  const value = useUnit(cell);
+  const setValue = useCellAction(cell, options);
+  return useMemo(() => [value, setValue], [value, setValue]);
+}
+
 export function useFlushBuffered(): () => void {
   const scheduler = useScheduler();
 

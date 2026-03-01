@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { cell, createStore, effect, event } from '@scope-flux/core';
 import {
+  useCell,
   StoreProvider,
   useAction,
   useBufferedUnit,
@@ -179,5 +180,37 @@ describe('react bridge', () => {
     act(() => {
       renderer!.unmount();
     });
+  });
+
+  it('useCell returns value and setter tuple', () => {
+    const count = cell(0, { id: 'react_use_cell_count' });
+    const scope = createStore().fork();
+
+    let setCount!: (next: number | ((prev: number) => number)) => void;
+    let seen = -1;
+
+    function App(): React.JSX.Element {
+      const [value, setValue] = useCell(count);
+      seen = value;
+      setCount = setValue;
+      return <>{value}</>;
+    }
+
+    act(() => {
+      create(
+        <StoreProvider scope={scope}>
+          <App />
+        </StoreProvider>
+      );
+    });
+
+    expect(seen).toBe(0);
+
+    act(() => {
+      setCount((prev) => prev + 3);
+    });
+
+    expect(scope.get(count)).toBe(3);
+    expect(seen).toBe(3);
   });
 });

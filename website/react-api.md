@@ -49,6 +49,24 @@ When to use:
 
 ## Write Hooks
 
+### `useCell(cell, { priority?, reason? })`
+Returns a tuple `[value, setValue]` similar to `useState`.
+
+- Internally combines `useUnit(cell)` and `useCellAction(cell, options)`.
+- Useful when you want read/write in one line.
+
+Example:
+
+```tsx
+const [query, setQuery] = useCell(queryCell, {
+  priority: 'transition',
+  reason: 'search.typing',
+});
+
+setQuery('scope-flux');
+setQuery((prev) => prev.toUpperCase());
+```
+
 ### `useCellAction(cell, { priority?, reason? })`
 Returns typed setter for a cell.
 
@@ -102,12 +120,15 @@ function SearchInput() {
 type Cell<T> = { value: T };
 type SetStateAction<T> = T | ((prev: T) => T);
 
+declare function useCell<T>(cell: Cell<T>): [T, (next: SetStateAction<T>) => void];
 declare function useCellAction<T>(cell: Cell<T>): (next: SetStateAction<T>) => void;
 
 const queryCell = {} as Cell<string>;
+const [query, setQuery2] = useCell(queryCell);
 const setQuery = useCellAction(queryCell);
 
 setQuery('scope-flux');
+setQuery2((prev) => prev + '!');
 setQuery((prev) => prev.toUpperCase());
 ```
 
