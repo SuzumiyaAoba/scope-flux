@@ -58,4 +58,21 @@ describe('scheduler', () => {
     expect(scheduler.getPendingBufferedUpdates()).toHaveLength(0);
     expect(scheduler.getBuffered<number>(count)).toBe(0);
   });
+
+  it('coalesces repeated buffered updates for the same cell', () => {
+    const count = cell(0, { id: 'scheduler_coalesce_count' });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope });
+
+    scheduler.set<number>(count, 1, { priority: 'transition' });
+    scheduler.set<number>(count, 2, { priority: 'transition' });
+    scheduler.set<number>(count, 3, { priority: 'transition' });
+
+    const pending = scheduler.getPendingBufferedUpdates();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].value).toBe(3);
+
+    scheduler.flushBuffered();
+    expect(scope.get(count)).toBe(3);
+  });
 });

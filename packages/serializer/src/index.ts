@@ -100,7 +100,7 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
   return payload;
 }
 
-function validatePayload(payload: SerializedScope): void {
+function validatePayload(payload: unknown): asserts payload is SerializedScope {
   if (!isPlainObject(payload)) {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
@@ -124,11 +124,14 @@ function validatePayload(payload: SerializedScope): void {
   }
 }
 
-export function hydrate(scope: Scope, payload: SerializedScope, opts: HydrateOptions = {}): void {
+export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {}): void {
   assertScope(scope);
   validatePayload(payload);
 
   const mode = opts.mode ?? 'safe';
+  if (mode !== 'safe' && mode !== 'force') {
+    throw new Error('NS_SER_INVALID_HYDRATE_MODE');
+  }
 
   for (const [id, value] of Object.entries(payload.values)) {
     const cellUnit = getRegisteredCellById(id);

@@ -14,7 +14,7 @@ export interface SchedulerOptions {
 export class Scheduler {
   private readonly scope: Scope;
   private readonly bufferedValues = new Map<AnyCell, unknown>();
-  private readonly pending: PendingBufferedUpdate[] = [];
+  private readonly pendingByCell = new Map<AnyCell, PendingBufferedUpdate>();
   private readonly bufferedSubscribers = new Set<() => void>();
 
   constructor(options: SchedulerOptions) {
@@ -48,7 +48,7 @@ export class Scheduler {
     const value = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
 
     this.bufferedValues.set(cell, value);
-    this.pending.push({
+    this.pendingByCell.set(cell, {
       cell,
       value,
       priority,
@@ -58,12 +58,12 @@ export class Scheduler {
   }
 
   public getPendingBufferedUpdates(): PendingBufferedUpdate[] {
-    return [...this.pending];
+    return [...this.pendingByCell.values()];
   }
 
   public flushBuffered(options: { reason?: string } = {}): void {
-    const updates = [...this.pending];
-    this.pending.length = 0;
+    const updates = [...this.pendingByCell.values()];
+    this.pendingByCell.clear();
 
     this.scope.batch(() => {
       for (const update of updates) {
@@ -79,7 +79,7 @@ export class Scheduler {
   }
 
   public dropBuffered(): void {
-    this.pending.length = 0;
+    this.pendingByCell.clear();
     this.bufferedValues.clear();
     this._notifyBuffered();
   }

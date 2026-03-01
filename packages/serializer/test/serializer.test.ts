@@ -29,6 +29,18 @@ describe('serializer', () => {
     expect(() => serialize(scope)).toThrowError(/NS_SER_NON_JSON_VALUE/);
   });
 
+  it('serialize skips non-serializable cells', () => {
+    const publicValue = cell('ok', { id: 'public_value', serializable: true });
+    const privateValue = cell('secret', { id: 'private_value', serializable: false });
+    const scope = createStore().fork();
+    scope.set(publicValue, 'visible');
+    scope.set(privateValue, 'hidden');
+
+    const payload = serialize(scope);
+    expect(payload.values.public_value).toBe('visible');
+    expect('private_value' in payload.values).toBe(false);
+  });
+
   it('safe hydrate is idempotent', () => {
     const count = cell(1, { id: 'safe_count' });
 
@@ -59,6 +71,22 @@ describe('serializer', () => {
     expect(target.get(count)).toBe(9);
   });
 
+  it('hydrate ignores unknown stable IDs', () => {
+    const known = cell(0, { id: 'known_cell' });
+    const scope = createStore().fork();
+    scope.set(known, 1);
+
+    hydrate(scope, {
+      version: 1,
+      scopeId: 'external_scope',
+      values: {
+        unknown_cell: 99,
+      },
+    });
+
+    expect(scope.get(known)).toBe(1);
+  });
+
   it('payload size limit is enforced', () => {
     const text = cell('x'.repeat(100), { id: 'text' });
     const scope = createStore().fork();
@@ -70,5 +98,31 @@ describe('serializer', () => {
   it('escapeJsonForHtml escapes dangerous chars', () => {
     const escaped = escapeJsonForHtml('{"x":"<script>"}');
     expect(escaped.includes('\\u003cscript>')).toBe(true);
+  });
+
+  it('hydrate rejects invalid payload shapes', () => {
+    const scope = createStore().fork();
+    expect(() => hydrate(scope, 'bad_payload')).toThrowError(/NS_SER_INVALID_SCHEMA/);
+  });
+
+  it('serialize/hydrate reject invalid scope objects', () => {
+    expect(() => serialize(null as unknown as ReturnType<typeof createStore>['root'])).toThrowError(
+      /NS_SER_INVALID_SCOPE/
+    );
+    expect(() => hydrate(null as unknown as ReturnType<typeof createStore>['root'], {})).toThrowError(
+      /NS_SER_INVALID_SCOPE/
+    );
+  });
+
+  it('hydrate rejects invalid mode values', () => {
+    const count = cell(1, { id: 'invalid_mode_count' });
+    const source = createStore().fork();
+    source.set(count, 2);
+    const payload = serialize(source);
+
+    const target = createStore().fork();
+    expect(() =>
+      hydrate(target, payload, { mode: 'unexpected' as 'safe' })
+    ).toThrowError(/NS_SER_INVALID_HYDRATE_MODE/);
   });
 });

@@ -25,7 +25,7 @@ function heavyCompute(base: number, width: number): number {
 
 export function runCoreUrgentBenchmark(config: BenchmarkConfig): BenchmarkResult {
   const scope = createStore().fork();
-  const source = cell(0, { id: 'bench_core_source' });
+  const source = cell(0);
   const derived = computed((ctx) => heavyCompute(ctx.get(source), config.derivedWidth));
 
   const start = performance.now();
@@ -46,7 +46,7 @@ export function runCoreUrgentBenchmark(config: BenchmarkConfig): BenchmarkResult
 export function runSchedulerBufferedBenchmark(config: BenchmarkConfig): BenchmarkResult {
   const scope = createStore().fork();
   const scheduler = createScheduler({ scope });
-  const source = cell(0, { id: 'bench_sched_source' });
+  const source = cell(0);
   const derived = computed((ctx) => heavyCompute(ctx.get(source), config.derivedWidth));
 
   const start = performance.now();
