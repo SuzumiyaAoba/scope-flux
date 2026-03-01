@@ -3,6 +3,9 @@
   "references": [
     { "path": "./packages/core" },
     { "path": "./packages/serializer" },
-    { "path": "./packages/react" }
+    { "path": "./packages/react" },
+    { "path": "./packages/scheduler" },
+    { "path": "./packages/benchmark" },
+    { "path": "./packages/inspect" }
   ]
 }

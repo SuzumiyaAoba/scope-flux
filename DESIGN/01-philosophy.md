@@ -2,7 +2,7 @@
 
 ## Core Design Statement
 
-NexState is designed as a deterministic, scope-isolated, React-friendly state runtime that prioritizes rendering correctness first, then transition-aware UX optimization.
+scope-flux is designed as a deterministic, scope-isolated, React-friendly state runtime that prioritizes rendering correctness first, then transition-aware UX optimization.
 
 ## Principles
 

@@ -48,8 +48,8 @@ export interface Effect<P, R> {
   meta: UnitMeta;
 }
 
-export type AnyCell = Cell<unknown>;
-export type AnyComputed = Computed<unknown>;
+export type AnyCell = Cell<any>;
+export type AnyComputed = Computed<any>;
 
 type AnyUnit = AnyCell | AnyComputed;
 
@@ -59,7 +59,7 @@ interface ComputedCacheEntry {
   value: unknown;
 }
 
-interface SetChange {
+export interface SetChange {
   kind: 'set';
   unit: AnyCell;
   prev: unknown;
@@ -67,21 +67,21 @@ interface SetChange {
   reason?: string;
 }
 
-interface EventChange {
+export interface EventChange {
   kind: 'event';
   unit: Event<unknown>;
   payload: unknown;
   reason?: string;
 }
 
-interface EffectChange {
+export interface EffectChange {
   kind: 'effect';
   unit: Effect<unknown, unknown>;
   payload: unknown;
   reason?: string;
 }
 
-type Change = SetChange | EventChange | EffectChange;
+export type Change = SetChange | EventChange | EffectChange;
 
 export interface CommitEvent {
   type: 'commit';

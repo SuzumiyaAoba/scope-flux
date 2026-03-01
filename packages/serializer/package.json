@@ -1,5 +1,5 @@
 {
-  "name": "@nexstate/serializer",
+  "name": "@scope-flux/serializer",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -9,6 +9,6 @@
     }
   },
   "dependencies": {
-    "@nexstate/core": "0.1.0"
+    "@scope-flux/core": "0.1.0"
   }
 }

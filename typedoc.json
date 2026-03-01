@@ -1,0 +1,18 @@
+{
+  "entryPoints": [
+    "packages/core/src/index.ts",
+    "packages/serializer/src/index.ts",
+    "packages/scheduler/src/index.ts",
+    "packages/react/src/index.tsx",
+    "packages/inspect/src/index.ts"
+  ],
+  "out": "docs/api",
+  "tsconfig": "tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  },
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": false,
+  "readme": "none"
+}

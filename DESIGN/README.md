@@ -1,6 +1,6 @@
 # DESIGN
 
-Detailed design documents for NexState.
+Detailed design documents for scope-flux.
 
 ## Document Map
 

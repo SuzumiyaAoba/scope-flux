@@ -1,5 +1,5 @@
 {
-  "name": "@nexstate/react",
+  "name": "@scope-flux/react",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -9,7 +9,8 @@
     }
   },
   "dependencies": {
-    "@nexstate/core": "0.1.0",
+    "@scope-flux/core": "0.1.0",
+    "@scope-flux/scheduler": "0.1.0",
     "react": "^19.0.0"
   }
 }

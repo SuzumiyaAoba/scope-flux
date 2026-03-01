@@ -1,5 +1,5 @@
 {
-  "name": "@nexstate/core",
+  "name": "@scope-flux/core",
   "version": "0.1.0",
   "type": "module",
   "exports": {

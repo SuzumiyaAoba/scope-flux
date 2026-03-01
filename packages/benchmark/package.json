@@ -1,0 +1,16 @@
+{
+  "name": "@scope-flux/benchmark",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "dependencies": {
+    "@scope-flux/core": "0.1.0",
+    "@scope-flux/scheduler": "0.1.0"
+  }
+}

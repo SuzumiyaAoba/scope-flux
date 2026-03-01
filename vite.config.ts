@@ -9,9 +9,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@nexstate/core': r('./packages/core/src/index.ts'),
-      '@nexstate/serializer': r('./packages/serializer/src/index.ts'),
-      '@nexstate/react': r('./packages/react/src/index.tsx'),
+      '@scope-flux/core': r('./packages/core/src/index.ts'),
+      '@scope-flux/serializer': r('./packages/serializer/src/index.ts'),
+      '@scope-flux/react': r('./packages/react/src/index.tsx'),
+      '@scope-flux/scheduler': r('./packages/scheduler/src/index.ts'),
+      '@scope-flux/inspect': r('./packages/inspect/src/index.ts'),
     },
   },
   test: {

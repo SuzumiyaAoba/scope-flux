@@ -1,0 +1,14 @@
+{
+  "name": "@scope-flux/scheduler",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "dependencies": {
+    "@scope-flux/core": "0.1.0"
+  }
+}

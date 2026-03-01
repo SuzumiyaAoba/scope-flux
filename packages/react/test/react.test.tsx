@@ -2,8 +2,16 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it } from 'vitest';
 
-import { cell, createStore, effect, event } from '@nexstate/core';
-import { StoreProvider, useAction, useEffectAction, useUnit } from '../src/index.js';
+import { cell, createStore, effect, event } from '@scope-flux/core';
+import {
+  StoreProvider,
+  useAction,
+  useBufferedUnit,
+  useCellAction,
+  useEffectAction,
+  useFlushBuffered,
+  useUnit,
+} from '../src/index.js';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -121,5 +129,55 @@ describe('react bridge', () => {
     });
     expect(result).toBe(7);
     expect(scope.get(count)).toBe(7);
+  });
+
+  it('useCellAction with transition updates buffered value before commit', () => {
+    const count = cell(0, { id: 'react_buffer_count' });
+    const scope = createStore().fork();
+
+    let setBuffered!: (next: number | ((prev: number) => number)) => void;
+    let flush!: () => void;
+    let bufferedSeen = -1;
+    let committedSeen = -1;
+
+    function App(): React.JSX.Element {
+      setBuffered = useCellAction(count, { priority: 'transition' });
+      flush = useFlushBuffered();
+      bufferedSeen = useBufferedUnit(count);
+      committedSeen = useUnit(count);
+      return (
+        <>
+          {bufferedSeen}:{committedSeen}
+        </>
+      );
+    }
+
+    let renderer: ReactTestRenderer;
+    act(() => {
+      renderer = create(
+        <StoreProvider scope={scope}>
+          <App />
+        </StoreProvider>
+      );
+    });
+
+    act(() => {
+      setBuffered(5);
+    });
+
+    expect(bufferedSeen).toBe(5);
+    expect(committedSeen).toBe(0);
+    expect(scope.get(count)).toBe(0);
+
+    act(() => {
+      flush();
+    });
+
+    expect(scope.get(count)).toBe(5);
+    expect(committedSeen).toBe(5);
+
+    act(() => {
+      renderer!.unmount();
+    });
   });
 });

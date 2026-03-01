@@ -1,4 +1,4 @@
-import { getRegisteredCellById, type AnyCell, type Scope } from '@nexstate/core';
+import { getRegisteredCellById, type AnyCell, type Scope } from '@scope-flux/core';
 
 export type JsonValue =
   | null

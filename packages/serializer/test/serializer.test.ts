@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cell, createStore } from '@nexstate/core';
+import { cell, createStore } from '@scope-flux/core';
 import { escapeJsonForHtml, hydrate, serialize } from '../src/index.js';
 
 describe('serializer', () => {
