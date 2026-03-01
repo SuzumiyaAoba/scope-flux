@@ -13,9 +13,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "lint:ids": "node scripts/check-duplicate-cell-ids.mjs",
     "bench": "npm run build && node packages/benchmark/dist/run.js",
     "verify:observability": "npm run build && node scripts/verify-observability-exclusion.mjs",
-    "docs:api": "typedoc --options typedoc.json"
+    "docs:api": "typedoc --options typedoc.json",
+    "docs:sync": "node scripts/sync-doc-assets.mjs",
+    "docs:dev": "npm --prefix docs-site run dev",
+    "docs:build": "npm --prefix docs-site run build",
+    "docs:preview": "npm --prefix docs-site run preview"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",
@@ -26,6 +31,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-test-renderer": "^19.0.0",
+    "rspress": "^1.47.1",
     "tsup": "^8.3.6",
     "typedoc": "^0.28.13",
     "typescript": "^5.8.2",
