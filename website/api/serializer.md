@@ -73,6 +73,55 @@ Escapes JSON for safe HTML script embedding (`<`, `\u2028`, `\u2029`).
 
 Always escape before embedding JSON into HTML to avoid accidental script breakouts.
 
+## Arguments Reference
+
+### `serialize(scope, opts?)`
+
+- `scope: Scope`
+  - Target scope. Values without `get/set` throw `NS_SER_INVALID_SCOPE`.
+- `opts?: SerializeOptions`
+  - `only?: AnyCell[]`
+    - Serializes only specified cells. Defaults to `scope._listKnownCells()`.
+  - `maxBytes?: number`
+    - UTF-8 byte limit. Exceeding throws `NS_SER_PAYLOAD_TOO_LARGE`.
+- Returns: `SerializedScope`
+
+### `hydrate(scope, payload, opts?)`
+
+- `scope: Scope`
+- `payload: unknown`
+  - Schema-validated payload. Invalid schema throws `NS_SER_INVALID_SCHEMA`.
+- `opts?: HydrateOptions`
+  - `mode?: 'safe' | 'force'` (default `'safe'`)
+- Returns: `void`
+  - `safe` does not overwrite already hydrated IDs.
+  - `force` overwrites already hydrated IDs.
+
+### `escapeJsonForHtml(json)`
+
+- `json: string`
+  - Pass raw JSON string (typically after `JSON.stringify`).
+- Returns: `string`
+  - Escaped output safe for HTML embedding (`<`, `\u2028`, `\u2029`).
+
+## Literal Union Values
+
+### `HydrateOptions.mode`
+
+- `'safe'`
+  - Default mode preventing duplicate application for same hydrated ID.
+- `'force'`
+  - Reapplies and overwrites even already hydrated IDs.
+
+### `SerializedScope.meta.source` (optional)
+
+- `'ssr'`
+  - Payload produced by server rendering.
+- `'persist'`
+  - Payload loaded from persistence storage.
+- `'test'`
+  - Payload intended for tests.
+
 ## Hydrate Modes
 
 - `safe` (default)
@@ -98,3 +147,26 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
 - Using `force` by default in interactive pages.
 - Serializing sensitive data without explicit filtering.
 - Assuming functions/classes/Date objects can be safely serialized as-is.
+
+## Example
+
+```ts
+import { cell, createStore } from '@scope-flux/core';
+import { serialize, hydrate, escapeJsonForHtml } from '@scope-flux/serializer';
+
+const count = cell(0, { id: 'count' });
+const serverScope = createStore().fork();
+serverScope.set(count, 42);
+
+const payload = serialize(serverScope);
+const safeInlineJson = escapeJsonForHtml(JSON.stringify(payload));
+void safeInlineJson;
+
+const clientScope = createStore().fork();
+hydrate(clientScope, payload, { mode: 'safe' });
+```
+
+## Notes
+
+- Only JSON-compatible values are serializable.
+- `safe` hydrate mode is recommended for most SSR/client hydration paths.

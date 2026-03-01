@@ -44,14 +44,18 @@ You can adopt only the packages you need. For example, non-React logic can start
 1. [Getting Started](/getting-started): install and first runnable example.
 2. [Tutorial: Build a Todo App](/tutorial-todo): end-to-end practical flow.
 3. [Architecture](/architecture): runtime design and tradeoffs.
-4. [API Reference](/api-reference): conceptual API guide for each package.
-5. [Typedoc](/api/index.html): exact signatures and exported symbols.
+4. API pages by package:
+   - [Core API](/api/core)
+   - [React API](/api/react)
+   - [Scheduler API](/api/scheduler)
+   - [Serializer API](/api/serializer)
+   - [Inspect API](/api/inspect)
+5. [Typedoc](/typedoc/index.html): exact signatures and exported symbols.
 
 ## Next
 
 - [Getting Started](/getting-started)
 - [Architecture](/architecture)
 - [Tutorial: Build a Todo App](/tutorial-todo)
-- [Implementation Plan](/plan)
 - [Migration Guides](/migration/)
-- [API Reference](/api/index.html)
+- [Typedoc](/typedoc/index.html)

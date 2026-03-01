@@ -94,6 +94,80 @@ Returns event dispatcher.
 ### `useEffectAction(effect, { priority? })`
 Returns async effect invoker.
 
+## Arguments Reference
+
+### `StoreProvider({ scope, scheduler?, children })`
+
+- `scope: Scope`
+  - Scope used by hooks for reads/writes.
+- `scheduler?: Scheduler`
+  - If omitted, `createScheduler({ scope })` is created automatically.
+- `children: ReactNode`
+  - Descendants can use the hooks.
+
+### `useUnit(unit, selector?, options?)`
+
+- `unit: Cell<T> | Computed<T>`
+  - Unit to read from.
+- `selector?: (value: T) => S`
+  - Picks a slice from the full value.
+- `options?: { equality?: (a: S, b: S) => boolean }`
+  - Equality check for selected value. Default is `Object.is`.
+
+### `useBufferedUnit(cell, selector?, options?)`
+
+- `cell: Cell<T>`
+  - Cell to read from buffered channel.
+- `selector?: (value: T) => S`
+- `options?: { equality?: (a: S, b: S) => boolean }`
+
+### `useCell(cell, options?)`
+
+- `cell: Cell<T>`
+  - Cell for combined read/write access.
+- `options?: { priority?: Priority; reason?: string }`
+  - Update options passed to setter (`useCellAction`).
+- Returns: `[value, setValue]`
+  - `value: T`
+  - `setValue: (next: T | ((prev: T) => T)) => void`
+
+### `useCellAction(cell, options?)`
+
+- `cell: Cell<T>`
+- `options?: { priority?: Priority; reason?: string }`
+  - `priority` default is `'urgent'`.
+  - `reason` is an optional diagnostics/trace label.
+- Returns: `(next: T | ((prev: T) => T)) => void`
+
+### `useFlushBuffered()`
+
+- No arguments.
+- Returns: `() => void`
+  - Commits scheduler buffered updates.
+
+### `useAction(event, options?)`
+
+- `event: Event<P>`
+- `options?: { priority?: Priority }`
+- Returns: `(payload: P) => void`
+
+### `useEffectAction(effect, options?)`
+
+- `effect: Effect<P, R>`
+- `options?: { priority?: Priority }`
+- Returns: `(payload: P) => Promise<R>`
+
+## Literal Union Values
+
+### `Priority` (`useCell` / `useCellAction` / `useAction` / `useEffectAction`)
+
+- `'urgent'`
+  - Immediate commit.
+- `'transition'`
+  - Staged update into scheduler buffer.
+- `'idle'`
+  - Low-priority staged update into scheduler buffer.
+
 ## Pattern: Input Fast, Commit Controlled
 
 ```tsx
@@ -144,3 +218,34 @@ Why this pattern is useful:
 - Expecting buffered writes to appear in committed state before `flushBuffered`.
 - Using broad selectors without `equality` for large objects.
 - Creating a new scope inside render functions (causes unstable state lifecycle).
+
+## Example
+
+```tsx
+import { cell, createStore } from '@scope-flux/core';
+import { StoreProvider, useCell } from '@scope-flux/react';
+
+const queryCell = cell('', { id: 'query' });
+const scope = createStore().fork();
+
+function SearchBox() {
+  const [query, setQuery] = useCell(queryCell, {
+    priority: 'transition',
+    reason: 'search.typing',
+  });
+  return <input value={query} onChange={(e) => setQuery(e.target.value)} />;
+}
+
+export function App() {
+  return (
+    <StoreProvider scope={scope}>
+      <SearchBox />
+    </StoreProvider>
+  );
+}
+```
+
+## Notes
+
+- `useCell` returns `[value, setter]` and is the closest API to React `useState`.
+- For expensive updates, combine `useCellAction` with `useFlushBuffered`.

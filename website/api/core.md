@@ -129,6 +129,157 @@ Example reasons:
 - `"filters.changed"`
 - `"hydrate.initial"`
 
+## Arguments Reference
+
+### `cell<T>(init, options?)`
+
+- `init: T`
+  - Initial value of the cell.
+- `options?: UnitMeta & { equal?: (a: T, b: T) => boolean }`
+  - `id?: string`
+    - Stable ID used by serializer/hydration/inspect.
+    - Throws `NS_CORE_DUPLICATE_STABLE_ID:<id>` when duplicated.
+  - `debugName?: string`
+    - Human-readable debug label.
+  - `serializable?: boolean`
+    - If `false`, excluded from serializer output.
+  - `equal?: (a, b) => boolean`
+    - Custom equality check. If it returns `true`, update is skipped.
+
+### `computed(deps, read, options?)`
+
+- `deps: readonly (Cell<any> | Computed<any>)[]`
+  - Dependency unit list. Values are passed to `read` in the same order.
+- `read: (...args) => T`
+  - Pure derivation function. It should not perform side effects.
+- `options?: { debugName?: string; cache?: 'scope' | 'none' }`
+  - `cache`
+    - `'scope'`: Returns cached value until dependency versions change (default).
+    - `'none'`: Recomputes on every read.
+
+### `event<P>(options?)`
+
+- `options?: { debugName?: string }`
+  - Sets a debug label.
+
+### `effect<P, R>(handler, options?)`
+
+- `handler: (payload: P, ctx: { scope: Scope }) => Promise<R> | R`
+  - Effect implementation. You can mutate state via `ctx.scope`.
+  - Throws `NS_CORE_MISSING_HANDLER` when missing/invalid.
+- `options?: { debugName?: string }`
+  - Sets a debug label.
+
+### `createStore(options?)`
+
+- `options?: { seed?: SeedInput }`
+  - `seed` injects initial cell values.
+  - `SeedInput` is `Map<Cell, unknown>` or `Array<[Cell, unknown]>`.
+
+### `scope.get(unit)`
+
+- `unit: Cell<T> | Computed<T>`
+  - Returns cell value or computed value.
+  - Throws `NS_CORE_INVALID_UPDATE` for invalid units.
+
+### `scope.set(unit, next, options?)`
+
+- `unit: Cell<T>`
+  - Target cell to update.
+- `next: T | ((prev: T) => T)`
+  - Direct value or updater function.
+- `options?: UpdateOptions`
+  - `priority?: Priority`
+  - `reason?: string`
+
+### `scope.on(event, handler)`
+
+- `event: Event<P>`
+  - Event to subscribe to.
+- `handler: (payload: P, scope: Scope, options: UpdateOptions) => void`
+  - Callback invoked on emit.
+- Returns: `Unsubscribe`
+  - Unsubscribe function.
+
+### `scope.emit(event, payload, options?)`
+
+- `event: Event<P>`
+- `payload: P`
+- `options?: UpdateOptions`
+
+### `scope.run(effect, payload, options?)`
+
+- `effect: Effect<P, R>`
+  - Effect to execute. Invalid value throws `NS_CORE_INVALID_UPDATE`.
+- `payload: P`
+- `options?: UpdateOptions`
+- Returns: `Promise<R>`
+
+### `scope.batch(fn)`
+
+- `fn: () => T`
+
+## Example
+
+```ts
+import { createStore, cell, computed } from '@scope-flux/core';
+
+const count = cell(0, { id: 'count' });
+const doubled = computed([count], (n) => n * 2);
+const scope = createStore().fork();
+
+scope.batch(() => {
+  scope.set(count, 1, { reason: 'counter.increment' });
+});
+
+console.log(scope.get(doubled)); // 2
+```
+
+## Notes
+
+- Prefer explicit `id` and `reason` values for debugging and serialization.
+- Keep `computed` functions pure and move side effects to `effect`.
+  - Groups updates into a single commit.
+
+### `scope.subscribe(listener)`
+
+- `listener: (evt: CommitEvent) => void`
+  - Called for each commit.
+- Returns: `Unsubscribe`
+
+### `store.fork(seed?)`
+
+- `seed?: SeedInput`
+  - Initial values for the new `Scope`.
+
+### `getRegisteredCellById(id)`
+
+- `id: string`
+  - Looks up a cell registered via `cell({ id })`.
+
+### `listRegisteredCells()`
+
+- No arguments.
+  - Returns all registered cells.
+
+## Literal Union Values
+
+### `Priority`
+
+- `'urgent'`
+  - Immediate commit.
+- `'transition'`
+  - Transition priority (buffered when going through scheduler).
+- `'idle'`
+  - Low-priority update (buffered when going through scheduler).
+
+### `computed.options.cache`
+
+- `'scope'`
+  - Uses dependency-version-based cache.
+- `'none'`
+  - Recomputes every time.
+
 ## Practical Example
 
 ```ts

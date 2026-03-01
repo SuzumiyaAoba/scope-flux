@@ -111,5 +111,5 @@ npm run lint:ids
 
 1. [Tutorial: Build a Todo App](/tutorial-todo)
 2. [Architecture](/architecture)
-3. [API Reference](/api-reference)
+3. [Core API](/api/core)
 4. [Migration Guides](/migration/)
