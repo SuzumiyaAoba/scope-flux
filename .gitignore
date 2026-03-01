@@ -4,6 +4,8 @@ node_modules/
 # build outputs
 packages/*/dist/
 *.tsbuildinfo
+doc_build/
+docs-site/doc_build/
 
 # test outputs
 coverage/

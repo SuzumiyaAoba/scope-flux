@@ -95,6 +95,22 @@ describe('serializer', () => {
     expect(() => serialize(scope, { maxBytes: 20 })).toThrowError(/NS_SER_PAYLOAD_TOO_LARGE/);
   });
 
+  it('serialize works when Buffer global is unavailable', () => {
+    const count = cell(1, { id: 'no_buffer_count' });
+    const scope = createStore().fork();
+    scope.set(count, 2);
+
+    const originalBuffer = (globalThis as { Buffer?: unknown }).Buffer;
+    (globalThis as { Buffer?: unknown }).Buffer = undefined;
+
+    try {
+      const payload = serialize(scope);
+      expect(payload.values.no_buffer_count).toBe(2);
+    } finally {
+      (globalThis as { Buffer?: unknown }).Buffer = originalBuffer;
+    }
+  });
+
   it('escapeJsonForHtml escapes dangerous chars', () => {
     const escaped = escapeJsonForHtml('{"x":"<script>"}');
     expect(escaped.includes('\\u003cscript>')).toBe(true);

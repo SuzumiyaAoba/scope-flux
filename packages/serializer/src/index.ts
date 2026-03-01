@@ -54,6 +54,18 @@ function assertScope(scope: Scope): void {
   }
 }
 
+function utf8ByteLength(value: string): number {
+  if (typeof TextEncoder !== 'undefined') {
+    return new TextEncoder().encode(value).byteLength;
+  }
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.byteLength(value, 'utf8');
+  }
+
+  // Fallback for very old runtimes.
+  return unescape(encodeURIComponent(value)).length;
+}
+
 export function serialize(scope: Scope, opts: SerializeOptions = {}): SerializedScope {
   assertScope(scope);
 
@@ -92,7 +104,7 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
   };
 
   const encoded = JSON.stringify(payload);
-  const bytes = Buffer.byteLength(encoded, 'utf8');
+  const bytes = utf8ByteLength(encoded);
   if (bytes > maxBytes) {
     throw new Error('NS_SER_PAYLOAD_TOO_LARGE');
   }
