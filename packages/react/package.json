@@ -1,0 +1,15 @@
+{
+  "name": "@nexstate/react",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "dependencies": {
+    "@nexstate/core": "0.1.0",
+    "react": "^19.0.0"
+  }
+}
