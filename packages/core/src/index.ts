@@ -12,10 +12,6 @@ export interface UpdateOptions {
   reason?: string;
 }
 
-export interface ReadContext {
-  get<T>(unit: Cell<T> | Computed<T>): T;
-}
-
 export interface EffectContext {
   scope: Scope;
 }
@@ -28,13 +24,23 @@ export interface Cell<T> {
   init: T;
   meta: UnitMeta;
   equal?: (a: T, b: T) => boolean;
+  readonly __type?: T;
 }
 
-export interface Computed<T> {
+type DepUnit = Cell<any> | Computed<any, any>;
+type UnitValue<U> = U extends { readonly __type?: infer V } ? V : never;
+export type ComputedDeps = readonly DepUnit[];
+export type ComputedArgs<D extends ComputedDeps> = {
+  [K in keyof D]: UnitValue<D[K]>;
+};
+
+export interface Computed<T, D extends ComputedDeps = ComputedDeps> {
   kind: 'computed';
-  read: (ctx: ReadContext) => T;
+  deps: D;
+  read: (...args: ComputedArgs<D>) => T;
   cache: 'scope' | 'none';
   meta: UnitMeta;
+  readonly __type?: T;
 }
 
 export interface Event<P> {
@@ -49,7 +55,7 @@ export interface Effect<P, R> {
 }
 
 export type AnyCell = Cell<any>;
-export type AnyComputed = Computed<any>;
+export type AnyComputed = Computed<any, ComputedDeps>;
 
 type AnyUnit = AnyCell | AnyComputed;
 
@@ -124,12 +130,14 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
   return unit;
 }
 
-export function computed<T>(
-  read: (ctx: ReadContext) => T,
+export function computed<const D extends ComputedDeps, T>(
+  deps: D,
+  read: (...args: ComputedArgs<D>) => T,
   options: { debugName?: string; cache?: 'scope' | 'none' } = {}
-): Computed<T> {
+): Computed<T, D> {
   return {
     kind: 'computed',
+    deps,
     read,
     cache: options.cache ?? 'scope',
     meta: {
@@ -307,17 +315,16 @@ export class Scope {
     }
 
     const deps = new Map<AnyUnit, number>();
+    const args: unknown[] = [];
     this._computedCache.set(u, { evaluating: true, deps: new Map(), value: undefined });
 
-    const ctx: ReadContext = {
-      get: <V>(depUnit: Cell<V> | Computed<V>): V => {
-        const depValue = this.get(depUnit);
-        deps.set(depUnit as AnyUnit, this._getUnitVersion(depUnit as AnyUnit));
-        return depValue;
-      },
-    };
+    for (const depUnit of unit.deps as ComputedDeps) {
+      const depValue = this.get(depUnit);
+      deps.set(depUnit as AnyUnit, this._getUnitVersion(depUnit as AnyUnit));
+      args.push(depValue);
+    }
 
-    const nextValue = unit.read(ctx);
+    const nextValue = unit.read(...(args as any[]));
     const prevValue = cached?.value as T | undefined;
 
     this._computedCache.set(u, {

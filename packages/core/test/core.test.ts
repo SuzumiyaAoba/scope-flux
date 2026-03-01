@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { cell, computed, createStore, event } from '../src/index.js';
+import type { Computed } from '../src/index.js';
 
 describe('core', () => {
   it('computed caches until dependency changes', () => {
     const n = cell(1, { id: 'n' });
     let runs = 0;
-    const doubled = computed((ctx) => {
+    const doubled = computed([n], (value) => {
       runs += 1;
-      return ctx.get(n) * 2;
+      return value * 2;
     });
 
     const scope = createStore().fork();
@@ -25,11 +26,10 @@ describe('core', () => {
   it('detects computed cycles', () => {
     const scope = createStore().fork();
 
-    let a: ReturnType<typeof computed<number>>;
-    let b: ReturnType<typeof computed<number>>;
-
-    a = computed((ctx) => ctx.get(b) + 1);
-    b = computed((ctx) => ctx.get(a) + 1);
+    const a = computed([] as const, () => 0) as unknown as Computed<number>;
+    const b = computed([a], (av) => av + 1);
+    (a as unknown as { deps: readonly [typeof b]; read: (bv: number) => number }).deps = [b];
+    (a as unknown as { deps: readonly [typeof b]; read: (bv: number) => number }).read = (bv: number) => bv + 1;
 
     expect(() => scope.get(a)).toThrowError(/NS_CORE_CYCLE_DETECTED/);
   });

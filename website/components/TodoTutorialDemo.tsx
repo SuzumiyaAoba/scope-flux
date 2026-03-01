@@ -26,9 +26,7 @@ const todosCell = getOrCreateCell<Todo[]>(CELL_ID_TODOS, []);
 const draftCell = getOrCreateCell<string>(CELL_ID_DRAFT, '');
 const filterCell = getOrCreateCell<'all' | 'active' | 'done'>(CELL_ID_FILTER, 'all');
 
-const visibleTodos = computed((ctx) => {
-  const todos = ctx.get(todosCell);
-  const filter = ctx.get(filterCell);
+const visibleTodos = computed([todosCell, filterCell], (todos, filter) => {
   if (filter === 'active') return todos.filter((todo) => !todo.done);
   if (filter === 'done') return todos.filter((todo) => todo.done);
   return todos;

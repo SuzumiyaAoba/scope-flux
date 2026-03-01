@@ -65,10 +65,7 @@ export const todosCell = cell<Todo[]>([], { id: 'todo_todos' });
 export const draftCell = cell('', { id: 'todo_draft' });
 export const filterCell = cell<'all' | 'active' | 'done'>('all', { id: 'todo_filter' });
 
-export const visibleTodos = computed((ctx) => {
-  const todos = ctx.get(todosCell);
-  const filter = ctx.get(filterCell);
-
+export const visibleTodos = computed([todosCell, filterCell], (todos, filter) => {
   if (filter === 'active') return todos.filter((t) => !t.done);
   if (filter === 'done') return todos.filter((t) => t.done);
   return todos;
@@ -309,9 +306,7 @@ export const todosCell = cell<Todo[]>([], { id: 'todo_todos' });
 export const draftCell = cell('', { id: 'todo_draft' });
 export const filterCell = cell<'all' | 'active' | 'done'>('all', { id: 'todo_filter' });
 
-export const visibleTodos = computed((ctx) => {
-  const todos = ctx.get(todosCell);
-  const filter = ctx.get(filterCell);
+export const visibleTodos = computed([todosCell, filterCell], (todos, filter) => {
   if (filter === 'active') return todos.filter((t) => !t.done);
   if (filter === 'done') return todos.filter((t) => t.done);
   return todos;
