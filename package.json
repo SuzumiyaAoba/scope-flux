@@ -6,12 +6,14 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc -b",
+    "build": "npm run clean && npm run build:packages",
+    "build:packages": "npm -w @scope-flux/core run build && npm -w @scope-flux/scheduler run build && npm -w @scope-flux/serializer run build && npm -w @scope-flux/inspect run build && npm -w @scope-flux/react run build && npm -w @scope-flux/benchmark run build",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
     "clean": "rm -rf packages/*/dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "bench": "npm run build && node packages/benchmark/dist/src/run.js",
+    "bench": "npm run build && node packages/benchmark/dist/run.js",
     "verify:observability": "npm run build && node scripts/verify-observability-exclusion.mjs",
     "docs:api": "typedoc --options typedoc.json"
   },
@@ -23,6 +25,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-test-renderer": "^19.0.0",
+    "tsup": "^8.3.6",
     "typedoc": "^0.28.13",
     "typescript": "^5.8.2",
     "vite": "^7.0.0",

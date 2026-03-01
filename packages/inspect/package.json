@@ -5,9 +5,16 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
-      "default": "./dist/src/index.js"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./redux-devtools": {
+      "types": "./dist/redux-devtools.d.ts",
+      "default": "./dist/redux-devtools.js"
     }
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts"
   },
   "dependencies": {
     "@scope-flux/core": "0.1.0"

@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises';
 
 const targets = [
-  'packages/core/dist/src/index.js',
-  'packages/react/dist/src/index.js',
-  'packages/scheduler/dist/src/index.js',
-  'packages/serializer/dist/src/index.js',
+  'packages/core/dist/index.js',
+  'packages/react/dist/index.js',
+  'packages/scheduler/dist/index.js',
+  'packages/serializer/dist/index.js',
 ];
 
 const forbidden = ['@scope-flux/inspect', 'packages/inspect'];
