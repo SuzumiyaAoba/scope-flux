@@ -1,9 +1,23 @@
 import { defineConfig } from 'rspress/config';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import mermaid from './plugins/mermaid';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: '../website',
   ssg: false,
+  builderConfig: {
+    resolve: {
+      alias: {
+        '@rspress/runtime': resolve(
+          __dirname,
+          './runtime/rspress-runtime-wrapper.tsx',
+        ),
+      },
+    },
+  },
   plugins: [
     mermaid({
       mermaidConfig: {
