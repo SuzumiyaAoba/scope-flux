@@ -1,4 +1,4 @@
-import { getRegisteredCellById, type AnyCell, type Scope } from '@suzumiyaaoba/scope-flux-core';
+import { getRegisteredCellById, isObject, type AnyCell, type Scope } from '@suzumiyaaoba/scope-flux-core';
 
 export type JsonValue =
   | null
@@ -27,10 +27,6 @@ export interface HydrateOptions {
   mode?: 'safe' | 'force';
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
 function isJsonValue(value: unknown): value is JsonValue {
   if (value === null) {
     return true;
@@ -42,7 +38,7 @@ function isJsonValue(value: unknown): value is JsonValue {
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
   }
-  if (isPlainObject(value)) {
+  if (isObject(value)) {
     return Object.values(value).every(isJsonValue);
   }
   return false;
@@ -115,7 +111,7 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
 }
 
 function validatePayload(payload: unknown): asserts payload is SerializedScope {
-  if (!isPlainObject(payload)) {
+  if (!isObject(payload)) {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 
@@ -127,7 +123,7 @@ function validatePayload(payload: unknown): asserts payload is SerializedScope {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 
-  if (!isPlainObject(payload.values)) {
+  if (!isObject(payload.values)) {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 

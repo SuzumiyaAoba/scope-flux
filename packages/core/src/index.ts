@@ -97,9 +97,16 @@ export interface CommitEvent {
 
 export type SeedInput = Map<AnyCell, unknown> | Array<readonly [AnyCell, unknown]>;
 
+export const ErrorCodes = {
+  DUPLICATE_STABLE_ID: 'NS_CORE_DUPLICATE_STABLE_ID',
+  INVALID_UPDATE: 'NS_CORE_INVALID_UPDATE',
+  CYCLE_DETECTED: 'NS_CORE_CYCLE_DETECTED',
+  MISSING_HANDLER: 'NS_CORE_MISSING_HANDLER',
+} as const;
+
 const registeredCellsById = new Map<string, AnyCell>();
 
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -122,7 +129,7 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
   if (unit.meta.id) {
     const existing = registeredCellsById.get(unit.meta.id);
     if (existing && existing !== unit) {
-      throw new Error(`NS_CORE_DUPLICATE_STABLE_ID:${unit.meta.id}`);
+      throw new Error(`${ErrorCodes.DUPLICATE_STABLE_ID}:${unit.meta.id}`);
     }
     registeredCellsById.set(unit.meta.id, unit as AnyCell);
   }
@@ -160,7 +167,7 @@ export function effect<P, R>(
   options: { debugName?: string } = {}
 ): Effect<P, R> {
   if (typeof handler !== 'function') {
-    throw new Error('NS_CORE_MISSING_HANDLER');
+    throw new Error(ErrorCodes.MISSING_HANDLER);
   }
 
   return {
@@ -199,7 +206,7 @@ export class Scope {
   private _applySeed(seed: SeedInput): void {
     const applyCellValue = (unit: AnyCell, value: unknown) => {
       if (!unit || unit.kind !== 'cell') {
-        throw new Error('NS_CORE_INVALID_UPDATE');
+        throw new Error(ErrorCodes.INVALID_UPDATE);
       }
       this._knownCells.add(unit);
       this._cellValues.set(unit, value);
@@ -220,7 +227,7 @@ export class Scope {
       return;
     }
 
-    throw new Error('NS_CORE_INVALID_UPDATE');
+    throw new Error(ErrorCodes.INVALID_UPDATE);
   }
 
   private static readonly _priorityRank: Record<Priority, number> = {
@@ -344,7 +351,7 @@ export class Scope {
     const u = unit as AnyComputed;
     const cached = this._computedCache.get(u);
     if (cached?.evaluating) {
-      throw new Error('NS_CORE_CYCLE_DETECTED');
+      throw new Error(ErrorCodes.CYCLE_DETECTED);
     }
 
     if (cached && unit.cache !== 'none') {
@@ -403,7 +410,7 @@ export class Scope {
 
   public get<T>(unit: Cell<T> | Computed<T>): T {
     if (!unit || !isObject(unit)) {
-      throw new Error('NS_CORE_INVALID_UPDATE');
+      throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
     if (unit.kind === 'cell') {
@@ -419,12 +426,12 @@ export class Scope {
       return this._getComputed(unit);
     }
 
-    throw new Error('NS_CORE_INVALID_UPDATE');
+    throw new Error(ErrorCodes.INVALID_UPDATE);
   }
 
   public set<T>(unit: Cell<T>, next: T | ((prev: T) => T), options: UpdateOptions = {}): void {
     if (!unit || unit.kind !== 'cell') {
-      throw new Error('NS_CORE_INVALID_UPDATE');
+      throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
     const resolved = typeof next === 'function' ? (next as (prev: T) => T)(this.get(unit)) : next;
@@ -480,7 +487,7 @@ export class Scope {
 
   public async run<P, R>(unitEffect: Effect<P, R>, payload: P, options: UpdateOptions = {}): Promise<R> {
     if (!unitEffect || unitEffect.kind !== 'effect') {
-      throw new Error('NS_CORE_INVALID_UPDATE');
+      throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
     this._pushChange(

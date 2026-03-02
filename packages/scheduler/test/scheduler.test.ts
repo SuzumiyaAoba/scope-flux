@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler } from '../src/index.js';
@@ -84,5 +84,47 @@ describe('scheduler', () => {
     scope.set(count, 9);
 
     expect(scheduler.getCommitted<number>(count)).toBe(9);
+  });
+
+  it('urgent set clears stale buffered entry for the same cell', () => {
+    const count = cell(0, { id: 'scheduler_urgent_clears_buffer' });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope });
+    const listener = vi.fn();
+    scheduler.subscribeBuffered(listener);
+
+    scheduler.set<number>(count, 10, { priority: 'transition' });
+    expect(scheduler.getBuffered<number>(count)).toBe(10);
+    expect(scheduler.getPendingBufferedUpdates()).toHaveLength(1);
+
+    scheduler.set<number>(count, 20, { priority: 'urgent' });
+    expect(scope.get(count)).toBe(20);
+    expect(scheduler.getPendingBufferedUpdates()).toHaveLength(0);
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it('flushBuffered restores pending updates when batch throws', () => {
+    const bad = cell(0, { id: 'scheduler_flush_error_cell', equal: () => false });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope });
+
+    scheduler.set<number>(bad, 5, { priority: 'transition' });
+
+    scope.on(
+      { kind: 'event', meta: {} } as any,
+      () => {}
+    );
+
+    const origBatch = scope.batch.bind(scope);
+    scope.batch = <T>(fn: () => T): T => {
+      return origBatch(() => {
+        fn();
+        throw new Error('batch_boom');
+      });
+    };
+
+    expect(() => scheduler.flushBuffered()).toThrowError('batch_boom');
+    expect(scheduler.getPendingBufferedUpdates()).toHaveLength(1);
+    expect(scheduler.getPendingBufferedUpdates()[0].value).toBe(5);
   });
 });

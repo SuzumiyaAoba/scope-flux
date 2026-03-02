@@ -323,4 +323,45 @@ describe('core', () => {
     expect(() => createStore({ seed: 123 as any })).toThrowError(/NS_CORE_INVALID_UPDATE/);
     expect(() => store.fork(123 as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);
   });
+
+  it('batch rollback deletes cell state when cell was first set inside the batch', () => {
+    const fresh = cell(0, { id: 'batch_rollback_fresh_cell' });
+    const scope = createStore().fork();
+
+    expect(() => {
+      scope.batch(() => {
+        scope.set(fresh, 99);
+        throw new Error('rollback_fresh');
+      });
+    }).toThrowError('rollback_fresh');
+
+    expect(scope.get(fresh)).toBe(0);
+  });
+
+  it('computed restores cached value and version when re-evaluation throws', () => {
+    const trigger = cell(0, { id: 'computed_restore_cache_trigger' });
+    const scope = createStore().fork();
+    let shouldThrow = false;
+    const derived = computed([trigger], (v) => {
+      if (shouldThrow) {
+        throw new Error('recompute_fail');
+      }
+      return v * 10;
+    });
+
+    expect(scope.get(derived)).toBe(0);
+
+    scope.set(trigger, 1);
+    shouldThrow = true;
+
+    expect(() => scope.get(derived)).toThrowError('recompute_fail');
+
+    shouldThrow = false;
+    expect(scope.get(derived)).toBe(10);
+  });
+
+  it('get rejects unit with unknown kind', () => {
+    const scope = createStore().fork();
+    expect(() => scope.get({ kind: 'unknown', meta: {} } as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);
+  });
 });

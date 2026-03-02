@@ -13,7 +13,6 @@ export interface SchedulerOptions {
 
 export class Scheduler {
   private readonly scope: Scope;
-  private readonly bufferedValues = new Map<AnyCell, unknown>();
   private readonly pendingByCell = new Map<AnyCell, PendingBufferedUpdate>();
   private readonly bufferedSubscribers = new Set<() => void>();
 
@@ -27,8 +26,9 @@ export class Scheduler {
 
   public getBuffered<T>(cell: Cell<T>): T {
     const anyCell = cell as AnyCell;
-    if (this.bufferedValues.has(anyCell)) {
-      return this.bufferedValues.get(anyCell) as T;
+    const pending = this.pendingByCell.get(anyCell);
+    if (pending) {
+      return pending.value as T;
     }
     return this.scope.get(cell);
   }
@@ -45,7 +45,6 @@ export class Scheduler {
       this.scope.set(cell, next, options);
       if (this.pendingByCell.has(anyCell)) {
         this.pendingByCell.delete(anyCell);
-        this.bufferedValues.delete(anyCell);
         this._notifyBuffered();
       }
       return;
@@ -54,7 +53,6 @@ export class Scheduler {
     const prev = this.getBuffered<T>(cell);
     const value = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
 
-    this.bufferedValues.set(anyCell, value);
     this.pendingByCell.set(anyCell, {
       cell: anyCell,
       value,
@@ -88,13 +86,11 @@ export class Scheduler {
       throw error;
     }
 
-    this.bufferedValues.clear();
     this._notifyBuffered();
   }
 
   public dropBuffered(): void {
     this.pendingByCell.clear();
-    this.bufferedValues.clear();
     this._notifyBuffered();
   }
 

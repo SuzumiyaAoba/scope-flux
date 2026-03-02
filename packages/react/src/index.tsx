@@ -224,7 +224,7 @@ export function useFlushBuffered(): () => void {
 
 export function useAction<P>(
   unitEvent: Event<P>,
-  options?: { priority?: Priority }
+  options?: { priority?: Priority; reason?: string }
 ): (payload: P) => void {
   const scope = useScope();
   const priority = options?.priority;
@@ -234,15 +234,16 @@ export function useAction<P>(
       (payload: P) => {
         scope.emit(unitEvent, payload, {
           priority,
+          reason: options?.reason,
         });
       },
-    [scope, unitEvent, priority]
+    [scope, unitEvent, priority, options?.reason]
   );
 }
 
 export function useEffectAction<P, R>(
   unitEffect: Effect<P, R>,
-  options?: { priority?: Priority }
+  options?: { priority?: Priority; reason?: string }
 ): (payload: P) => Promise<R> {
   const scope = useScope();
   const priority = options?.priority;
@@ -252,8 +253,9 @@ export function useEffectAction<P, R>(
       async (payload: P): Promise<R> => {
         return scope.run(unitEffect, payload, {
           priority,
+          reason: options?.reason,
         });
       },
-    [scope, unitEffect, priority]
+    [scope, unitEffect, priority, options?.reason]
   );
 }
