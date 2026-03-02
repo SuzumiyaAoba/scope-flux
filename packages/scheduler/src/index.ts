@@ -1,4 +1,4 @@
-import type { AnyCell, Priority, Scope, UpdateOptions } from '@scope-flux/core';
+import type { AnyCell, Cell, Priority, Scope, UpdateOptions } from '@suzumiyaaoba/scope-flux-core';
 
 export interface PendingBufferedUpdate {
   cell: AnyCell;
@@ -21,35 +21,42 @@ export class Scheduler {
     this.scope = options.scope;
   }
 
-  public getCommitted<T>(cell: AnyCell): T {
-    return this.scope.get(cell) as T;
+  public getCommitted<T>(cell: Cell<T>): T {
+    return this.scope.get(cell);
   }
 
-  public getBuffered<T>(cell: AnyCell): T {
-    if (this.bufferedValues.has(cell)) {
-      return this.bufferedValues.get(cell) as T;
+  public getBuffered<T>(cell: Cell<T>): T {
+    const anyCell = cell as AnyCell;
+    if (this.bufferedValues.has(anyCell)) {
+      return this.bufferedValues.get(anyCell) as T;
     }
-    return this.scope.get(cell) as T;
+    return this.scope.get(cell);
   }
 
   public set<T>(
-    cell: AnyCell,
+    cell: Cell<T>,
     next: T | ((prev: T) => T),
     options: UpdateOptions = {}
   ): void {
+    const anyCell = cell as AnyCell;
     const priority = options.priority ?? 'urgent';
 
     if (priority === 'urgent') {
-      this.scope.set(cell as any, next as any, options);
+      this.scope.set(cell, next, options);
+      if (this.pendingByCell.has(anyCell)) {
+        this.pendingByCell.delete(anyCell);
+        this.bufferedValues.delete(anyCell);
+        this._notifyBuffered();
+      }
       return;
     }
 
     const prev = this.getBuffered<T>(cell);
     const value = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
 
-    this.bufferedValues.set(cell, value);
-    this.pendingByCell.set(cell, {
-      cell,
+    this.bufferedValues.set(anyCell, value);
+    this.pendingByCell.set(anyCell, {
+      cell: anyCell,
       value,
       priority,
       reason: options.reason,
@@ -65,14 +72,21 @@ export class Scheduler {
     const updates = [...this.pendingByCell.values()];
     this.pendingByCell.clear();
 
-    this.scope.batch(() => {
+    try {
+      this.scope.batch(() => {
+        for (const update of updates) {
+          this.scope.set(update.cell as Cell<unknown>, update.value, {
+            priority: 'urgent',
+            reason: options.reason ?? update.reason ?? 'scheduler.flushBuffered',
+          });
+        }
+      });
+    } catch (error) {
       for (const update of updates) {
-        this.scope.set(update.cell as any, update.value as any, {
-          priority: 'urgent',
-          reason: options.reason ?? update.reason ?? 'scheduler.flushBuffered',
-        });
+        this.pendingByCell.set(update.cell, update);
       }
-    });
+      throw error;
+    }
 
     this.bufferedValues.clear();
     this._notifyBuffered();
@@ -92,7 +106,8 @@ export class Scheduler {
   }
 
   private _notifyBuffered(): void {
-    for (const listener of this.bufferedSubscribers) {
+    const listeners = [...this.bufferedSubscribers];
+    for (const listener of listeners) {
       listener();
     }
   }

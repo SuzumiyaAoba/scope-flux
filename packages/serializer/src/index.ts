@@ -1,4 +1,4 @@
-import { getRegisteredCellById, type AnyCell, type Scope } from '@scope-flux/core';
+import { getRegisteredCellById, type AnyCell, type Scope } from '@suzumiyaaoba/scope-flux-core';
 
 export type JsonValue =
   | null
@@ -37,7 +37,7 @@ function isJsonValue(value: unknown): value is JsonValue {
   }
   const t = typeof value;
   if (t === 'string' || t === 'number' || t === 'boolean') {
-    return t === 'number' ? !Number.isNaN(value) : true;
+    return t === 'number' ? Number.isFinite(value) : true;
   }
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
@@ -54,9 +54,11 @@ function assertScope(scope: Scope): void {
   }
 }
 
+const _textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : undefined;
+
 function utf8ByteLength(value: string): number {
-  if (typeof TextEncoder !== 'undefined') {
-    return new TextEncoder().encode(value).byteLength;
+  if (_textEncoder) {
+    return _textEncoder.encode(value).byteLength;
   }
   if (typeof Buffer !== 'undefined') {
     return Buffer.byteLength(value, 'utf8');
@@ -117,7 +119,7 @@ function validatePayload(payload: unknown): asserts payload is SerializedScope {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 
-  if (typeof payload.version !== 'number') {
+  if (typeof payload.version !== 'number' || payload.version !== 1) {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 
@@ -163,6 +165,8 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
 export function escapeJsonForHtml(json: string): string {
   return json
     .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 }

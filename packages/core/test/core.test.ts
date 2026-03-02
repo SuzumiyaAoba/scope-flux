@@ -255,7 +255,7 @@ describe('core', () => {
     expect(late).toHaveBeenCalledTimes(1);
   });
 
-  it('batch flushes committed changes even when callback throws', () => {
+  it('batch rolls back changes when callback throws', () => {
     const count = cell(0, { id: 'batch_throw_count' });
     const scope = createStore().fork();
     const listener = vi.fn();
@@ -268,10 +268,8 @@ describe('core', () => {
       });
     }).toThrowError('batch_fail');
 
-    expect(scope.get(count)).toBe(1);
-    expect(listener).toHaveBeenCalledTimes(1);
-    const commit = listener.mock.calls[0][0] as { changes: Array<{ kind: string }> };
-    expect(commit.changes.filter((x) => x.kind === 'set')).toHaveLength(1);
+    expect(scope.get(count)).toBe(0);
+    expect(listener).toHaveBeenCalledTimes(0);
   });
 
   it('custom equal controls whether update emits commit', () => {
@@ -320,7 +318,7 @@ describe('core', () => {
 
     expect(seededRoot.get(count)).toBe(10);
     expect(seededFork.get(count)).toBe(20);
-    expect(plainFork.get(count)).toBe(0);
+    expect(plainFork.get(count)).toBe(10);
 
     expect(() => createStore({ seed: 123 as any })).toThrowError(/NS_CORE_INVALID_UPDATE/);
     expect(() => store.fork(123 as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);

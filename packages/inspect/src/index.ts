@@ -1,4 +1,4 @@
-import type { AnyCell, Change, CommitEvent, Scope, Unsubscribe } from '@scope-flux/core';
+import type { AnyCell, Change, CommitEvent, Scope, Unsubscribe } from '@suzumiyaaoba/scope-flux-core';
 
 export interface TraceEvent {
   id: string;
@@ -42,22 +42,21 @@ export interface ConnectDevtoolsOptions {
   trace?: boolean;
 }
 
-let traceSeq = 0;
-
-function nextId(prefix: string): string {
-  traceSeq += 1;
-  return `${prefix}_${traceSeq}`;
-}
-
 function getUnitMeta(change: Change): { unitId?: string; unitName?: string } {
-  const unit = change.unit as { meta?: { id?: string; debugName?: string } };
+  const { meta } = change.unit;
   return {
-    unitId: unit.meta?.id,
-    unitName: unit.meta?.debugName,
+    unitId: meta?.id,
+    unitName: meta?.debugName,
   };
 }
 
-function toRecord(scopeId: string, priority: CommitEvent['priority'], parentId: string | undefined, change: Change): InspectRecord {
+function toRecord(
+  scopeId: string,
+  priority: CommitEvent['priority'],
+  parentId: string | undefined,
+  change: Change,
+  nextId: (prefix: string) => string,
+): InspectRecord {
   const meta = getUnitMeta(change);
 
   const trace: TraceEvent = {
@@ -96,8 +95,9 @@ function snapshotScope(scope: Scope): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const known = scope._listKnownCells() as AnyCell[];
 
-  for (const cell of known) {
-    const key = cell.meta.id ?? cell.meta.debugName ?? 'anonymous_cell';
+  for (let i = 0; i < known.length; i++) {
+    const cell = known[i];
+    const key = cell.meta.id ?? cell.meta.debugName ?? `anonymous_${i}`;
     out[key] = scope.get(cell);
   }
 
@@ -112,14 +112,17 @@ export function inspect(options: InspectOptions): Unsubscribe {
     };
   }
 
+  let seq = 0;
+  const nextId = (prefix: string) => `${prefix}_${++seq}`;
+
   return options.scope.subscribe((commit) => {
     const parentId = options.trace ? nextId('commit') : undefined;
 
     for (const change of commit.changes) {
-      if (Math.random() > sampleRate) {
+      if (Math.random() >= sampleRate) {
         continue;
       }
-      options.onRecord(toRecord(options.scope.id, commit.priority, parentId, change));
+      options.onRecord(toRecord(options.scope.id, commit.priority, parentId, change, nextId));
     }
   });
 }

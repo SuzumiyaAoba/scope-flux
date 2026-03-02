@@ -5,8 +5,8 @@ import {
   type Event,
   type Priority,
   type Scope,
-} from '@scope-flux/core';
-import { createScheduler, type Scheduler } from '@scope-flux/scheduler';
+} from '@suzumiyaaoba/scope-flux-core';
+import { createScheduler, type Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 import React, {
   createContext,
   type ReactNode,
@@ -62,29 +62,34 @@ function useExternalSelected<T>(options: {
   subscribe: (onStoreChange: () => void) => () => void;
   equality?: (a: T, b: T) => boolean;
 }): T {
+  const { getValue, subscribe: subscribeFn } = options;
   const equality = options.equality ?? Object.is;
-  const snapshotRef = useRef<T>(options.getValue());
+  const snapshotRef = useRef<T>(getValue());
+  const getValueRef = useRef(getValue);
+  getValueRef.current = getValue;
+  const equalityRef = useRef(equality);
+  equalityRef.current = equality;
 
   const getSnapshot = useCallback(() => {
-    const next = options.getValue();
-    if (equality(snapshotRef.current, next)) {
+    const next = getValueRef.current();
+    if (equalityRef.current(snapshotRef.current, next)) {
       return snapshotRef.current;
     }
     snapshotRef.current = next;
     return next;
-  }, [options, equality]);
+  }, []);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      return options.subscribe(() => {
-        const next = options.getValue();
-        if (!equality(snapshotRef.current, next)) {
+      return subscribeFn(() => {
+        const next = getValueRef.current();
+        if (!equalityRef.current(snapshotRef.current, next)) {
           snapshotRef.current = next;
           onStoreChange();
         }
       });
     },
-    [options, equality]
+    [subscribeFn]
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -102,15 +107,22 @@ export function useUnit<T, S>(
   options?: { equality?: (a: S, b: S) => boolean }
 ): T | S {
   const scope = useScope();
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
 
   const getSelected = useCallback((): T | S => {
     const value = scope.get(unit);
-    return selector ? selector(value) : value;
-  }, [scope, unit, selector]);
+    return selectorRef.current ? selectorRef.current(value) : value;
+  }, [scope, unit]);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => scope.subscribe(onStoreChange),
+    [scope]
+  );
 
   return useExternalSelected({
     getValue: getSelected,
-    subscribe: (onStoreChange) => scope.subscribe(onStoreChange),
+    subscribe,
     equality: options?.equality as ((a: T | S, b: T | S) => boolean) | undefined,
   });
 }
@@ -128,15 +140,16 @@ export function useBufferedUnit<T, S>(
 ): T | S {
   const scope = useScope();
   const scheduler = useScheduler();
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
 
   const getSelected = useCallback((): T | S => {
-    const value = scheduler.getBuffered<T>(unit as any);
-    return selector ? selector(value) : value;
-  }, [scheduler, unit, selector]);
+    const value = scheduler.getBuffered<T>(unit);
+    return selectorRef.current ? selectorRef.current(value) : value;
+  }, [scheduler, unit]);
 
-  return useExternalSelected({
-    getValue: getSelected,
-    subscribe: (onStoreChange) => {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
       const unsubScope = scope.subscribe(onStoreChange);
       const unsubBuffered = scheduler.subscribeBuffered(onStoreChange);
       return () => {
@@ -144,6 +157,12 @@ export function useBufferedUnit<T, S>(
         unsubBuffered();
       };
     },
+    [scope, scheduler]
+  );
+
+  return useExternalSelected({
+    getValue: getSelected,
+    subscribe,
     equality: options?.equality as ((a: T | S, b: T | S) => boolean) | undefined,
   });
 }
@@ -167,7 +186,7 @@ export function useCellAction<T>(
           return;
         }
 
-        scheduler.set(cell as any, next as any, {
+        scheduler.set(cell, next, {
           priority,
           reason: options?.reason,
         });
@@ -182,7 +201,7 @@ export function useCell<T>(
 ): [T, (next: T | ((prev: T) => T)) => void] {
   const value = useUnit(cell);
   const setValue = useCellAction(cell, options);
-  return useMemo(() => [value, setValue], [value, setValue]);
+  return [value, setValue];
 }
 
 export function useFlushBuffered(): () => void {

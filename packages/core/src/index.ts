@@ -100,7 +100,7 @@ export type SeedInput = Map<AnyCell, unknown> | Array<readonly [AnyCell, unknown
 const registeredCellsById = new Map<string, AnyCell>();
 
 function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object';
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 function defaultEqual<T>(a: T, b: T): boolean {
@@ -173,6 +173,7 @@ export function effect<P, R>(
 }
 
 export class Scope {
+  private static _nextId = 0;
   public readonly id: string;
 
   private readonly _cellValues = new Map<AnyCell, unknown>();
@@ -189,7 +190,7 @@ export class Scope {
   private _pendingPriority: Priority | undefined;
 
   constructor(seed?: SeedInput) {
-    this.id = `scope_${Math.random().toString(36).slice(2, 10)}`;
+    this.id = `scope_${Scope._nextId++}`;
     if (seed) {
       this._applySeed(seed);
     }
@@ -222,9 +223,22 @@ export class Scope {
     throw new Error('NS_CORE_INVALID_UPDATE');
   }
 
+  private static readonly _priorityRank: Record<Priority, number> = {
+    urgent: 2,
+    transition: 1,
+    idle: 0,
+  };
+
   private _pushChange(change: Change, options?: UpdateOptions): void {
     this._pendingChanges.push(change);
-    this._pendingPriority = options?.priority ?? this._pendingPriority;
+    const incoming = options?.priority;
+    if (incoming === undefined) {
+      return;
+    }
+    if (this._pendingPriority === undefined ||
+        Scope._priorityRank[incoming] > Scope._priorityRank[this._pendingPriority]) {
+      this._pendingPriority = incoming;
+    }
   }
 
   private _flush(): void {
@@ -249,13 +263,44 @@ export class Scope {
 
   private _withBatch<T>(fn: () => T): T {
     this._batchDepth += 1;
+    const prevLength = this._pendingChanges.length;
+    const prevPriority = this._pendingPriority;
+    const cellSnapshots = new Map<AnyCell, { value: unknown; version: number }>();
     try {
-      return fn();
-    } finally {
+      const result = fn();
       this._batchDepth -= 1;
       if (this._batchDepth === 0) {
         this._flush();
       }
+      return result;
+    } catch (error) {
+      this._batchDepth -= 1;
+      const rolledBack = this._pendingChanges.splice(prevLength);
+      this._pendingPriority = prevPriority;
+      for (const change of rolledBack) {
+        if (change.kind === 'set') {
+          const c = change.unit;
+          if (!cellSnapshots.has(c)) {
+            cellSnapshots.set(c, {
+              value: change.prev,
+              version: (this._cellVersions.get(c) ?? 1) - 1,
+            });
+          }
+        }
+      }
+      for (const [c, snap] of cellSnapshots) {
+        if (snap.version <= 0) {
+          this._cellValues.delete(c);
+          this._cellVersions.delete(c);
+        } else {
+          this._cellValues.set(c, snap.value);
+          this._cellVersions.set(c, snap.version);
+        }
+      }
+      if (this._batchDepth === 0) {
+        this._flush();
+      }
+      throw error;
     }
   }
 
@@ -317,6 +362,7 @@ export class Scope {
 
     const deps = new Map<AnyUnit, number>();
     const args: unknown[] = [];
+    const prevVersion = this._computedVersions.get(u);
     this._computedCache.set(u, { evaluating: true, deps: new Map(), value: undefined });
     try {
       for (const depUnit of unit.deps as ComputedDeps) {
@@ -345,6 +391,11 @@ export class Scope {
         this._computedCache.set(u, cached);
       } else {
         this._computedCache.delete(u);
+      }
+      if (prevVersion !== undefined) {
+        this._computedVersions.set(u, prevVersion);
+      } else {
+        this._computedVersions.delete(u);
       }
       throw error;
     }
@@ -457,7 +508,16 @@ export class Scope {
   }
 
   public fork(seed?: SeedInput): Scope {
-    return new Scope(seed);
+    const child = new Scope();
+    for (const [cellUnit, value] of this._cellValues.entries()) {
+      child._knownCells.add(cellUnit);
+      child._cellValues.set(cellUnit, value);
+      child._cellVersions.set(cellUnit, this._cellVersions.get(cellUnit) ?? 0);
+    }
+    if (seed) {
+      child._applySeed(seed);
+    }
+    return child;
   }
 
   public _listKnownCells(): AnyCell[] {
