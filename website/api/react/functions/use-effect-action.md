@@ -15,6 +15,16 @@ Returns effect invoker callback.
 - `effect`: target effect.
 - `options.priority`: optional priority.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```tsx
@@ -43,6 +53,12 @@ function LoadButton() {
 
 - Use this hook to execute typed async effects from UI events.
 - Keep loading/error state in cells so status transitions are observable and testable.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

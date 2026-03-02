@@ -14,6 +14,16 @@ Creates a store with a root scope and forking API.
 
 - `options.seed`: initial seed values for root scope.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -33,6 +43,12 @@ console.log(testScope.get(userId)); // null (isolated from requestScope)
 
 - Create one store root and fork scopes per request/test to isolate state.
 - Seeded store creation is useful for deterministic test and SSR bootstrap flows.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

@@ -14,6 +14,16 @@ Creates scheduler instance for a scope.
 
 - `options.scope`: scope bound to this scheduler.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -36,6 +46,12 @@ console.log(scheduler.getCommitted(query)); // 'sc'
 
 - Use scheduler when interaction performance matters and staged updates are acceptable.
 - Use `urgent` updates for values that must be committed immediately.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

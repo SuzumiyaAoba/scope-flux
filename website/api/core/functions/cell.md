@@ -23,6 +23,16 @@ Creates a mutable state unit.
 
 - `options.serializable`: `true | false` (default: `true`).
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -40,6 +50,12 @@ console.log(scope.get(filterText)); // 'urgent'
 
 - Use `cell` for mutable source state such as form input, filters, and toggles.
 - Add a stable `id` when the value must be serialized, hydrated, or inspected.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

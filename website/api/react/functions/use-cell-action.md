@@ -23,6 +23,16 @@ Returns typed setter for cell updates.
 - `priority = "transition"`: staged buffered update.
 - `priority = "idle"`: low-priority staged buffered update.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```tsx
@@ -43,6 +53,12 @@ function Counter() {
 
 - Choose this hook when a component needs write access without owning read logic.
 - Use updater form `(prev) => next` when next value depends on current state.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

@@ -249,3 +249,16 @@ export function App() {
 
 - `useCell` returns `[value, setter]` and is the closest API to React `useState`.
 - For expensive updates, combine `useCellAction` with `useFlushBuffered`.
+
+
+## Reading Guide
+
+- Start with this page for concepts and argument intent.
+- Open `/api/<module>/functions/*` for operational usage patterns.
+- Open `/api/<module>/types/*` for boundary contracts and type-level constraints.
+
+## Production Checklist
+
+- Define stable IDs for states that must be serialized or inspected.
+- Attach `reason` metadata for important updates and side effects.
+- Prefer explicit flush/hydration boundaries rather than implicit state transitions.

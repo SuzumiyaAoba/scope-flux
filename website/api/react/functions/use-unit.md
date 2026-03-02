@@ -16,6 +16,16 @@ Reads committed value from cell/computed with optional selector.
 - `selector`: optional value projector.
 - `options.equality`: optional comparator for selected value.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```tsx
@@ -41,6 +51,12 @@ function RemainingBadge() {
 
 - Use `useUnit` as your default read hook for `cell` and `computed`.
 - Add selector/equality options when you need fine-grained rerender control.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

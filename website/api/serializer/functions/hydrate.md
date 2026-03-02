@@ -22,6 +22,16 @@ Validates and applies serialized payload into scope.
 - `mode = "safe"`: skip IDs already hydrated in this scope (default).
 - `mode = "force"`: overwrite already hydrated IDs.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -48,6 +58,12 @@ console.log(scope.get(count)); // 3
 
 - Use `mode: 'safe'` for standard SSR/client hydration to avoid accidental duplicate overwrites.
 - Treat incoming payload as untrusted input and validate through serializer schema rules.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

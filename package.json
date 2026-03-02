@@ -20,7 +20,11 @@
     "docs:sync": "node scripts/sync-doc-assets.mjs",
     "docs:dev": "npm --prefix docs-site run dev",
     "docs:build": "npm --prefix docs-site run build",
-    "docs:preview": "npm --prefix docs-site run preview"
+    "docs:preview": "npm --prefix docs-site run preview",
+    "samples:build": "npm run build:packages && tsc -p samples/tsconfig.json",
+    "samples:pure": "npm run samples:build && node samples/dist/pure.js",
+    "samples:react": "npm run samples:build && node samples/dist/react.js",
+    "samples:all": "npm run samples:build && node samples/dist/pure.js && node samples/dist/react.js"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

@@ -16,6 +16,16 @@ Bridges inspect records to DevTools-style adapter.
 - `options.adapter`: adapter implementing `init`/`send`.
 - `options.trace`: optional trace relation flag.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -39,6 +49,12 @@ stop();
 
 - Connect devtools once during bootstrap and dispose observers on teardown.
 - `trace: true` is useful when you need parent-child relation in commit traces.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

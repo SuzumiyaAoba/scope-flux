@@ -17,6 +17,16 @@ Subscribes to commit stream and emits normalized records.
 - `options.sampleRate`: 0..1 sampling ratio.
 - `options.onRecord`: record callback.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -41,6 +51,12 @@ stop();
 
 - Use this snippet as a starting point and replace IDs/reasons with your domain language.
 - Combine this API with the module guide patterns to build end-to-end flows.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

@@ -15,6 +15,16 @@ Creates a side-effect unit.
 - `handler`: effect implementation.
 - `options.debugName`: debug label.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -35,6 +45,12 @@ scope.set(user, loaded, { reason: 'profile.loaded' });
 
 - Put I/O boundaries in `effect`, then write effect results into cells.
 - Pass explicit `reason` values for better traceability in inspect/devtools.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

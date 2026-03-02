@@ -23,6 +23,16 @@ Creates a derived unit from dependencies.
 - `options.cache = "scope"`: cache by dependency versions (default).
 - `options.cache = "none"`: recompute on each read.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -45,6 +55,12 @@ console.log(scope.get(remainingCount)); // 1
 
 - Keep `computed` pure and deterministic to preserve cache correctness.
 - Use it for derived view state instead of duplicating derived data in cells.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

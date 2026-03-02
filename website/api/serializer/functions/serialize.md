@@ -16,6 +16,16 @@ Serializes scope state to safe JSON payload.
 - `opts.only`: optional target cell list.
 - `opts.maxBytes`: max UTF-8 payload bytes.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -37,6 +47,12 @@ console.log(payload.values); // { 'counter.count': 7 }
 
 - Only cells with stable id and JSON-serializable values are included in payload.
 - Use `only` and `maxBytes` when you need strict control over payload scope and size.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

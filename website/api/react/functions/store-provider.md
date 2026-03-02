@@ -16,6 +16,16 @@ Provides scope/scheduler context to React subtree.
 - `scheduler`: optional scheduler (auto-created if omitted).
 - `children`: subtree using hooks.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```tsx
@@ -43,6 +53,12 @@ export function App() {
 
 - Every hook from `@scope-flux/react` must run under `StoreProvider`.
 - For SSR, create a fresh scope per request and pass that scope to the provider.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

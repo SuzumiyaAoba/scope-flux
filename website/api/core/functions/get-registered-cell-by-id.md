@@ -14,6 +14,16 @@ Returns a globally registered cell by stable ID.
 
 - `id`: stable cell ID.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -31,6 +41,12 @@ if (resolved === theme) {
 
 - This API is mainly for tooling/integration code that resolves cells by stable id.
 - In normal app logic, prefer direct cell references over global id lookup.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

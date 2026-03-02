@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist",
+    "declaration": false,
+    "sourceMap": false,
+    "noEmit": false,
+    "jsx": "react-jsx",
+    "types": ["node", "react", "react-test-renderer"]
+  },
+  "include": ["./pure.ts", "./react.tsx"]
+}

@@ -6,6 +6,7 @@ packages/*/dist/
 *.tsbuildinfo
 doc_build/
 docs-site/doc_build/
+samples/dist/
 
 # test outputs
 coverage/

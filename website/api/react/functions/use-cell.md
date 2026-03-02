@@ -20,6 +20,16 @@ Combined read/write hook similar to `useState`.
 
 - `priority` accepts: `"urgent" | "transition" | "idle"`.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```tsx
@@ -48,6 +58,12 @@ function TitleInput() {
 
 - `useCell` gives `[value, setter]` ergonomics similar to React `useState`.
 - Use `transition` for draft edits and flush when you want authoritative commit.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

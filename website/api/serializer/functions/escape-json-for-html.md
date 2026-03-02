@@ -14,6 +14,16 @@ Escapes dangerous code points for HTML-safe JSON embedding.
 
 - `json`: JSON string (usually from `JSON.stringify`).
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -31,6 +41,12 @@ void inlineScript;
 
 - Always escape serialized JSON before embedding in HTML to avoid script-breaking sequences.
 - This function is for JSON transport safety, not for general-purpose HTML sanitization.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

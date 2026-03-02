@@ -15,6 +15,16 @@ Creates Redux DevTools adapter with graceful no-op fallback.
 - `options.extension`: explicit extension instance.
 - `options.name`: DevTools connection name.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -32,6 +42,12 @@ adapter.send(
 
 - Use this adapter when you want inspect traces visible in Redux DevTools-compatible UI.
 - If extension is unavailable, adapter methods become no-op and app behavior stays stable.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 

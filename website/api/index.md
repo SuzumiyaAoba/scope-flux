@@ -34,3 +34,16 @@ console.log(payload.values.count); // 1
 
 - Start from each module page for behavior and argument details.
 - Use Typedoc for exact type signatures and overloads.
+
+
+## Reading Guide
+
+- Start with this page for concepts and argument intent.
+- Open `/api/<module>/functions/*` for operational usage patterns.
+- Open `/api/<module>/types/*` for boundary contracts and type-level constraints.
+
+## Production Checklist
+
+- Define stable IDs for states that must be serialized or inspected.
+- Attach `reason` metadata for important updates and side effects.
+- Prefer explicit flush/hydration boundaries rather than implicit state transitions.

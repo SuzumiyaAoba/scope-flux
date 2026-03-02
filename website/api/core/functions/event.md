@@ -14,6 +14,16 @@ Creates a typed event channel.
 
 - `options.debugName`: debug label.
 
+## Return Value
+
+- Returns the value declared in the signature.
+- For async APIs, handle the returned promise with `await` or `.then()`.
+
+## Operational Notes
+
+- Treat `reason` and stable IDs as part of your observability contract.
+- Prefer small, composable calls and keep side effects at explicit boundaries.
+
 ## Example
 
 ```ts
@@ -35,6 +45,12 @@ console.log(scope.get(titles)); // ['Write docs']
 
 - Use `event` for intent signals ("something happened"), not for persistent state.
 - Register handlers in composition/root setup so event flow remains traceable.
+
+## Common Pitfalls
+
+- Mixing domain events and UI-local state responsibilities in one layer.
+- Omitting explicit IDs/reasons when debugging or serialization is required.
+- Assuming buffered/async behavior is committed synchronously.
 
 ## Related
 
