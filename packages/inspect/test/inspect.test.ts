@@ -42,6 +42,28 @@ describe('inspect', () => {
     expect(onRecord).not.toHaveBeenCalled();
   });
 
+  it('skips records when random value is above sampleRate', () => {
+    const count = cell(0, { id: 'inspect_sample_random_count' });
+    const scope = createStore().fork();
+    const onRecord = vi.fn();
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+
+    try {
+      const unsub = inspect({
+        scope,
+        sampleRate: 0.5,
+        onRecord,
+      });
+
+      scope.set(count, 1);
+      unsub();
+    } finally {
+      randomSpy.mockRestore();
+    }
+
+    expect(onRecord).not.toHaveBeenCalled();
+  });
+
   it('connectDevtools initializes and sends updates', () => {
     const count = cell(0, { id: 'inspect_devtools_count' });
     const ping = event<number>({ debugName: 'ping' });

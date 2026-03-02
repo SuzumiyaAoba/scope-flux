@@ -75,4 +75,14 @@ describe('scheduler', () => {
     scheduler.flushBuffered();
     expect(scope.get(count)).toBe(3);
   });
+
+  it('getCommitted returns authoritative scope value', () => {
+    const count = cell(0, { id: 'scheduler_committed_read' });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope });
+
+    scope.set(count, 9);
+
+    expect(scheduler.getCommitted<number>(count)).toBe(9);
+  });
 });

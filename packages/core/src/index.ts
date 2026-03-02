@@ -241,7 +241,8 @@ export class Scope {
     this._pendingChanges = [];
     this._pendingPriority = undefined;
 
-    for (const listener of this._subscribers) {
+    const listeners = Array.from(this._subscribers);
+    for (const listener of listeners) {
       listener(payload);
     }
   }
@@ -411,7 +412,8 @@ export class Scope {
         return;
       }
 
-      for (const handler of handlers) {
+      const handlersSnapshot = Array.from(handlers);
+      for (const handler of handlersSnapshot) {
         handler(payload, this, options);
       }
     });

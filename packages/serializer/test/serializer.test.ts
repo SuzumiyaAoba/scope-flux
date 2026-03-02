@@ -121,6 +121,73 @@ describe('serializer', () => {
     expect(() => hydrate(scope, 'bad_payload')).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
 
+  it('hydrate rejects malformed payload fields', () => {
+    const scope = createStore().fork();
+
+    expect(() => hydrate(scope, { version: '1', scopeId: 'x', values: {} })).toThrowError(/NS_SER_INVALID_SCHEMA/);
+    expect(() => hydrate(scope, { version: 1, scopeId: 100, values: {} })).toThrowError(/NS_SER_INVALID_SCHEMA/);
+    expect(() => hydrate(scope, { version: 1, scopeId: 'x', values: [] })).toThrowError(/NS_SER_INVALID_SCHEMA/);
+  });
+
+  it('hydrate rejects non-json value entries inside payload.values', () => {
+    const scope = createStore().fork();
+    expect(() =>
+      hydrate(scope, {
+        version: 1,
+        scopeId: 'x',
+        values: { bad: () => {} },
+      })
+    ).toThrowError(/NS_SER_INVALID_SCHEMA/);
+  });
+
+  it('serialize with only option exports only targeted cells', () => {
+    const included = cell('in', { id: 'serialize_only_included' });
+    const excluded = cell('out', { id: 'serialize_only_excluded' });
+    const scope = createStore().fork();
+    scope.set(included, 'included');
+    scope.set(excluded, 'excluded');
+
+    const payload = serialize(scope, { only: [included] });
+
+    expect(payload.values.serialize_only_included).toBe('included');
+    expect(payload.values.serialize_only_excluded).toBeUndefined();
+  });
+
+  it('serialize ignores non-cell values and cells without stable IDs in only option', () => {
+    const noId = cell('x');
+    const withId = cell('ok', { id: 'serialize_only_with_id' });
+    const scope = createStore().fork();
+    scope.set(noId, 'no-id');
+    scope.set(withId, 'yes-id');
+
+    const payload = serialize(scope, {
+      only: [withId, noId, { kind: 'event' } as any],
+    });
+
+    expect(payload.values.serialize_only_with_id).toBe('yes-id');
+    expect(Object.keys(payload.values)).toEqual(['serialize_only_with_id']);
+  });
+
+  it('serialize works when both TextEncoder and Buffer are unavailable', () => {
+    const count = cell(1, { id: 'no_text_encoder_count' });
+    const scope = createStore().fork();
+    scope.set(count, 2);
+
+    const g = globalThis as { Buffer?: unknown; TextEncoder?: unknown };
+    const originalBuffer = g.Buffer;
+    const originalTextEncoder = g.TextEncoder;
+    g.Buffer = undefined;
+    g.TextEncoder = undefined;
+
+    try {
+      const payload = serialize(scope);
+      expect(payload.values.no_text_encoder_count).toBe(2);
+    } finally {
+      g.Buffer = originalBuffer;
+      g.TextEncoder = originalTextEncoder;
+    }
+  });
+
   it('serialize/hydrate reject invalid scope objects', () => {
     expect(() => serialize(null as unknown as ReturnType<typeof createStore>['root'])).toThrowError(
       /NS_SER_INVALID_SCOPE/
