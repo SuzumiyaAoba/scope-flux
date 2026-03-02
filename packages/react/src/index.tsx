@@ -95,6 +95,29 @@ function useExternalSelected<T>(options: {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
+function useSelectedUnit<T, S>(
+  readValue: () => T,
+  readDeps: readonly unknown[],
+  subscribe: (onStoreChange: () => void) => () => void,
+  selector?: (value: T) => S,
+  equality?: (a: S, b: S) => boolean,
+): T | S {
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
+
+  const getSelected = useCallback((): T | S => {
+    const value = readValue();
+    return selectorRef.current ? selectorRef.current(value) : value;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, readDeps);
+
+  return useExternalSelected({
+    getValue: getSelected,
+    subscribe,
+    equality: equality as ((a: T | S, b: T | S) => boolean) | undefined,
+  });
+}
+
 export function useUnit<T>(unit: Cell<T> | Computed<T>): T;
 export function useUnit<T, S>(
   unit: Cell<T> | Computed<T>,
@@ -107,24 +130,19 @@ export function useUnit<T, S>(
   options?: { equality?: (a: S, b: S) => boolean }
 ): T | S {
   const scope = useScope();
-  const selectorRef = useRef(selector);
-  selectorRef.current = selector;
-
-  const getSelected = useCallback((): T | S => {
-    const value = scope.get(unit);
-    return selectorRef.current ? selectorRef.current(value) : value;
-  }, [scope, unit]);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => scope.subscribe(onStoreChange),
     [scope]
   );
 
-  return useExternalSelected({
-    getValue: getSelected,
+  return useSelectedUnit(
+    () => scope.get(unit),
+    [scope, unit],
     subscribe,
-    equality: options?.equality as ((a: T | S, b: T | S) => boolean) | undefined,
-  });
+    selector,
+    options?.equality,
+  );
 }
 
 export function useBufferedUnit<T>(unit: Cell<T>): T;
@@ -140,13 +158,6 @@ export function useBufferedUnit<T, S>(
 ): T | S {
   const scope = useScope();
   const scheduler = useScheduler();
-  const selectorRef = useRef(selector);
-  selectorRef.current = selector;
-
-  const getSelected = useCallback((): T | S => {
-    const value = scheduler.getBuffered<T>(unit);
-    return selectorRef.current ? selectorRef.current(value) : value;
-  }, [scheduler, unit]);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -160,11 +171,13 @@ export function useBufferedUnit<T, S>(
     [scope, scheduler]
   );
 
-  return useExternalSelected({
-    getValue: getSelected,
+  return useSelectedUnit(
+    () => scheduler.getBuffered<T>(unit),
+    [scheduler, unit],
     subscribe,
-    equality: options?.equality as ((a: T | S, b: T | S) => boolean) | undefined,
-  });
+    selector,
+    options?.equality,
+  );
 }
 
 export function useCellAction<T>(
@@ -206,14 +219,7 @@ export function useCell<T>(
 
 export function useFlushBuffered(): () => void {
   const scheduler = useScheduler();
-
-  return useMemo(
-    () =>
-      () => {
-        scheduler.flushBuffered();
-      },
-    [scheduler]
-  );
+  return useCallback(() => scheduler.flushBuffered(), [scheduler]);
 }
 
 export function useAction<P>(

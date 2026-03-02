@@ -265,7 +265,6 @@ export class Scope {
     this._batchDepth += 1;
     const prevLength = this._pendingChanges.length;
     const prevPriority = this._pendingPriority;
-    const cellSnapshots = new Map<AnyCell, { value: unknown; version: number }>();
     try {
       const result = fn();
       this._batchDepth -= 1;
@@ -277,6 +276,7 @@ export class Scope {
       this._batchDepth -= 1;
       const rolledBack = this._pendingChanges.splice(prevLength);
       this._pendingPriority = prevPriority;
+      const cellSnapshots = new Map<AnyCell, { value: unknown; version: number }>();
       for (const change of rolledBack) {
         if (change.kind === 'set') {
           const c = change.unit;

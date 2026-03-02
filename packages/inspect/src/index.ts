@@ -1,4 +1,4 @@
-import type { AnyCell, Change, CommitEvent, Scope, Unsubscribe } from '@suzumiyaaoba/scope-flux-core';
+import type { AnyCell, Change, CommitEvent, Priority, Scope, Unsubscribe } from '@suzumiyaaoba/scope-flux-core';
 
 export interface TraceEvent {
   id: string;
@@ -7,7 +7,7 @@ export interface TraceEvent {
   kind: 'event' | 'effect' | 'set';
   unitId?: string;
   unitName?: string;
-  priority?: 'urgent' | 'transition' | 'idle';
+  priority?: Priority;
   reason?: string;
   parentId?: string;
 }
@@ -119,7 +119,7 @@ export function inspect(options: InspectOptions): Unsubscribe {
     const parentId = options.trace ? nextId('commit') : undefined;
 
     for (const change of commit.changes) {
-      if (Math.random() >= sampleRate) {
+      if (sampleRate < 1 && Math.random() >= sampleRate) {
         continue;
       }
       options.onRecord(toRecord(options.scope.id, commit.priority, parentId, change, nextId));
@@ -132,10 +132,15 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
 
   adapter.init(snapshotScope(scope));
 
-  return inspect({
-    scope,
-    trace: options.trace,
-    onRecord: (record) => {
+  let seq = 0;
+  const nextId = (prefix: string) => `${prefix}_${++seq}`;
+
+  return scope.subscribe((commit) => {
+    const snapshot = snapshotScope(scope);
+    const parentId = options.trace ? nextId('commit') : undefined;
+
+    for (const change of commit.changes) {
+      const record = toRecord(scope.id, commit.priority, parentId, change, nextId);
       const typeBase = record.trace.kind;
       const unitName = record.trace.unitId ?? record.trace.unitName ?? 'unknown';
       adapter.send(
@@ -147,9 +152,9 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
             diffs: record.diffs,
           },
         },
-        snapshotScope(scope)
+        snapshot
       );
-    },
+    }
   });
 }
 

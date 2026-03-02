@@ -162,11 +162,14 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
   }
 }
 
+const escapeMap: Record<string, string> = {
+  '<': '\\u003c',
+  '>': '\\u003e',
+  '&': '\\u0026',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+};
+
 export function escapeJsonForHtml(json: string): string {
-  return json
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/&/g, '\\u0026')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
+  return json.replace(/[<>&\u2028\u2029]/g, (ch) => escapeMap[ch]);
 }
