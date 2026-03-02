@@ -1,7 +1,7 @@
-import { cell, computed, createStore, event, effect } from '@scope-flux/core';
-import { createScheduler } from '@scope-flux/scheduler';
-import { inspect } from '@scope-flux/inspect';
-import { escapeJsonForHtml, hydrate, serialize } from '@scope-flux/serializer';
+import { cell, computed, createStore, event, effect } from '@suzumiyaaoba/scope-flux-core';
+import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
+import { inspect } from '@suzumiyaaoba/scope-flux-inspect';
+import { escapeJsonForHtml, hydrate, serialize } from '@suzumiyaaoba/scope-flux-serializer';
 
 const count = cell(0, { id: 'samples.pure.count' });
 const query = cell('', { id: 'samples.pure.query' });

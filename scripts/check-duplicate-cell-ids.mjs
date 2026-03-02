@@ -48,8 +48,8 @@ function collectSourceFiles(dir, rel = '') {
 
 function isCoreModuleSpecifier(raw) {
   return (
-    raw === '@scope-flux/core' ||
-    raw.startsWith('@scope-flux/core/') ||
+    raw === '@suzumiyaaoba/scope-flux-core' ||
+    raw.startsWith('@suzumiyaaoba/scope-flux-core/') ||
     raw.includes('/core/src/index') ||
     raw.includes('/packages/core/') ||
     raw === '../src/index.js'

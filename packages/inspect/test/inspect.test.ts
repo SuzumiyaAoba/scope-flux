@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { cell, createStore, event } from '@scope-flux/core';
+import { cell, createStore, event } from '@suzumiyaaoba/scope-flux-core';
 import { connectDevtools, createReduxDevtoolsAdapter, inspect } from '../src/index.js';
 
 describe('inspect', () => {

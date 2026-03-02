@@ -1,5 +1,5 @@
 {
-  "name": "@scope-flux/benchmark",
+  "name": "@suzumiyaaoba/scope-flux-benchmark",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "build": "tsup --config tsup.config.ts"
   },
   "dependencies": {
-    "@scope-flux/core": "0.1.0",
-    "@scope-flux/scheduler": "0.1.0"
+    "@suzumiyaaoba/scope-flux-core": "0.1.0",
+    "@suzumiyaaoba/scope-flux-scheduler": "0.1.0"
   }
 }

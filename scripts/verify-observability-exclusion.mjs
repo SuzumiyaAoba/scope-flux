@@ -7,7 +7,7 @@ const targets = [
   'packages/serializer/dist/index.js',
 ];
 
-const forbidden = ['@scope-flux/inspect', 'packages/inspect'];
+const forbidden = ['@suzumiyaaoba/scope-flux-inspect', 'packages/inspect'];
 
 for (const file of targets) {
   const text = await readFile(file, 'utf8');

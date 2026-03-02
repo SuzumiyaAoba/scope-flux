@@ -1,7 +1,7 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { cell, computed, createStore, event } from '@scope-flux/core';
-import { StoreProvider, useAction, useCell, useUnit } from '@scope-flux/react';
+import { cell, computed, createStore, event } from '@suzumiyaaoba/scope-flux-core';
+import { StoreProvider, useAction, useCell, useUnit } from '@suzumiyaaoba/scope-flux-react';
 
 declare global {
   // eslint-disable-next-line no-var

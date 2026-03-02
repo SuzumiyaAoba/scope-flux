@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cell, createStore } from '@scope-flux/core';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { escapeJsonForHtml, hydrate, serialize } from '../src/index.js';
 
 describe('serializer', () => {
@@ -113,7 +113,7 @@ describe('serializer', () => {
 
   it('escapeJsonForHtml escapes dangerous chars', () => {
     const escaped = escapeJsonForHtml('{"x":"<script>"}');
-    expect(escaped.includes('\\u003cscript>')).toBe(true);
+    expect(escaped.includes('\\u003cscript\\u003e')).toBe(true);
   });
 
   it('hydrate rejects invalid payload shapes', () => {

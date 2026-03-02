@@ -1,5 +1,5 @@
 {
-  "name": "@scope-flux/inspect",
+  "name": "@suzumiyaaoba/scope-flux-inspect",
   "version": "0.1.0",
   "type": "module",
   "sideEffects": false,
@@ -17,6 +17,6 @@
     "build": "tsup --config tsup.config.ts"
   },
   "dependencies": {
-    "@scope-flux/core": "0.1.0"
+    "@suzumiyaaoba/scope-flux-core": "0.1.0"
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cell, createStore } from '@scope-flux/core';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler } from '../src/index.js';
 
 describe('scheduler', () => {

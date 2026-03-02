@@ -1,5 +1,5 @@
 {
-  "name": "@scope-flux/serializer",
+  "name": "@suzumiyaaoba/scope-flux-serializer",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -12,6 +12,6 @@
     "build": "tsup --config tsup.config.ts"
   },
   "dependencies": {
-    "@scope-flux/core": "0.1.0"
+    "@suzumiyaaoba/scope-flux-core": "0.1.0"
   }
 }

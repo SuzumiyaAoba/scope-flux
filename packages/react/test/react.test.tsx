@@ -2,7 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it } from 'vitest';
 
-import { cell, createStore, effect, event } from '@scope-flux/core';
+import { cell, createStore, effect, event } from '@suzumiyaaoba/scope-flux-core';
 import {
   useCell,
   StoreProvider,

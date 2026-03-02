@@ -9,11 +9,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@scope-flux/core': r('./packages/core/src/index.ts'),
-      '@scope-flux/serializer': r('./packages/serializer/src/index.ts'),
-      '@scope-flux/react': r('./packages/react/src/index.tsx'),
-      '@scope-flux/scheduler': r('./packages/scheduler/src/index.ts'),
-      '@scope-flux/inspect': r('./packages/inspect/src/index.ts'),
+      '@suzumiyaaoba/scope-flux-core': r('./packages/core/src/index.ts'),
+      '@suzumiyaaoba/scope-flux-serializer': r('./packages/serializer/src/index.ts'),
+      '@suzumiyaaoba/scope-flux-react': r('./packages/react/src/index.tsx'),
+      '@suzumiyaaoba/scope-flux-scheduler': r('./packages/scheduler/src/index.ts'),
+      '@suzumiyaaoba/scope-flux-inspect': r('./packages/inspect/src/index.ts'),
     },
   },
   test: {

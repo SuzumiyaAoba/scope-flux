@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 
-import { cell, computed, createStore } from '@scope-flux/core';
-import { createScheduler } from '@scope-flux/scheduler';
+import { cell, computed, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 
 export interface BenchmarkConfig {
   iterations: number;
