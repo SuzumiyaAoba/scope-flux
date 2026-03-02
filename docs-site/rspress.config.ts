@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import mermaid from './plugins/mermaid';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const docsBase = process.env.DOCS_BASE_PATH || '/';
 const coreFunctionItems = [
   { text: 'cell', link: '/api/core/functions/cell' },
   { text: 'computed', link: '/api/core/functions/computed' },
@@ -98,6 +99,7 @@ const inspectTypeItems = [
 
 export default defineConfig({
   root: '../website',
+  base: docsBase,
   ssg: false,
   builderConfig: {
     resolve: {

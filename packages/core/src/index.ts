@@ -318,28 +318,36 @@ export class Scope {
     const deps = new Map<AnyUnit, number>();
     const args: unknown[] = [];
     this._computedCache.set(u, { evaluating: true, deps: new Map(), value: undefined });
+    try {
+      for (const depUnit of unit.deps as ComputedDeps) {
+        const depValue = this.get(depUnit);
+        deps.set(depUnit as AnyUnit, this._getUnitVersion(depUnit as AnyUnit));
+        args.push(depValue);
+      }
 
-    for (const depUnit of unit.deps as ComputedDeps) {
-      const depValue = this.get(depUnit);
-      deps.set(depUnit as AnyUnit, this._getUnitVersion(depUnit as AnyUnit));
-      args.push(depValue);
+      const nextValue = unit.read(...(args as any[]));
+      const prevValue = cached?.value as T | undefined;
+
+      this._computedCache.set(u, {
+        evaluating: false,
+        deps,
+        value: nextValue,
+      });
+
+      if (!defaultEqual(prevValue, nextValue)) {
+        const version = this._computedVersions.get(u) ?? 0;
+        this._computedVersions.set(u, version + 1);
+      }
+
+      return nextValue;
+    } catch (error) {
+      if (cached) {
+        this._computedCache.set(u, cached);
+      } else {
+        this._computedCache.delete(u);
+      }
+      throw error;
     }
-
-    const nextValue = unit.read(...(args as any[]));
-    const prevValue = cached?.value as T | undefined;
-
-    this._computedCache.set(u, {
-      evaluating: false,
-      deps,
-      value: nextValue,
-    });
-
-    if (!defaultEqual(prevValue, nextValue)) {
-      const version = this._computedVersions.get(u) ?? 0;
-      this._computedVersions.set(u, version + 1);
-    }
-
-    return nextValue;
   }
 
   public get<T>(unit: Cell<T> | Computed<T>): T {

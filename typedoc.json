@@ -7,7 +7,7 @@
     "packages/inspect/src/index.ts"
   ],
   "out": "docs/api",
-  "tsconfig": "tsconfig.base.json",
+  "tsconfig": "tsconfig.typedoc.json",
   "compilerOptions": {
     "jsx": "react-jsx"
   },
