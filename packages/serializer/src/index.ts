@@ -60,14 +60,22 @@ function utf8ByteLength(value: string): number {
     return Buffer.byteLength(value, 'utf8');
   }
 
-  // Fallback for very old runtimes.
-  return unescape(encodeURIComponent(value)).length;
+  // Manual UTF-8 byte length for runtimes without TextEncoder/Buffer.
+  let bytes = 0;
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i);
+    if (code <= 0x7f) bytes += 1;
+    else if (code <= 0x7ff) bytes += 2;
+    else if (code >= 0xd800 && code <= 0xdbff) { bytes += 4; i++; }
+    else bytes += 3;
+  }
+  return bytes;
 }
 
 export function serialize(scope: Scope, opts: SerializeOptions = {}): SerializedScope {
   assertScope(scope);
 
-  const only = opts.only ?? null;
+  const only = opts.only;
   const maxBytes = opts.maxBytes ?? Number.POSITIVE_INFINITY;
 
   const cells = only ?? scope._listKnownCells();

@@ -108,6 +108,7 @@ function useSelectedUnit<T, S>(
   const getSelected = useCallback((): T | S => {
     const value = readValue();
     return selectorRef.current ? selectorRef.current(value) : value;
+    // Deps array is intentionally provided by the caller (readDeps) rather than inlined.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, readDeps);
 
@@ -187,6 +188,8 @@ export function useCellAction<T>(
   const scope = useScope();
   const scheduler = useScheduler();
   const priority = options?.priority ?? 'urgent';
+  const reasonRef = useRef(options?.reason);
+  reasonRef.current = options?.reason;
 
   return useMemo(
     () =>
@@ -194,17 +197,17 @@ export function useCellAction<T>(
         if (priority === 'urgent') {
           scope.set(cell, next, {
             priority,
-            reason: options?.reason,
+            reason: reasonRef.current,
           });
           return;
         }
 
         scheduler.set(cell, next, {
           priority,
-          reason: options?.reason,
+          reason: reasonRef.current,
         });
       },
-    [scope, scheduler, cell, priority, options?.reason]
+    [scope, scheduler, cell, priority]
   );
 }
 
@@ -228,16 +231,18 @@ export function useAction<P>(
 ): (payload: P) => void {
   const scope = useScope();
   const priority = options?.priority;
+  const reasonRef = useRef(options?.reason);
+  reasonRef.current = options?.reason;
 
   return useMemo(
     () =>
       (payload: P) => {
         scope.emit(unitEvent, payload, {
           priority,
-          reason: options?.reason,
+          reason: reasonRef.current,
         });
       },
-    [scope, unitEvent, priority, options?.reason]
+    [scope, unitEvent, priority]
   );
 }
 
@@ -247,15 +252,17 @@ export function useEffectAction<P, R>(
 ): (payload: P) => Promise<R> {
   const scope = useScope();
   const priority = options?.priority;
+  const reasonRef = useRef(options?.reason);
+  reasonRef.current = options?.reason;
 
   return useMemo(
     () =>
       async (payload: P): Promise<R> => {
         return scope.run(unitEffect, payload, {
           priority,
-          reason: options?.reason,
+          reason: reasonRef.current,
         });
       },
-    [scope, unitEffect, priority, options?.reason]
+    [scope, unitEffect, priority]
   );
 }
