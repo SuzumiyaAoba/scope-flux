@@ -14,6 +14,7 @@ Bridges inspect records to DevTools-style adapter.
 
 - `options.scope`: target scope.
 - `options.adapter`: adapter implementing `init`/`send`.
+  - if adapter has `subscribe`, `jump_to_state` and `import_state` are applied to scope.
 - `options.trace`: optional trace relation flag.
 
 ## Return Value
@@ -49,6 +50,7 @@ stop();
 
 - Connect devtools once during bootstrap and dispose observers on teardown.
 - `trace: true` is useful when you need parent-child relation in commit traces.
+- Imported snapshots apply only to registered stable IDs.
 
 ## Common Pitfalls
 

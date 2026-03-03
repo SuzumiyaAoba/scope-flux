@@ -133,8 +133,13 @@ export function useUnit<T, S>(
   const scope = useScope();
 
   const subscribe = useCallback(
-    (onStoreChange: () => void) => scope.subscribe(onStoreChange),
-    [scope]
+    (onStoreChange: () => void) => {
+      if (unit.kind === 'cell') {
+        return scope.subscribeUnit(unit, onStoreChange);
+      }
+      return scope.subscribe(onStoreChange);
+    },
+    [scope, unit]
   );
 
   return useSelectedUnit(
@@ -162,7 +167,7 @@ export function useBufferedUnit<T, S>(
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      const unsubScope = scope.subscribe(onStoreChange);
+      const unsubScope = scope.subscribeUnit(unit, onStoreChange);
       const unsubBuffered = scheduler.subscribeBuffered(onStoreChange);
       return () => {
         unsubScope();

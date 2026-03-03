@@ -8,6 +8,13 @@
 
 Runtime boundary holding cell values, computed cache, subscriptions, and event handlers.
 
+Notable runtime methods include:
+
+- `run(effect, payload, options?)`
+- `cancelEffect(effect)`
+- `getEffectStatus(effect)`
+- `subscribeUnit(unit, listener)`
+
 ## Example
 
 ```ts

@@ -25,6 +25,20 @@ export interface SerializeOptions {
 
 export interface HydrateOptions {
   mode?: 'safe' | 'force';
+  migrate?: (payload: SerializedScope) => SerializedScope;
+}
+
+export interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+export interface PersistToStorageOptions extends SerializeOptions {
+  storage?: StorageLike;
+}
+
+export interface HydrateFromStorageOptions extends HydrateOptions {
+  storage?: StorageLike;
 }
 
 function isJsonValue(value: unknown): value is JsonValue {
@@ -123,7 +137,7 @@ function validatePayload(payload: unknown): asserts payload is SerializedScope {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 
-  if (typeof payload.version !== 'number' || payload.version !== 1) {
+  if (typeof payload.version !== 'number' || !Number.isInteger(payload.version) || payload.version <= 0) {
     throw new Error('NS_SER_INVALID_SCHEMA');
   }
 
@@ -145,13 +159,25 @@ function validatePayload(payload: unknown): asserts payload is SerializedScope {
 export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {}): void {
   assertScope(scope);
   validatePayload(payload);
+  let sourcePayload = payload;
+
+  if (sourcePayload.version !== 1) {
+    if (!opts.migrate) {
+      throw new Error(`NS_SER_UNSUPPORTED_VERSION:${sourcePayload.version}`);
+    }
+    sourcePayload = opts.migrate(sourcePayload);
+    validatePayload(sourcePayload);
+    if (sourcePayload.version !== 1) {
+      throw new Error('NS_SER_MIGRATE_TARGET_VERSION_REQUIRED');
+    }
+  }
 
   const mode = opts.mode ?? 'safe';
   if (mode !== 'safe' && mode !== 'force') {
     throw new Error('NS_SER_INVALID_HYDRATE_MODE');
   }
 
-  for (const [id, value] of Object.entries(payload.values)) {
+  for (const [id, value] of Object.entries(sourcePayload.values)) {
     const cellUnit = getRegisteredCellById(id);
     if (!cellUnit) {
       continue;
@@ -176,4 +202,47 @@ const escapeMap: Record<string, string> = {
 
 export function escapeJsonForHtml(json: string): string {
   return json.replace(/[<>&\u2028\u2029]/g, (ch) => escapeMap[ch]);
+}
+
+function resolveStorage(storage?: StorageLike): StorageLike {
+  if (storage) {
+    return storage;
+  }
+
+  const candidate = (globalThis as { localStorage?: StorageLike }).localStorage;
+  if (!candidate) {
+    throw new Error('NS_SER_STORAGE_UNAVAILABLE');
+  }
+  return candidate;
+}
+
+export function persistToStorage(
+  scope: Scope,
+  key: string,
+  options: PersistToStorageOptions = {}
+): SerializedScope {
+  const payload = serialize(scope, options);
+  const storage = resolveStorage(options.storage);
+  storage.setItem(key, JSON.stringify(payload));
+  return payload;
+}
+
+export function hydrateFromStorage(
+  scope: Scope,
+  key: string,
+  options: HydrateFromStorageOptions = {}
+): SerializedScope | null {
+  const storage = resolveStorage(options.storage);
+  const raw = storage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('NS_SER_INVALID_STORAGE_PAYLOAD');
+  }
+  hydrate(scope, parsed, options);
+  return parsed as SerializedScope;
 }

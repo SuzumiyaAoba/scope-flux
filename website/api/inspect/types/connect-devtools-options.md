@@ -8,6 +8,14 @@
 
 Options for `connectDevtools`.
 
+Fields:
+
+- `scope: Scope`
+- `adapter: DevtoolsAdapter`
+- `trace?: boolean`
+
+If adapter exposes `subscribe`, inbound devtools messages can also update scope state.
+
 ## Example
 
 ```ts

@@ -8,6 +8,14 @@
 
 Effect unit shape and handler contract.
 
+Includes:
+
+- `handler(payload, ctx)`
+- `policy`
+  - `concurrency: 'parallel' | 'drop' | 'replace' | 'queue'`
+  - `retries`
+  - `retryDelayMs`
+
 ## Example
 
 ```ts

@@ -3,7 +3,10 @@
 ## Signature
 
 ```ts
-effect<P, R>(handler: (payload: P, ctx: EffectContext) => Promise<R> | R, options?: { debugName?: string }): Effect<P, R>
+effect<P, R>(
+  handler: (payload: P, ctx: EffectContext) => Promise<R> | R,
+  options?: { debugName?: string; policy?: EffectPolicy }
+): Effect<P, R>
 ```
 
 ## Description
@@ -13,7 +16,14 @@ Creates a side-effect unit.
 ## Parameters
 
 - `handler`: effect implementation.
+  - `ctx.scope`: current scope.
+  - `ctx.signal`: abort signal for cancellation/replace/timeout.
+  - `ctx.attempt`: 1-based attempt index (retry aware).
 - `options.debugName`: debug label.
+- `options.policy`: execution policy.
+  - `concurrency`: `'parallel' | 'drop' | 'replace' | 'queue'`
+  - `retries`: retry count.
+  - `retryDelayMs`: retry delay or delay factory.
 
 ## Return Value
 
@@ -45,6 +55,7 @@ scope.set(user, loaded, { reason: 'profile.loaded' });
 
 - Put I/O boundaries in `effect`, then write effect results into cells.
 - Pass explicit `reason` values for better traceability in inspect/devtools.
+- Use `ctx.signal` in fetch/async calls for cooperative cancellation.
 
 ## Common Pitfalls
 

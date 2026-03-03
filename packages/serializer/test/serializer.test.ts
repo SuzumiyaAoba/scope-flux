@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
-import { escapeJsonForHtml, hydrate, serialize } from '../src/index.js';
+import { escapeJsonForHtml, hydrate, hydrateFromStorage, persistToStorage, serialize } from '../src/index.js';
 
 describe('serializer', () => {
   it('serialize/hydrate roundtrip', () => {
@@ -207,5 +207,59 @@ describe('serializer', () => {
     expect(() =>
       hydrate(target, payload, { mode: 'unexpected' as 'safe' })
     ).toThrowError(/NS_SER_INVALID_HYDRATE_MODE/);
+  });
+
+  it('hydrate supports payload migration', () => {
+    const count = cell(0, { id: 'hydrate_migrate_count' });
+    const target = createStore().fork();
+    const legacyPayload = {
+      version: 2,
+      scopeId: 'legacy',
+      values: { hydrate_migrate_count: 9 },
+    };
+
+    hydrate(target, legacyPayload, {
+      migrate: (payload) => ({
+        ...payload,
+        version: 1,
+      }),
+    });
+
+    expect(target.get(count)).toBe(9);
+  });
+
+  it('hydrate rejects unsupported version without migrate', () => {
+    const count = cell(0, { id: 'hydrate_migrate_reject_count' });
+    const target = createStore().fork();
+
+    expect(() =>
+      hydrate(target, {
+        version: 2,
+        scopeId: 'legacy',
+        values: { hydrate_migrate_reject_count: 1 },
+      })
+    ).toThrowError(/NS_SER_UNSUPPORTED_VERSION/);
+    expect(target.get(count)).toBe(0);
+  });
+
+  it('persistToStorage and hydrateFromStorage roundtrip', () => {
+    const count = cell(0, { id: 'storage_count' });
+    const source = createStore().fork();
+    source.set(count, 3);
+
+    const memory = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        memory.set(key, value);
+      },
+    };
+
+    persistToStorage(source, 'scope:key', { storage });
+    const target = createStore().fork();
+    const loaded = hydrateFromStorage(target, 'scope:key', { storage });
+
+    expect(loaded).not.toBeNull();
+    expect(target.get(count)).toBe(3);
   });
 });

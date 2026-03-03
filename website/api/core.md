@@ -74,6 +74,12 @@ Async/sync side-effect wrapper. Keep I/O out of pure logic.
 When to use:
 - API calls, storage I/O, analytics dispatch.
 
+Effect options also support execution policy:
+
+- `concurrency`: `'parallel' | 'drop' | 'replace' | 'queue'`
+- `retries`: retry count for failures
+- `retryDelayMs`: retry backoff delay
+
 ## Store / Scope API
 
 ### `createStore({ seed? })`
@@ -103,6 +109,9 @@ Emits event payload to registered handlers.
 ### `scope.run(effect, payload, options?)`
 Executes effect handler with scope context.
 
+- supports `signal`, `timeoutMs`, `retries`
+- respects `effect` policy (`drop`/`replace`/`queue`)
+
 ### `scope.batch(fn)`
 Groups multiple updates into one commit notification.
 
@@ -110,6 +119,18 @@ Use batching when multiple writes represent one logical action.
 
 ### `scope.subscribe(listener)`
 Subscribes to commit events for observability or integration.
+
+### `scope.subscribeUnit(unit, listener)`
+Subscribes to updates of a specific unit.
+
+- `cell`: notified on updates to the target cell.
+- `computed`: falls back to scope commit subscription.
+
+### `scope.cancelEffect(effect)`
+Aborts running and queued executions for the target effect.
+
+### `scope.getEffectStatus(effect)`
+Returns runtime status (`running`, `queued`, `lastError`, `lastResult`, timestamps).
 
 ## Update Options
 
@@ -164,11 +185,14 @@ Example reasons:
 
 ### `effect<P, R>(handler, options?)`
 
-- `handler: (payload: P, ctx: { scope: Scope }) => Promise<R> | R`
+- `handler: (payload: P, ctx: { scope: Scope; signal: AbortSignal; attempt: number }) => Promise<R> | R`
   - Effect implementation. You can mutate state via `ctx.scope`.
   - Throws `NS_CORE_MISSING_HANDLER` when missing/invalid.
-- `options?: { debugName?: string }`
+- `options?: { debugName?: string; policy?: EffectPolicy }`
   - Sets a debug label.
+  - `policy?.concurrency?: 'parallel' | 'drop' | 'replace' | 'queue'`
+  - `policy?.retries?: number`
+  - `policy?.retryDelayMs?: number | ((attempt, error) => number)`
 
 ### `createStore(options?)`
 
@@ -212,8 +236,33 @@ Example reasons:
 - `effect: Effect<P, R>`
   - Effect to execute. Invalid value throws `NS_CORE_INVALID_UPDATE`.
 - `payload: P`
-- `options?: UpdateOptions`
+- `options?: RunOptions`
+  - `priority?: Priority`
+  - `reason?: string`
+  - `signal?: AbortSignal`
+  - `timeoutMs?: number`
+  - `retries?: number`
 - Returns: `Promise<R>`
+
+### `scope.subscribeUnit(unit, listener)`
+
+- `unit: Cell<T> | Computed<T>`
+- `listener: () => void`
+- Returns: `Unsubscribe`
+
+### `scope.cancelEffect(effect)`
+
+- `effect: Effect<P, R>`
+- Returns: `void`
+
+### `scope.getEffectStatus(effect)`
+
+- `effect: Effect<P, R>`
+- Returns: `EffectStatus<R>`
+  - `running: number`
+  - `queued: number`
+  - `lastError?: unknown`
+  - `lastResult?: R`
 
 ### `scope.batch(fn)`
 

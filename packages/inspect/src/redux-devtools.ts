@@ -1,9 +1,10 @@
-import type { DevtoolsAdapter } from './index.js';
+import type { DevtoolsAdapter, DevtoolsMessage } from './index.js';
 
 export interface ReduxDevtoolsLike {
   connect(options?: { name?: string }): {
     init(state: unknown): void;
     send(action: { type: string; payload?: unknown }, state: unknown): void;
+    subscribe?: (listener: (message: unknown) => void) => (() => void) | void;
     unsubscribe?: () => void;
   };
 }
@@ -52,6 +53,32 @@ export function createReduxDevtoolsAdapter(
     },
     send(action: { type: string; payload?: unknown }, state: unknown): void {
       connection.send(action, state);
+    },
+    subscribe(listener: (message: DevtoolsMessage) => void): () => void {
+      if (!connection.subscribe) {
+        return () => {
+          // no-op when subscribe is unavailable
+        };
+      }
+      const unsubscribe = connection.subscribe((message) => {
+        if (!message || typeof message !== 'object') {
+          return;
+        }
+        const incoming = message as { type?: unknown; state?: unknown; nextLiftedState?: unknown };
+        if (incoming.type !== 'jump_to_state' && incoming.type !== 'import_state') {
+          return;
+        }
+        listener({
+          type: incoming.type,
+          state: incoming.state,
+          nextLiftedState: incoming.nextLiftedState,
+        });
+      });
+      return typeof unsubscribe === 'function'
+        ? unsubscribe
+        : () => {
+            // no-op when extension does not provide explicit unsubscribe
+          };
     },
     disconnect(): void {
       connection.unsubscribe?.();

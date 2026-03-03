@@ -8,6 +8,12 @@
 
 Minimal adapter contract used by `connectDevtools`.
 
+Contract:
+
+- `init(initialState)`
+- `send(action, state)`
+- `subscribe?(listener)` for inbound devtools messages (`jump_to_state` / `import_state`)
+
 ## Example
 
 ```ts

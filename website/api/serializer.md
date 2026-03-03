@@ -59,14 +59,21 @@ Creates payload from scope.
 
 `only` is useful when you want partial payloads (for example, public state only).
 
-### `hydrate(scope, payload, { mode? })`
+### `hydrate(scope, payload, { mode?, migrate? })`
 Applies payload to scope.
 
 - Payload is validated as untrusted input.
 - Unknown IDs are ignored.
 - Invalid schema throws `NS_SER_INVALID_SCHEMA`.
+- Unsupported versions throw `NS_SER_UNSUPPORTED_VERSION:<version>` unless `migrate` is provided.
 
 Ignoring unknown ids helps forward/backward compatibility between server/client builds.
+
+### `persistToStorage(scope, key, options?)`
+Serializes and saves payload into storage (`localStorage` by default).
+
+### `hydrateFromStorage(scope, key, options?)`
+Reads payload from storage and hydrates scope.
 
 ### `escapeJsonForHtml(json)`
 Escapes JSON for safe HTML script embedding (`<`, `\u2028`, `\u2029`).
@@ -93,9 +100,31 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
   - Schema-validated payload. Invalid schema throws `NS_SER_INVALID_SCHEMA`.
 - `opts?: HydrateOptions`
   - `mode?: 'safe' | 'force'` (default `'safe'`)
+  - `migrate?: (payload: SerializedScope) => SerializedScope`
+    - Transform payload from legacy version to current schema (`version: 1`).
 - Returns: `void`
   - `safe` does not overwrite already hydrated IDs.
   - `force` overwrites already hydrated IDs.
+
+### `persistToStorage(scope, key, options?)`
+
+- `scope: Scope`
+- `key: string`
+- `options?: PersistToStorageOptions`
+  - `only?: AnyCell[]`
+  - `maxBytes?: number`
+  - `storage?: StorageLike`
+- Returns: `SerializedScope`
+
+### `hydrateFromStorage(scope, key, options?)`
+
+- `scope: Scope`
+- `key: string`
+- `options?: HydrateFromStorageOptions`
+  - `mode?: 'safe' | 'force'`
+  - `migrate?: (payload: SerializedScope) => SerializedScope`
+  - `storage?: StorageLike`
+- Returns: `SerializedScope | null`
 
 ### `escapeJsonForHtml(json)`
 
@@ -137,8 +166,8 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
 
 ## Local Persistence Flow (Client Only)
 
-1. App startup: read localStorage payload, hydrate with `safe`.
-2. On scope updates: `serialize(scope)` and write back to localStorage.
+1. App startup: `hydrateFromStorage(scope, key, { mode: 'safe' })`.
+2. On scope updates: `persistToStorage(scope, key)`.
 3. Keep payload small and avoid storing sensitive data.
 
 ## Common Pitfalls

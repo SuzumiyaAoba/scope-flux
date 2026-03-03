@@ -364,4 +364,91 @@ describe('core', () => {
     const scope = createStore().fork();
     expect(() => scope.get({ kind: 'unknown', meta: {} } as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);
   });
+
+  it('effect with drop policy rejects overlapping run', async () => {
+    const scope = createStore().fork();
+    let release!: () => void;
+    const blocker = new Promise<number>((resolve) => {
+      release = () => resolve(1);
+    });
+    const fx = effect<void, number>(() => blocker, {
+      policy: { concurrency: 'drop' },
+    });
+
+    const first = scope.run(fx, undefined);
+    await expect(scope.run(fx, undefined)).rejects.toThrowError(/NS_CORE_EFFECT_DROPPED/);
+    release();
+    await expect(first).resolves.toBe(1);
+  });
+
+  it('effect with queue policy runs in order', async () => {
+    const scope = createStore().fork();
+    const seen: number[] = [];
+    const fx = effect<number, number>(async (payload) => {
+      seen.push(payload);
+      await Promise.resolve();
+      return payload;
+    }, {
+      policy: { concurrency: 'queue' },
+    });
+
+    const p1 = scope.run(fx, 1);
+    const p2 = scope.run(fx, 2);
+    const p3 = scope.run(fx, 3);
+    await expect(Promise.all([p1, p2, p3])).resolves.toEqual([1, 2, 3]);
+    expect(seen).toEqual([1, 2, 3]);
+  });
+
+  it('effect retries and exposes status', async () => {
+    const scope = createStore().fork();
+    let attempt = 0;
+    const fx = effect<void, number>(() => {
+      attempt += 1;
+      if (attempt < 3) {
+        throw new Error('retry_me');
+      }
+      return 10;
+    }, {
+      policy: { retries: 2 },
+    });
+
+    await expect(scope.run(fx, undefined)).resolves.toBe(10);
+    const status = scope.getEffectStatus(fx);
+    expect(status.running).toBe(0);
+    expect(status.lastResult).toBe(10);
+    expect(status.lastError).toBeUndefined();
+  });
+
+  it('cancelEffect aborts running and queued tasks', async () => {
+    const scope = createStore().fork();
+    let release!: () => void;
+    const fx = effect<number, number>(() => {
+      return new Promise<number>((resolve) => {
+        release = () => resolve(42);
+      });
+    }, {
+      policy: { concurrency: 'queue' },
+    });
+
+    const p1 = scope.run(fx, 1);
+    const p2 = scope.run(fx, 2);
+    scope.cancelEffect(fx);
+    release();
+
+    await expect(p1).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(p2).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('subscribeUnit listens only to the target cell', () => {
+    const a = cell(0, { id: 'unit_sub_a' });
+    const b = cell(0, { id: 'unit_sub_b' });
+    const scope = createStore().fork();
+    const listener = vi.fn();
+    scope.subscribeUnit(a, listener);
+
+    scope.set(b, 1);
+    expect(listener).toHaveBeenCalledTimes(0);
+    scope.set(a, 1);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
 });

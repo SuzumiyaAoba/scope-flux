@@ -126,4 +126,26 @@ describe('inspect', () => {
     expect(() => adapter.send({ type: 'x' }, {})).not.toThrow();
     expect(() => adapter.disconnect()).not.toThrow();
   });
+
+  it('connectDevtools applies jump_to_state from adapter subscription', () => {
+    const count = cell(0, { id: 'inspect_jump_count' });
+    const scope = createStore().fork();
+    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+        receive = listener;
+        return () => {
+          // no-op
+        };
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    receive({ type: 'jump_to_state', state: { inspect_jump_count: 7 } });
+
+    expect(scope.get(count)).toBe(7);
+    unsub();
+  });
 });

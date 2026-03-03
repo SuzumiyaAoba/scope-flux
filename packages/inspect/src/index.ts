@@ -1,4 +1,13 @@
-import type { AnyCell, Change, CommitEvent, Priority, Scope, Unsubscribe } from '@suzumiyaaoba/scope-flux-core';
+import {
+  getRegisteredCellById,
+  isObject,
+  type AnyCell,
+  type Change,
+  type CommitEvent,
+  type Priority,
+  type Scope,
+  type Unsubscribe,
+} from '@suzumiyaaoba/scope-flux-core';
 
 export interface TraceEvent {
   id: string;
@@ -34,6 +43,13 @@ export interface InspectOptions {
 export interface DevtoolsAdapter {
   init(initialState: unknown): void;
   send(action: { type: string; payload?: unknown }, state: unknown): void;
+  subscribe?(listener: (message: DevtoolsMessage) => void): Unsubscribe | void;
+}
+
+export interface DevtoolsMessage {
+  type: 'jump_to_state' | 'import_state';
+  state?: unknown;
+  nextLiftedState?: unknown;
 }
 
 export interface ConnectDevtoolsOptions {
@@ -104,6 +120,47 @@ function snapshotScope(scope: Scope): Record<string, unknown> {
   return out;
 }
 
+function readImportState(message: DevtoolsMessage): Record<string, unknown> | null {
+  if (message.type === 'jump_to_state' && isObject(message.state)) {
+    return message.state as Record<string, unknown>;
+  }
+
+  if (message.type !== 'import_state') {
+    return null;
+  }
+
+  if (isObject(message.nextLiftedState)) {
+    const computedStates = message.nextLiftedState.computedStates;
+    if (Array.isArray(computedStates) && computedStates.length > 0) {
+      const latest = computedStates[computedStates.length - 1];
+      if (isObject(latest) && isObject(latest.state)) {
+        return latest.state as Record<string, unknown>;
+      }
+    }
+  }
+
+  if (isObject(message.state)) {
+    return message.state as Record<string, unknown>;
+  }
+
+  return null;
+}
+
+function applySnapshot(scope: Scope, snapshot: Record<string, unknown>): void {
+  scope.batch(() => {
+    for (const [key, value] of Object.entries(snapshot)) {
+      const cellUnit = getRegisteredCellById(key);
+      if (!cellUnit) {
+        continue;
+      }
+      scope.set(cellUnit as AnyCell, value, {
+        reason: 'devtools.import',
+        priority: 'urgent',
+      });
+    }
+  });
+}
+
 export function inspect(options: InspectOptions): Unsubscribe {
   const sampleRate = options.sampleRate ?? 1;
   if (sampleRate <= 0) {
@@ -134,8 +191,12 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
 
   let seq = 0;
   const nextId = (prefix: string) => `${prefix}_${++seq}`;
+  let applyingFromDevtools = false;
 
-  return scope.subscribe((commit) => {
+  const unsubscribeScope = scope.subscribe((commit) => {
+    if (applyingFromDevtools) {
+      return;
+    }
     const snapshot = snapshotScope(scope);
     const parentId = options.trace ? nextId('commit') : undefined;
 
@@ -156,6 +217,26 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
       );
     }
   });
+
+  const unsubscribeAdapter = adapter.subscribe?.((message) => {
+    const snapshot = readImportState(message);
+    if (!snapshot) {
+      return;
+    }
+    applyingFromDevtools = true;
+    try {
+      applySnapshot(scope, snapshot);
+    } finally {
+      applyingFromDevtools = false;
+    }
+  });
+
+  return () => {
+    unsubscribeScope();
+    if (typeof unsubscribeAdapter === 'function') {
+      unsubscribeAdapter();
+    }
+  };
 }
 
 export { createReduxDevtoolsAdapter } from './redux-devtools.js';

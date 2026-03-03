@@ -127,4 +127,34 @@ describe('scheduler', () => {
     expect(scheduler.getPendingBufferedUpdates()).toHaveLength(1);
     expect(scheduler.getPendingBufferedUpdates()[0].value).toBe(5);
   });
+
+  it('autoFlush:microtask flushes buffered updates automatically', async () => {
+    const count = cell(0, { id: 'scheduler_autoflush_microtask' });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope, autoFlush: 'microtask' });
+
+    scheduler.set<number>(count, 4, { priority: 'transition' });
+    expect(scope.get(count)).toBe(0);
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scope.get(count)).toBe(4);
+  });
+
+  it('autoFlush:timeout flushes buffered updates automatically', () => {
+    vi.useFakeTimers();
+    try {
+      const count = cell(0, { id: 'scheduler_autoflush_timeout' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope, autoFlush: 'timeout', autoFlushDelayMs: 20 });
+
+      scheduler.set<number>(count, 8, { priority: 'transition' });
+      expect(scope.get(count)).toBe(0);
+
+      vi.advanceTimersByTime(20);
+      expect(scope.get(count)).toBe(8);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

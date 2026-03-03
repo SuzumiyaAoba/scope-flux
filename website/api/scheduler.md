@@ -16,6 +16,15 @@ import { createScheduler } from '@scope-flux/scheduler';
 const scheduler = createScheduler({ scope });
 ```
 
+Auto flush is optional:
+
+```ts
+const scheduler = createScheduler({
+  scope,
+  autoFlush: 'microtask',
+});
+```
+
 ## Priority Typing Preview (Twoslash)
 
 ```ts twoslash
@@ -59,11 +68,19 @@ Clears buffered updates without committing.
 ### `scheduler.subscribeBuffered(listener)`
 Subscribes to buffered-state changes.
 
+### `options.autoFlush`
+
+- `false` (default): explicit `flushBuffered` only.
+- `'microtask'`: flush in next microtask.
+- `'timeout'`: flush by `setTimeout(autoFlushDelayMs)`.
+- `'animationFrame'`: flush in next RAF tick (fallback to timeout).
+- `'idle'`: flush via `requestIdleCallback` (fallback to timeout).
+
 ## Arguments Reference
 
 ### `createScheduler(options)`
 
-- `options: { scope: Scope }`
+- `options: { scope: Scope; autoFlush?: false | 'microtask' | 'timeout' | 'animationFrame' | 'idle'; autoFlushDelayMs?: number }`
   - Returns a scheduler bound to the given scope.
 
 ### `scheduler.set(cell, next, options?)`

@@ -8,6 +8,12 @@
 
 Construction options for Scheduler.
 
+Fields:
+
+- `scope: Scope`
+- `autoFlush?: false | 'microtask' | 'timeout' | 'animationFrame' | 'idle'`
+- `autoFlushDelayMs?: number`
+
 ## Example
 
 ```ts

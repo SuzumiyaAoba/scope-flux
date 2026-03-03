@@ -23,6 +23,11 @@ Subscribes to commit stream and emits normalized records.
 ### `connectDevtools({ scope, adapter, trace? })`
 Bridges inspect records to a DevTools-like adapter.
 
+When adapter supports `subscribe`, inbound messages are also handled:
+
+- `jump_to_state`
+- `import_state`
+
 ### `createReduxDevtoolsAdapter({ extension?, name? })`
 Creates adapter for Redux DevTools extension.
 
@@ -50,6 +55,7 @@ Creates adapter for Redux DevTools extension.
   - `scope: Scope`
   - `adapter: DevtoolsAdapter`
     - Adapter implementing `init` and `send`.
+    - Optional `subscribe` for inbound state import/jump events.
   - `trace?: boolean`
     - Same trace behavior as `inspect`.
 - Returns: `Unsubscribe`
@@ -168,6 +174,7 @@ const stopDevtools = connectDevtools({
 
 - Keep sampling low in production to control overhead.
 - Always unsubscribe (`stopInspect` / `stopDevtools`) when observers are no longer needed.
+- Inbound devtools state import is applied only for known stable IDs.
 
 
 ## Reading Guide

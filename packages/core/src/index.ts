@@ -12,8 +12,22 @@ export interface UpdateOptions {
   reason?: string;
 }
 
+export interface RunOptions extends UpdateOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  retries?: number;
+}
+
+export interface EffectPolicy {
+  concurrency?: 'parallel' | 'drop' | 'replace' | 'queue';
+  retries?: number;
+  retryDelayMs?: number | ((attempt: number, error: unknown) => number);
+}
+
 export interface EffectContext {
   scope: Scope;
+  signal: AbortSignal;
+  attempt: number;
 }
 
 export type ScopeListener = (evt: CommitEvent) => void;
@@ -51,7 +65,17 @@ export interface Event<P> {
 export interface Effect<P, R> {
   kind: 'effect';
   handler: (payload: P, ctx: EffectContext) => Promise<R> | R;
+  policy: Required<EffectPolicy>;
   meta: UnitMeta;
+}
+
+export interface EffectStatus<R = unknown> {
+  running: number;
+  queued: number;
+  lastError?: unknown;
+  lastResult?: R;
+  lastStartedAt?: number;
+  lastFinishedAt?: number;
 }
 
 export type AnyCell = Cell<any>;
@@ -102,6 +126,7 @@ export const ErrorCodes = {
   INVALID_UPDATE: 'NS_CORE_INVALID_UPDATE',
   CYCLE_DETECTED: 'NS_CORE_CYCLE_DETECTED',
   MISSING_HANDLER: 'NS_CORE_MISSING_HANDLER',
+  EFFECT_DROPPED: 'NS_CORE_EFFECT_DROPPED',
 } as const;
 
 const registeredCellsById = new Map<string, AnyCell>();
@@ -112,6 +137,38 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 
 function defaultEqual<T>(a: T, b: T): boolean {
   return Object.is(a, b);
+}
+
+function toAbortError(message: string): Error {
+  const error = new Error(message);
+  error.name = 'AbortError';
+  return error;
+}
+
+function waitMs(ms: number): Promise<void> {
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    (error as { name?: string }).name === 'AbortError'
+  );
+}
+
+function normalizeEffectPolicy(policy: EffectPolicy | undefined): Required<EffectPolicy> {
+  return {
+    concurrency: policy?.concurrency ?? 'parallel',
+    retries: policy?.retries ?? 0,
+    retryDelayMs: policy?.retryDelayMs ?? 0,
+  };
 }
 
 export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => boolean } = {}): Cell<T> {
@@ -164,7 +221,7 @@ export function event<P>(options: { debugName?: string } = {}): Event<P> {
 
 export function effect<P, R>(
   handler: (payload: P, ctx: EffectContext) => Promise<R> | R,
-  options: { debugName?: string } = {}
+  options: { debugName?: string; policy?: EffectPolicy } = {}
 ): Effect<P, R> {
   if (typeof handler !== 'function') {
     throw new Error(ErrorCodes.MISSING_HANDLER);
@@ -173,10 +230,26 @@ export function effect<P, R>(
   return {
     kind: 'effect',
     handler,
+    policy: normalizeEffectPolicy(options.policy),
     meta: {
       debugName: options.debugName,
     },
   };
+}
+
+interface EffectQueueItem {
+  start: () => void;
+  reject: (error: unknown) => void;
+}
+
+interface EffectRuntimeState {
+  running: number;
+  queue: EffectQueueItem[];
+  controllers: Set<AbortController>;
+  lastError?: unknown;
+  lastResult?: unknown;
+  lastStartedAt?: number;
+  lastFinishedAt?: number;
 }
 
 export class Scope {
@@ -188,7 +261,9 @@ export class Scope {
   private readonly _computedVersions = new Map<AnyComputed, number>();
   private readonly _computedCache = new Map<AnyComputed, ComputedCacheEntry>();
   private readonly _subscribers = new Set<ScopeListener>();
+  private readonly _unitSubscribers = new Map<AnyUnit, Set<() => void>>();
   private readonly _eventHandlers = new Map<Event<unknown>, Set<(payload: unknown, scope: Scope, options: UpdateOptions) => void>>();
+  private readonly _effectStates = new Map<Effect<unknown, unknown>, EffectRuntimeState>();
   private readonly _knownCells = new Set<AnyCell>();
   private readonly _hydratedIds = new Set<string>();
 
@@ -265,6 +340,151 @@ export class Scope {
     const listeners = Array.from(this._subscribers);
     for (const listener of listeners) {
       listener(payload);
+    }
+    this._notifyUnitSubscribers(payload.changes);
+  }
+
+  private _notifyUnitSubscribers(changes: Change[]): void {
+    if (this._unitSubscribers.size === 0) {
+      return;
+    }
+
+    const notified = new Set<() => void>();
+    for (const change of changes) {
+      if (change.kind !== 'set') {
+        continue;
+      }
+      const listeners = this._unitSubscribers.get(change.unit as AnyUnit);
+      if (!listeners) {
+        continue;
+      }
+      for (const listener of Array.from(listeners)) {
+        if (notified.has(listener)) {
+          continue;
+        }
+        notified.add(listener);
+        listener();
+      }
+    }
+  }
+
+  private _getEffectState(effectUnit: Effect<unknown, unknown>): EffectRuntimeState {
+    let state = this._effectStates.get(effectUnit);
+    if (state) {
+      return state;
+    }
+    state = {
+      running: 0,
+      queue: [],
+      controllers: new Set<AbortController>(),
+    };
+    this._effectStates.set(effectUnit, state);
+    return state;
+  }
+
+  private _dequeueEffect(state: EffectRuntimeState): void {
+    if (state.running > 0) {
+      return;
+    }
+    const queued = state.queue.shift();
+    if (!queued) {
+      return;
+    }
+    queued.start();
+  }
+
+  private async _executeEffect<P, R>(
+    unitEffect: Effect<P, R>,
+    payload: P,
+    options: RunOptions,
+    state: EffectRuntimeState
+  ): Promise<R> {
+    const controller = new AbortController();
+    state.controllers.add(controller);
+    state.running += 1;
+    state.lastStartedAt = Date.now();
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let externalAbortListener: (() => void) | undefined;
+
+    if (options.timeoutMs !== undefined && options.timeoutMs >= 0) {
+      timeoutId = setTimeout(() => {
+        controller.abort(toAbortError(`NS_CORE_EFFECT_TIMEOUT:${options.timeoutMs}`));
+      }, options.timeoutMs);
+    }
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        controller.abort((options.signal as AbortSignal & { reason?: unknown }).reason);
+      } else {
+        externalAbortListener = () => {
+          controller.abort((options.signal as AbortSignal & { reason?: unknown }).reason);
+        };
+        options.signal.addEventListener('abort', externalAbortListener, { once: true });
+      }
+    }
+
+    this._pushChange(
+      {
+        kind: 'effect',
+        unit: unitEffect as Effect<unknown, unknown>,
+        payload,
+        reason: options.reason,
+      },
+      options
+    );
+
+    if (this._batchDepth === 0) {
+      this._flush();
+    }
+
+    try {
+      const retries = options.retries ?? unitEffect.policy.retries;
+      const maxAttempts = Math.max(0, retries) + 1;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (controller.signal.aborted) {
+          throw toAbortError('NS_CORE_EFFECT_ABORTED');
+        }
+        try {
+          const result = await unitEffect.handler(payload, {
+            scope: this,
+            signal: controller.signal,
+            attempt,
+          });
+          if (controller.signal.aborted) {
+            throw toAbortError('NS_CORE_EFFECT_ABORTED');
+          }
+          state.lastResult = result;
+          state.lastError = undefined;
+          return result;
+        } catch (error) {
+          if (controller.signal.aborted || isAbortError(error)) {
+            state.lastError = error;
+            throw error;
+          }
+          if (attempt >= maxAttempts) {
+            state.lastError = error;
+            throw error;
+          }
+          const rawDelay = unitEffect.policy.retryDelayMs;
+          const delayMs = typeof rawDelay === 'function' ? rawDelay(attempt, error) : rawDelay;
+          await waitMs(Math.max(0, delayMs));
+        }
+      }
+
+      throw new Error('NS_CORE_UNREACHABLE');
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (options.signal && externalAbortListener) {
+        options.signal.removeEventListener('abort', externalAbortListener);
+      }
+      state.controllers.delete(controller);
+      state.running = Math.max(0, state.running - 1);
+      state.lastFinishedAt = Date.now();
+      this._dequeueEffect(state);
     }
   }
 
@@ -485,32 +705,99 @@ export class Scope {
     });
   }
 
-  public async run<P, R>(unitEffect: Effect<P, R>, payload: P, options: UpdateOptions = {}): Promise<R> {
+  public async run<P, R>(unitEffect: Effect<P, R>, payload: P, options: RunOptions = {}): Promise<R> {
     if (!unitEffect || unitEffect.kind !== 'effect') {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
-    this._pushChange(
-      {
-        kind: 'effect',
-        unit: unitEffect as Effect<unknown, unknown>,
-        payload,
-        reason: options.reason,
-      },
-      options
-    );
+    const state = this._getEffectState(unitEffect as Effect<unknown, unknown>);
+    const policy = unitEffect.policy.concurrency;
 
-    if (this._batchDepth === 0) {
-      this._flush();
+    if (policy === 'drop' && state.running > 0) {
+      throw new Error(ErrorCodes.EFFECT_DROPPED);
     }
 
-    return await unitEffect.handler(payload, { scope: this });
+    if (policy === 'replace' && state.running > 0) {
+      for (const controller of Array.from(state.controllers)) {
+        controller.abort(toAbortError('NS_CORE_EFFECT_REPLACED'));
+      }
+    }
+
+    if (policy === 'queue' && state.running > 0) {
+      return await new Promise<R>((resolve, reject) => {
+        const item: EffectQueueItem = {
+          start: () => {
+            this._executeEffect(unitEffect, payload, options, state).then(resolve, reject);
+          },
+          reject,
+        };
+        state.queue.push(item);
+      });
+    }
+
+    return await this._executeEffect(unitEffect, payload, options, state);
   }
 
   public subscribe(listener: ScopeListener): Unsubscribe {
     this._subscribers.add(listener);
     return () => {
       this._subscribers.delete(listener);
+    };
+  }
+
+  public subscribeUnit<T>(unit: Cell<T> | Computed<T>, listener: () => void): Unsubscribe {
+    if (unit.kind === 'computed') {
+      return this.subscribe(() => {
+        listener();
+      });
+    }
+    const key = unit as AnyUnit;
+    let listeners = this._unitSubscribers.get(key);
+    if (!listeners) {
+      listeners = new Set();
+      this._unitSubscribers.set(key, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners?.delete(listener);
+      if (listeners && listeners.size === 0) {
+        this._unitSubscribers.delete(key);
+      }
+    };
+  }
+
+  public cancelEffect<P, R>(unitEffect: Effect<P, R>): void {
+    const state = this._effectStates.get(unitEffect as Effect<unknown, unknown>);
+    if (!state) {
+      return;
+    }
+
+    const abortError = toAbortError('NS_CORE_EFFECT_ABORTED');
+    for (const controller of Array.from(state.controllers)) {
+      controller.abort(abortError);
+    }
+    const queued = state.queue.splice(0);
+    for (const item of queued) {
+      item.reject(abortError);
+    }
+  }
+
+  public getEffectStatus<P, R>(unitEffect: Effect<P, R>): EffectStatus<R> {
+    const state = this._effectStates.get(unitEffect as Effect<unknown, unknown>);
+    if (!state) {
+      return {
+        running: 0,
+        queued: 0,
+      };
+    }
+
+    return {
+      running: state.running,
+      queued: state.queue.length,
+      lastError: state.lastError,
+      lastResult: state.lastResult as R | undefined,
+      lastStartedAt: state.lastStartedAt,
+      lastFinishedAt: state.lastFinishedAt,
     };
   }
 

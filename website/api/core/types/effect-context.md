@@ -8,6 +8,12 @@
 
 Context object passed to effect handlers.
 
+Fields:
+
+- `scope: Scope`
+- `signal: AbortSignal`
+- `attempt: number`
+
 ## Example
 
 ```ts

@@ -15,6 +15,7 @@ Validates and applies serialized payload into scope.
 - `scope`: target scope.
 - `payload`: untrusted serialized input.
 - `opts.mode`: hydration mode.
+- `opts.migrate`: migration hook for legacy payload versions.
 
 
 ## Literal Union Values
@@ -58,6 +59,7 @@ console.log(scope.get(count)); // 3
 
 - Use `mode: 'safe'` for standard SSR/client hydration to avoid accidental duplicate overwrites.
 - Treat incoming payload as untrusted input and validate through serializer schema rules.
+- If payload schema version changes, provide `migrate` and return `version: 1`.
 
 ## Common Pitfalls
 

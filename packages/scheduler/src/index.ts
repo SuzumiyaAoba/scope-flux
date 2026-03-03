@@ -9,15 +9,22 @@ export interface PendingBufferedUpdate {
 
 export interface SchedulerOptions {
   scope: Scope;
+  autoFlush?: false | 'microtask' | 'timeout' | 'animationFrame' | 'idle';
+  autoFlushDelayMs?: number;
 }
 
 export class Scheduler {
   private readonly scope: Scope;
+  private readonly autoFlush: NonNullable<SchedulerOptions['autoFlush']>;
+  private readonly autoFlushDelayMs: number;
   private readonly pendingByCell = new Map<AnyCell, PendingBufferedUpdate>();
   private readonly bufferedSubscribers = new Set<() => void>();
+  private _scheduledToken = 0;
 
   constructor(options: SchedulerOptions) {
     this.scope = options.scope;
+    this.autoFlush = options.autoFlush ?? false;
+    this.autoFlushDelayMs = Math.max(0, options.autoFlushDelayMs ?? 0);
   }
 
   public getCommitted<T>(cell: Cell<T>): T {
@@ -60,6 +67,7 @@ export class Scheduler {
       reason: options.reason,
     });
     this._notifyBuffered();
+    this._scheduleAutoFlush();
   }
 
   public getPendingBufferedUpdates(): PendingBufferedUpdate[] {
@@ -67,6 +75,10 @@ export class Scheduler {
   }
 
   public flushBuffered(options: { reason?: string } = {}): void {
+    this._clearScheduledAutoFlush();
+    if (this.pendingByCell.size === 0) {
+      return;
+    }
     const updates = [...this.pendingByCell.values()];
     this.pendingByCell.clear();
 
@@ -90,6 +102,7 @@ export class Scheduler {
   }
 
   public dropBuffered(): void {
+    this._clearScheduledAutoFlush();
     this.pendingByCell.clear();
     this._notifyBuffered();
   }
@@ -105,6 +118,53 @@ export class Scheduler {
     const listeners = [...this.bufferedSubscribers];
     for (const listener of listeners) {
       listener();
+    }
+  }
+
+  private _clearScheduledAutoFlush(): void {
+    this._scheduledToken += 1;
+  }
+
+  private _scheduleAutoFlush(): void {
+    if (!this.autoFlush || this.pendingByCell.size === 0) {
+      return;
+    }
+
+    const token = ++this._scheduledToken;
+    const flushIfScheduled = () => {
+      if (token !== this._scheduledToken) {
+        return;
+      }
+      this.flushBuffered({ reason: `scheduler.autoFlush.${this.autoFlush}` });
+    };
+
+    if (this.autoFlush === 'microtask') {
+      queueMicrotask(flushIfScheduled);
+      return;
+    }
+
+    if (this.autoFlush === 'timeout') {
+      setTimeout(flushIfScheduled, this.autoFlushDelayMs);
+      return;
+    }
+
+    if (this.autoFlush === 'animationFrame') {
+      const raf = (globalThis as { requestAnimationFrame?: (cb: () => void) => unknown }).requestAnimationFrame;
+      if (typeof raf === 'function') {
+        raf(flushIfScheduled);
+      } else {
+        setTimeout(flushIfScheduled, Math.max(16, this.autoFlushDelayMs));
+      }
+      return;
+    }
+
+    if (this.autoFlush === 'idle') {
+      const requestIdle = (globalThis as { requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => unknown }).requestIdleCallback;
+      if (typeof requestIdle === 'function') {
+        requestIdle(flushIfScheduled, { timeout: Math.max(1, this.autoFlushDelayMs || 50) });
+      } else {
+        setTimeout(flushIfScheduled, this.autoFlushDelayMs || 50);
+      }
     }
   }
 }

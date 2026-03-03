@@ -8,6 +8,11 @@
 
 Options for `hydrate` including mode literal union.
 
+Also supports:
+
+- `migrate?: (payload: SerializedScope) => SerializedScope`
+  - Use when incoming payload version is not `1`.
+
 ## Literal Union Values
 
 - `mode: "safe"`: default; skip already hydrated IDs.
