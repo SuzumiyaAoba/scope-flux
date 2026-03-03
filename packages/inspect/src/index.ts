@@ -47,7 +47,14 @@ export interface DevtoolsAdapter {
 }
 
 export interface DevtoolsMessage {
-  type: 'jump_to_state' | 'import_state';
+  type:
+    | 'jump_to_state'
+    | 'jump_to_action'
+    | 'import_state'
+    | 'reset'
+    | 'rollback'
+    | 'commit'
+    | 'revert';
   state?: unknown;
   nextLiftedState?: unknown;
 }
@@ -121,7 +128,16 @@ function snapshotScope(scope: Scope): Record<string, unknown> {
 }
 
 function readImportState(message: DevtoolsMessage): Record<string, unknown> | null {
-  if (message.type === 'jump_to_state' && isObject(message.state)) {
+  if (
+    (
+      message.type === 'jump_to_state' ||
+      message.type === 'jump_to_action' ||
+      message.type === 'rollback' ||
+      message.type === 'revert' ||
+      message.type === 'reset'
+    ) &&
+    isObject(message.state)
+  ) {
     return message.state as Record<string, unknown>;
   }
 
@@ -146,7 +162,7 @@ function readImportState(message: DevtoolsMessage): Record<string, unknown> | nu
   return null;
 }
 
-function applySnapshot(scope: Scope, snapshot: Record<string, unknown>): void {
+function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: string): void {
   scope.batch(() => {
     for (const [key, value] of Object.entries(snapshot)) {
       const cellUnit = getRegisteredCellById(key);
@@ -154,7 +170,7 @@ function applySnapshot(scope: Scope, snapshot: Record<string, unknown>): void {
         continue;
       }
       scope.set(cellUnit as AnyCell, value, {
-        reason: 'devtools.import',
+        reason,
         priority: 'urgent',
       });
     }
@@ -186,8 +202,9 @@ export function inspect(options: InspectOptions): Unsubscribe {
 
 export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
   const { scope, adapter } = options;
+  const initialSnapshot = snapshotScope(scope);
 
-  adapter.init(snapshotScope(scope));
+  adapter.init(initialSnapshot);
 
   let seq = 0;
   const nextId = (prefix: string) => `${prefix}_${++seq}`;
@@ -219,13 +236,29 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
   });
 
   const unsubscribeAdapter = adapter.subscribe?.((message) => {
+    if (message.type === 'commit') {
+      adapter.init(snapshotScope(scope));
+      return;
+    }
+
+    if (message.type === 'reset') {
+      const resetSnapshot = readImportState(message) ?? initialSnapshot;
+      applyingFromDevtools = true;
+      try {
+        applySnapshot(scope, resetSnapshot, 'devtools.reset');
+      } finally {
+        applyingFromDevtools = false;
+      }
+      return;
+    }
+
     const snapshot = readImportState(message);
     if (!snapshot) {
       return;
     }
     applyingFromDevtools = true;
     try {
-      applySnapshot(scope, snapshot);
+      applySnapshot(scope, snapshot, `devtools.${message.type}`);
     } finally {
       applyingFromDevtools = false;
     }

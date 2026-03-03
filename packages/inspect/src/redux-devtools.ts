@@ -18,6 +18,17 @@ export interface ReduxDevtoolsAdapter extends DevtoolsAdapter {
   disconnect(): void;
 }
 
+function parseMaybeJsonObject(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 function readGlobalReduxDevtools(): ReduxDevtoolsLike | undefined {
   const g = globalThis as {
     __REDUX_DEVTOOLS_EXTENSION__?: ReduxDevtoolsLike;
@@ -64,15 +75,48 @@ export function createReduxDevtoolsAdapter(
         if (!message || typeof message !== 'object') {
           return;
         }
-        const incoming = message as { type?: unknown; state?: unknown; nextLiftedState?: unknown };
-        if (incoming.type !== 'jump_to_state' && incoming.type !== 'import_state') {
+        const incoming = message as {
+          type?: unknown;
+          state?: unknown;
+          payload?: { type?: unknown; nextLiftedState?: unknown };
+          nextLiftedState?: unknown;
+        };
+
+        if (incoming.type === 'DISPATCH') {
+          const dispatchType = incoming.payload?.type;
+          if (
+            dispatchType === 'JUMP_TO_STATE' ||
+            dispatchType === 'JUMP_TO_ACTION' ||
+            dispatchType === 'ROLLBACK' ||
+            dispatchType === 'REVERT' ||
+            dispatchType === 'COMMIT' ||
+            dispatchType === 'RESET' ||
+            dispatchType === 'IMPORT_STATE'
+          ) {
+            listener({
+              type: dispatchType.toLowerCase() as DevtoolsMessage['type'],
+              state: parseMaybeJsonObject(incoming.state),
+              nextLiftedState: parseMaybeJsonObject(incoming.payload?.nextLiftedState),
+            });
+          }
           return;
         }
-        listener({
-          type: incoming.type,
-          state: incoming.state,
-          nextLiftedState: incoming.nextLiftedState,
-        });
+
+        if (
+          incoming.type === 'jump_to_state' ||
+          incoming.type === 'jump_to_action' ||
+          incoming.type === 'rollback' ||
+          incoming.type === 'revert' ||
+          incoming.type === 'commit' ||
+          incoming.type === 'reset' ||
+          incoming.type === 'import_state'
+        ) {
+          listener({
+            type: incoming.type,
+            state: parseMaybeJsonObject(incoming.state),
+            nextLiftedState: parseMaybeJsonObject(incoming.nextLiftedState),
+          });
+        }
       });
       return typeof unsubscribe === 'function'
         ? unsubscribe

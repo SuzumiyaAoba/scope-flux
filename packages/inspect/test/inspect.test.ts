@@ -148,4 +148,58 @@ describe('inspect', () => {
     expect(scope.get(count)).toBe(7);
     unsub();
   });
+
+  it('connectDevtools reset applies provided snapshot', () => {
+    const count = cell(5, { id: 'inspect_reset_count' });
+    const scope = createStore().fork();
+    let receive!: (message: { type: 'reset'; state?: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'reset'; state?: unknown }) => void) => {
+        receive = listener;
+        return () => {
+          // no-op
+        };
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    scope.set(count, 10);
+    expect(scope.get(count)).toBe(10);
+
+    receive({ type: 'reset', state: { inspect_reset_count: 5 } });
+    expect(scope.get(count)).toBe(5);
+    unsub();
+  });
+
+  it('redux devtools adapter normalizes DISPATCH JUMP_TO_STATE', () => {
+    let forwarded: ((message: unknown) => void) | undefined;
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+          subscribe: (listener) => {
+            forwarded = listener as typeof forwarded;
+            return () => {};
+          },
+        }),
+      },
+    });
+
+    const onMessage = vi.fn();
+    adapter.subscribe?.(onMessage);
+    forwarded?.({
+      type: 'DISPATCH',
+      payload: { type: 'JUMP_TO_STATE' },
+      state: '{"count":2}',
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'jump_to_state',
+      state: { count: 2 },
+      nextLiftedState: undefined,
+    });
+  });
 });

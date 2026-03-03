@@ -163,6 +163,61 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+function abortReasonAsError(signal: AbortSignal, fallbackMessage: string): Error {
+  const reason = (signal as AbortSignal & { reason?: unknown }).reason;
+  if (reason instanceof Error) {
+    return reason;
+  }
+  if (typeof reason === 'string') {
+    return toAbortError(reason);
+  }
+  return toAbortError(fallbackMessage);
+}
+
+function waitMsWithAbort(ms: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) {
+    return Promise.reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+  }
+  if (ms <= 0) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    return Promise.reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener('abort', onAbort);
+      reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      }
+    );
+  });
+}
+
 function normalizeEffectPolicy(policy: EffectPolicy | undefined): Required<EffectPolicy> {
   return {
     concurrency: policy?.concurrency ?? 'parallel',
@@ -447,11 +502,16 @@ export class Scope {
           throw toAbortError('NS_CORE_EFFECT_ABORTED');
         }
         try {
-          const result = await unitEffect.handler(payload, {
-            scope: this,
-            signal: controller.signal,
-            attempt,
-          });
+          const result = await raceWithAbort(
+            Promise.resolve(
+              unitEffect.handler(payload, {
+                scope: this,
+                signal: controller.signal,
+                attempt,
+              })
+            ),
+            controller.signal
+          );
           if (controller.signal.aborted) {
             throw toAbortError('NS_CORE_EFFECT_ABORTED');
           }
@@ -469,7 +529,7 @@ export class Scope {
           }
           const rawDelay = unitEffect.policy.retryDelayMs;
           const delayMs = typeof rawDelay === 'function' ? rawDelay(attempt, error) : rawDelay;
-          await waitMs(Math.max(0, delayMs));
+          await waitMsWithAbort(Math.max(0, delayMs), controller.signal);
         }
       }
 
@@ -747,9 +807,25 @@ export class Scope {
 
   public subscribeUnit<T>(unit: Cell<T> | Computed<T>, listener: () => void): Unsubscribe {
     if (unit.kind === 'computed') {
-      return this.subscribe(() => {
-        listener();
-      });
+      let prev = this.get(unit);
+      const depUnsubscribers: Unsubscribe[] = [];
+      for (const dep of unit.deps as ComputedDeps) {
+        depUnsubscribers.push(
+          this.subscribeUnit(dep as Cell<unknown> | Computed<unknown>, () => {
+            const next = this.get(unit);
+            if (defaultEqual(prev, next)) {
+              return;
+            }
+            prev = next;
+            listener();
+          })
+        );
+      }
+      return () => {
+        for (const unsub of depUnsubscribers) {
+          unsub();
+        }
+      };
     }
     const key = unit as AnyUnit;
     let listeners = this._unitSubscribers.get(key);

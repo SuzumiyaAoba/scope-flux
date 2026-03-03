@@ -451,4 +451,32 @@ describe('core', () => {
     scope.set(a, 1);
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it('subscribeUnit for computed ignores unrelated cell updates', () => {
+    const a = cell(1, { id: 'unit_sub_computed_a' });
+    const b = cell(1, { id: 'unit_sub_computed_b' });
+    const doubledA = computed([a], (v) => v * 2);
+    const scope = createStore().fork();
+    const listener = vi.fn();
+    scope.subscribeUnit(doubledA, listener);
+
+    scope.set(b, 2);
+    expect(listener).toHaveBeenCalledTimes(0);
+
+    scope.set(a, 2);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('run can abort even when effect handler does not use signal', async () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(() => {
+      return new Promise<number>((resolve) => {
+        setTimeout(() => resolve(10), 30);
+      });
+    });
+
+    await expect(
+      scope.run(fx, undefined, { timeoutMs: 5 })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });
