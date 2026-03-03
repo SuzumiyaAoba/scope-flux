@@ -11,7 +11,7 @@ Redux extension-like shape expected by adapter factory.
 ## Example
 
 ```ts
-import type { ReduxDevtoolsLike } from '@scope-flux/inspect';
+import type { ReduxDevtoolsLike } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = ReduxDevtoolsLike;

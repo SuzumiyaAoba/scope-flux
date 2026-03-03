@@ -11,7 +11,7 @@ Commit change payload for event emissions.
 ## Example
 
 ```ts
-import type { EventChange } from '@scope-flux/core';
+import type { EventChange } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = EventChange;

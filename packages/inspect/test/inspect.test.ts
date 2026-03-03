@@ -203,6 +203,35 @@ describe('inspect', () => {
     });
   });
 
+  it('redux devtools adapter normalizes STATE message', () => {
+    let forwarded: ((message: unknown) => void) | undefined;
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+          subscribe: (listener) => {
+            forwarded = listener as typeof forwarded;
+            return () => {};
+          },
+        }),
+      },
+    });
+
+    const onMessage = vi.fn();
+    adapter.subscribe?.(onMessage);
+    forwarded?.({
+      type: 'STATE',
+      state: '{"count":3}',
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'jump_to_state',
+      state: { count: 3 },
+      nextLiftedState: undefined,
+    });
+  });
+
   it('connectDevtools reports adapter errors via onError', () => {
     const count = cell(0, { id: 'inspect_on_error_count' });
     const scope = createStore().fork();

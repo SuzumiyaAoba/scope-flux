@@ -28,8 +28,8 @@ Returns event dispatcher callback.
 ## Example
 
 ```tsx
-import { cell, event } from '@scope-flux/core';
-import { useAction, useUnit } from '@scope-flux/react';
+import { cell, event } from '@suzumiyaaoba/scope-flux-core';
+import { useAction, useUnit } from '@suzumiyaaoba/scope-flux-react';
 
 const addTodo = event<{ title: string }>();
 const pendingTitle = cell('', { id: 'todo.pendingTitle' });

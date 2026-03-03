@@ -11,7 +11,7 @@ Commit envelope emitted to subscribers.
 ## Example
 
 ```ts
-import type { CommitEvent } from '@scope-flux/core';
+import type { CommitEvent } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = CommitEvent;

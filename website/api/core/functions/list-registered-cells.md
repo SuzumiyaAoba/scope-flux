@@ -27,7 +27,7 @@ Returns all globally registered cells.
 ## Example
 
 ```ts
-import { cell, listRegisteredCells } from '@scope-flux/core';
+import { cell, listRegisteredCells } from '@suzumiyaaoba/scope-flux-core';
 
 cell(0, { id: 'counter.value' });
 cell('', { id: 'search.query' });

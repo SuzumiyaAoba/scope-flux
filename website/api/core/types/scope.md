@@ -18,7 +18,7 @@ Notable runtime methods include:
 ## Example
 
 ```ts
-import type { Scope } from '@scope-flux/core';
+import type { Scope } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Scope;

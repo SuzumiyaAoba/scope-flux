@@ -1,6 +1,6 @@
 # Scheduler API
 
-`@scope-flux/scheduler` provides two-layer update handling:
+`@suzumiyaaoba/scope-flux-scheduler` provides two-layer update handling:
 
 - committed path (authoritative)
 - buffered path (transition/idle UI updates)
@@ -11,7 +11,7 @@ If your app is simple, you can stay on urgent updates only and skip scheduler-sp
 ## Creation
 
 ```ts
-import { createScheduler } from '@scope-flux/scheduler';
+import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 
 const scheduler = createScheduler({ scope });
 ```
@@ -164,8 +164,8 @@ In these cases, keep updates `urgent`.
 ## Example
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
-import { createScheduler } from '@scope-flux/scheduler';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 
 const scope = createStore().fork();
 const scheduler = createScheduler({ scope });

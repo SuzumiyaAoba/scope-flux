@@ -1,6 +1,6 @@
 # Inspect API
 
-`@scope-flux/inspect` provides runtime observability and DevTools integration.
+`@suzumiyaaoba/scope-flux-inspect` provides runtime observability and DevTools integration.
 
 Use this package to answer:
 
@@ -153,8 +153,8 @@ stop();
 ## Example
 
 ```ts
-import { createStore } from '@scope-flux/core';
-import { inspect, connectDevtools, createReduxDevtoolsAdapter } from '@scope-flux/inspect';
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
+import { inspect, connectDevtools, createReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
 const scope = createStore().fork();
 

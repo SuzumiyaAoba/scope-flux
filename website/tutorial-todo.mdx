@@ -53,7 +53,7 @@ You can use the app below directly inside this page.
 First, create `src/state.ts`.
 
 ```ts
-import { cell, computed } from '@scope-flux/core';
+import { cell, computed } from '@suzumiyaaoba/scope-flux-core';
 
 export type Todo = {
   id: string;
@@ -90,8 +90,8 @@ Why explicit `id` values:
 Next, create the store scope and inject it into React tree.
 
 ```tsx
-import { createStore } from '@scope-flux/core';
-import { StoreProvider } from '@scope-flux/react';
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
+import { StoreProvider } from '@suzumiyaaoba/scope-flux-react';
 
 const scope = createStore().fork();
 
@@ -103,7 +103,7 @@ export function AppRoot({ children }: { children: React.ReactNode }) {
 What happens here:
 
 - `createStore().fork()` creates an isolated runtime scope for this app instance.
-- `StoreProvider` makes that scope available to all `@scope-flux/react` hooks below it.
+- `StoreProvider` makes that scope available to all `@suzumiyaaoba/scope-flux-react` hooks below it.
 
 Tip:
 
@@ -123,7 +123,7 @@ import {
   useCellAction,
   useFlushBuffered,
   useUnit,
-} from '@scope-flux/react';
+} from '@suzumiyaaoba/scope-flux-react';
 import { draftCell, filterCell, todosCell, visibleTodos } from './state';
 
 function TodoInput() {
@@ -234,7 +234,7 @@ sequenceDiagram
 Use serializer to save/restore app state.
 
 ```ts
-import { hydrate, serialize } from '@scope-flux/serializer';
+import { hydrate, serialize } from '@suzumiyaaoba/scope-flux-serializer';
 
 const STORAGE_KEY = 'scope-flux-todo-state';
 
@@ -259,7 +259,7 @@ Notes:
 You can inspect all commits for debugging.
 
 ```ts
-import { inspect } from '@scope-flux/inspect';
+import { inspect } from '@suzumiyaaoba/scope-flux-inspect';
 
 const stopInspect = inspect({
   scope,
@@ -288,13 +288,13 @@ Below is a runnable example using Vite + React.
 npm create vite@latest scope-flux-todo -- --template react-ts
 cd scope-flux-todo
 npm install
-npm install @scope-flux/core @scope-flux/react @scope-flux/serializer @scope-flux/inspect
+npm install @suzumiyaaoba/scope-flux-core @suzumiyaaoba/scope-flux-react @suzumiyaaoba/scope-flux-serializer @suzumiyaaoba/scope-flux-inspect
 ```
 
 ### 6.2 File: `src/state.ts`
 
 ```ts
-import { cell, computed } from '@scope-flux/core';
+import { cell, computed } from '@suzumiyaaoba/scope-flux-core';
 
 export type Todo = {
   id: string;
@@ -316,9 +316,9 @@ export const visibleTodos = computed([todosCell, filterCell], (todos, filter) =>
 ### 6.3 File: `src/store.ts`
 
 ```ts
-import { createStore } from '@scope-flux/core';
-import { hydrate, serialize } from '@scope-flux/serializer';
-import { inspect } from '@scope-flux/inspect';
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
+import { hydrate, serialize } from '@suzumiyaaoba/scope-flux-serializer';
+import { inspect } from '@suzumiyaaoba/scope-flux-inspect';
 
 export const STORAGE_KEY = 'scope-flux-todo-state';
 export const scope = createStore().fork();
@@ -346,7 +346,7 @@ inspect({
 
 ```tsx
 import { useMemo } from 'react';
-import { StoreProvider, useBufferedUnit, useCellAction, useFlushBuffered, useUnit } from '@scope-flux/react';
+import { StoreProvider, useBufferedUnit, useCellAction, useFlushBuffered, useUnit } from '@suzumiyaaoba/scope-flux-react';
 import { draftCell, filterCell, todosCell, visibleTodos } from './state';
 import { scope } from './store';
 

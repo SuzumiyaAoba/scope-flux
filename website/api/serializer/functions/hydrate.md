@@ -36,8 +36,8 @@ Validates and applies serialized payload into scope.
 ## Example
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
-import { hydrate } from '@scope-flux/serializer';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { hydrate } from '@suzumiyaaoba/scope-flux-serializer';
 
 const count = cell(0, { id: 'counter.count' });
 const scope = createStore().fork();

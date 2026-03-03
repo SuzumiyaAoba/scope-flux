@@ -36,8 +36,8 @@ Returns typed setter for cell updates.
 ## Example
 
 ```tsx
-import { cell } from '@scope-flux/core';
-import { useCellAction, useUnit } from '@scope-flux/react';
+import { cell } from '@suzumiyaaoba/scope-flux-core';
+import { useCellAction, useUnit } from '@suzumiyaaoba/scope-flux-react';
 
 const count = cell(0, { id: 'count' });
 

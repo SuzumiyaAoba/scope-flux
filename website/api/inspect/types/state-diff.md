@@ -11,7 +11,7 @@ Diff payload for `set` changes.
 ## Example
 
 ```ts
-import type { StateDiff } from '@scope-flux/inspect';
+import type { StateDiff } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = StateDiff;

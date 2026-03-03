@@ -11,7 +11,7 @@ Type alias for stable string IDs used across serialization and inspection.
 ## Example
 
 ```ts
-import type { StableId } from '@scope-flux/core';
+import type { StableId } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = StableId;

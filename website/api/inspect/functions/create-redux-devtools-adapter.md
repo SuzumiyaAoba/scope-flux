@@ -28,7 +28,7 @@ Creates Redux DevTools adapter with graceful no-op fallback.
 ## Example
 
 ```ts
-import { createReduxDevtoolsAdapter } from '@scope-flux/inspect';
+import { createReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
 const adapter = createReduxDevtoolsAdapter({ name: 'scope-flux' });
 adapter.init({ count: 0 });

@@ -11,7 +11,7 @@ Transport payload structure for serialized scope.
 ## Example
 
 ```ts
-import type { SerializedScope } from '@scope-flux/serializer';
+import type { SerializedScope } from '@suzumiyaaoba/scope-flux-serializer';
 
 // Use this type in your app-level contracts
 type Example = SerializedScope;

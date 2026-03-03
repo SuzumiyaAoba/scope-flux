@@ -17,7 +17,7 @@ Literal union of update priority values.
 ## Example
 
 ```ts
-import type { Priority } from '@scope-flux/core';
+import type { Priority } from '@suzumiyaaoba/scope-flux-core';
 
 const priority: Priority = 'urgent';
 void priority;

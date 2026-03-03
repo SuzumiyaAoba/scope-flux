@@ -28,8 +28,8 @@ Returns effect invoker callback.
 ## Example
 
 ```tsx
-import { effect, cell } from '@scope-flux/core';
-import { useEffectAction, useCellAction, useUnit } from '@scope-flux/react';
+import { effect, cell } from '@suzumiyaaoba/scope-flux-core';
+import { useEffectAction, useCellAction, useUnit } from '@suzumiyaaoba/scope-flux-react';
 
 const status = cell<'idle' | 'loading' | 'done'>('idle', { id: 'user.status' });
 const loadFx = effect(async (id: string) => ({ id, name: 'Aoba' }));

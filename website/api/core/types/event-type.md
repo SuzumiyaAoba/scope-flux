@@ -11,7 +11,7 @@ Event unit shape.
 ## Example
 
 ```ts
-import type { Event } from '@scope-flux/core';
+import type { Event } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Event<any>;

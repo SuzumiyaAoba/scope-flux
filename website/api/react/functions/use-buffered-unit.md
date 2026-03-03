@@ -29,8 +29,8 @@ Reads buffered value with committed fallback.
 ## Example
 
 ```tsx
-import { cell } from '@scope-flux/core';
-import { useBufferedUnit, useCellAction, useFlushBuffered } from '@scope-flux/react';
+import { cell } from '@suzumiyaaoba/scope-flux-core';
+import { useBufferedUnit, useCellAction, useFlushBuffered } from '@suzumiyaaoba/scope-flux-react';
 
 const query = cell('', { id: 'query' });
 

@@ -1,6 +1,6 @@
 # Core API
 
-`@scope-flux/core` is the runtime foundation. It is framework-agnostic and can run in Node or browser environments.
+`@suzumiyaaoba/scope-flux-core` is the runtime foundation. It is framework-agnostic and can run in Node or browser environments.
 
 Everything else (`react`, `scheduler`, `serializer`, `inspect`) builds on top of this package.
 If you understand core well, the rest of the stack becomes straightforward.
@@ -271,7 +271,7 @@ Example reasons:
 ## Example
 
 ```ts
-import { createStore, cell, computed } from '@scope-flux/core';
+import { createStore, cell, computed } from '@suzumiyaaoba/scope-flux-core';
 
 const count = cell(0, { id: 'count' });
 const doubled = computed([count], (n) => n * 2);
@@ -332,7 +332,7 @@ console.log(scope.get(doubled)); // 2
 ## Practical Example
 
 ```ts
-import { cell, computed, createStore } from '@scope-flux/core';
+import { cell, computed, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const items = cell<string[]>([], { id: 'items' });
 const query = cell('', { id: 'query' });

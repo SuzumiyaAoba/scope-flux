@@ -11,7 +11,7 @@ Seed input type accepted by scope/store creation.
 ## Example
 
 ```ts
-import type { SeedInput } from '@scope-flux/core';
+import type { SeedInput } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = SeedInput;

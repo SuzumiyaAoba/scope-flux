@@ -31,13 +31,13 @@ This separation helps keep UI components small and business logic portable.
 
 ## Packages
 
-- `@scope-flux/core`
-- `@scope-flux/react`
-- `@scope-flux/scheduler`
-- `@scope-flux/serializer`
-- `@scope-flux/inspect`
+- `@suzumiyaaoba/scope-flux-core`
+- `@suzumiyaaoba/scope-flux-react`
+- `@suzumiyaaoba/scope-flux-scheduler`
+- `@suzumiyaaoba/scope-flux-serializer`
+- `@suzumiyaaoba/scope-flux-inspect`
 
-You can adopt only the packages you need. For example, non-React logic can start with `@scope-flux/core` only.
+You can adopt only the packages you need. For example, non-React logic can start with `@suzumiyaaoba/scope-flux-core` only.
 
 ## Suggested Reading Order
 

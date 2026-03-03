@@ -27,7 +27,7 @@ Returns a globally registered cell by stable ID.
 ## Example
 
 ```ts
-import { cell, getRegisteredCellById } from '@scope-flux/core';
+import { cell, getRegisteredCellById } from '@suzumiyaaoba/scope-flux-core';
 
 const theme = cell<'light' | 'dark'>('light', { id: 'ui.theme' });
 const resolved = getRegisteredCellById('ui.theme');

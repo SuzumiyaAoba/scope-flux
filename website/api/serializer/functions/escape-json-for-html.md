@@ -27,7 +27,7 @@ Escapes dangerous code points for HTML-safe JSON embedding.
 ## Example
 
 ```ts
-import { escapeJsonForHtml } from '@scope-flux/serializer';
+import { escapeJsonForHtml } from '@suzumiyaaoba/scope-flux-serializer';
 
 const payload = { text: '</script><script>alert(1)</script>' };
 const raw = JSON.stringify(payload);

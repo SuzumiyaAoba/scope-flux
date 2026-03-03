@@ -11,7 +11,7 @@ Computed unit shape with deps and read function.
 ## Example
 
 ```ts
-import type { Computed } from '@scope-flux/core';
+import type { Computed } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Computed<any, any>;

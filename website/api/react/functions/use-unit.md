@@ -29,8 +29,8 @@ Reads committed value from cell/computed with optional selector.
 ## Example
 
 ```tsx
-import { cell, computed } from '@scope-flux/core';
-import { useUnit } from '@scope-flux/react';
+import { cell, computed } from '@suzumiyaaoba/scope-flux-core';
+import { useUnit } from '@suzumiyaaoba/scope-flux-react';
 
 const todos = cell(
   [

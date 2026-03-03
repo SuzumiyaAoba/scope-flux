@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React, { act } from 'react';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { cell, createStore, effect, event } from '@suzumiyaaoba/scope-flux-core';
@@ -272,5 +272,37 @@ describe('react bridge', () => {
       await Promise.resolve();
     });
     await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('supports user interaction flow with buffered input and flush button', () => {
+    const query = cell('', { id: 'react_user_flow_query' });
+    const scope = createStore().fork();
+
+    function App(): React.JSX.Element {
+      const value = useBufferedUnit(query);
+      const setValue = useCellAction(query, { priority: 'transition' });
+      const flush = useFlushBuffered();
+      return (
+        <div>
+          <input
+            aria-label="query"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+          <button onClick={flush}>commit</button>
+        </div>
+      );
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    fireEvent.change(screen.getByLabelText('query'), { target: { value: 'abc' } });
+    expect(scope.get(query)).toBe('');
+    fireEvent.click(screen.getByText('commit'));
+    expect(scope.get(query)).toBe('abc');
   });
 });

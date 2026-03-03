@@ -27,7 +27,7 @@ Creates a store with a root scope and forking API.
 ## Example
 
 ```ts
-import { createStore, cell } from '@scope-flux/core';
+import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
 
 const userId = cell<string | null>(null, { id: 'session.userId' });
 const store = createStore();

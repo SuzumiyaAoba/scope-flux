@@ -11,7 +11,7 @@ Shared metadata object for units.
 ## Example
 
 ```ts
-import type { UnitMeta } from '@scope-flux/core';
+import type { UnitMeta } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = UnitMeta;

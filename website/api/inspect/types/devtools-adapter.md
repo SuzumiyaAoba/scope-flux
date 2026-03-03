@@ -17,7 +17,7 @@ Contract:
 ## Example
 
 ```ts
-import type { DevtoolsAdapter } from '@scope-flux/inspect';
+import type { DevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = DevtoolsAdapter;

@@ -30,8 +30,8 @@ Subscribes to commit stream and emits normalized records.
 ## Example
 
 ```ts
-import { createStore, cell } from '@scope-flux/core';
-import { inspect } from '@scope-flux/inspect';
+import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
+import { inspect } from '@suzumiyaaoba/scope-flux-inspect';
 
 const count = cell(0, { id: 'count' });
 const scope = createStore().fork();

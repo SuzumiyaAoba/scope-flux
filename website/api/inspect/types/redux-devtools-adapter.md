@@ -11,7 +11,7 @@ Adapter interface including `disconnect()`.
 ## Example
 
 ```ts
-import type { ReduxDevtoolsAdapter } from '@scope-flux/inspect';
+import type { ReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = ReduxDevtoolsAdapter;

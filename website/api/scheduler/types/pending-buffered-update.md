@@ -11,7 +11,7 @@ Shape of one buffered pending update.
 ## Example
 
 ```ts
-import type { PendingBufferedUpdate } from '@scope-flux/scheduler';
+import type { PendingBufferedUpdate } from '@suzumiyaaoba/scope-flux-scheduler';
 
 // Use this type in your app-level contracts
 type Example = PendingBufferedUpdate;

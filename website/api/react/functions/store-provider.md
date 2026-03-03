@@ -29,8 +29,8 @@ Provides scope/scheduler context to React subtree.
 ## Example
 
 ```tsx
-import { createStore, cell } from '@scope-flux/core';
-import { StoreProvider, useUnit } from '@scope-flux/react';
+import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
+import { StoreProvider, useUnit } from '@suzumiyaaoba/scope-flux-react';
 
 const scope = createStore().fork();
 const count = cell(1, { id: 'counter.count' });
@@ -51,7 +51,7 @@ export function App() {
 
 ## Notes
 
-- Every hook from `@scope-flux/react` must run under `StoreProvider`.
+- Every hook from `@suzumiyaaoba/scope-flux-react` must run under `StoreProvider`.
 - For SSR, create a fresh scope per request and pass that scope to the provider.
 
 ## Common Pitfalls

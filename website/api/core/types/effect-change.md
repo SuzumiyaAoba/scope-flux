@@ -11,7 +11,7 @@ Commit change payload for effect executions.
 ## Example
 
 ```ts
-import type { EffectChange } from '@scope-flux/core';
+import type { EffectChange } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = EffectChange;

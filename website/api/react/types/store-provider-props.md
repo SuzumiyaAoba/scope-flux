@@ -11,7 +11,7 @@ Props contract for StoreProvider.
 ## Example
 
 ```ts
-import type { StoreProviderProps } from '@scope-flux/react';
+import type { StoreProviderProps } from '@suzumiyaaoba/scope-flux-react';
 
 const props = {} as StoreProviderProps;
 void props;

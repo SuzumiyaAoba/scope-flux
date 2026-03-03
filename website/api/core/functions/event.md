@@ -27,7 +27,7 @@ Creates a typed event channel.
 ## Example
 
 ```ts
-import { cell, createStore, event } from '@scope-flux/core';
+import { cell, createStore, event } from '@suzumiyaaoba/scope-flux-core';
 
 const submitClicked = event<{ title: string }>({ debugName: 'todo.submit' });
 const titles = cell<string[]>([], { id: 'todos.titles' });

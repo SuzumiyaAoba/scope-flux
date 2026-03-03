@@ -11,7 +11,7 @@ Unsubscribe function type.
 ## Example
 
 ```ts
-import type { Unsubscribe } from '@scope-flux/core';
+import type { Unsubscribe } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Unsubscribe;

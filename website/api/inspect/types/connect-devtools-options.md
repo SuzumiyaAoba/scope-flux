@@ -19,7 +19,7 @@ If adapter exposes `subscribe`, inbound devtools messages can also update scope 
 ## Example
 
 ```ts
-import type { ConnectDevtoolsOptions } from '@scope-flux/inspect';
+import type { ConnectDevtoolsOptions } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = ConnectDevtoolsOptions;

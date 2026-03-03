@@ -11,7 +11,7 @@ Commit change payload for cell updates.
 ## Example
 
 ```ts
-import type { SetChange } from '@scope-flux/core';
+import type { SetChange } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = SetChange;

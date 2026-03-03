@@ -44,7 +44,23 @@ export interface HydrateFromStorageOptions extends HydrateOptions {
 export interface AutoPersistOptions extends PersistToStorageOptions {
   debounceMs?: number;
   throttleMs?: number;
+  mode?: 'safe' | 'force';
+  migrate?: (payload: SerializedScope) => SerializedScope;
+  listenExternalUpdates?: boolean;
+  onExternalHydrate?: (payload: SerializedScope) => void;
   onError?: (error: unknown) => void;
+}
+
+export function createMemoryStorage(seed: Record<string, string> = {}): StorageLike {
+  const map = new Map<string, string>(Object.entries(seed));
+  return {
+    getItem(key: string): string | null {
+      return map.get(key) ?? null;
+    },
+    setItem(key: string, value: string): void {
+      map.set(key, value);
+    },
+  };
 }
 
 function isJsonValue(value: unknown): value is JsonValue {
@@ -260,8 +276,10 @@ export function autoPersistScope(
 ): {
   unsubscribe: () => void;
   flush: () => SerializedScope | null;
+  hydrateNow: () => SerializedScope | null;
 } {
   assertScope(scope);
+  const storage = resolveStorage(options.storage);
   const debounceMs = Math.max(0, options.debounceMs ?? 0);
   const throttleMs = Math.max(0, options.throttleMs ?? 0);
   let lastPersistAt = 0;
@@ -277,7 +295,7 @@ export function autoPersistScope(
 
   const persistNow = (): SerializedScope | null => {
     try {
-      const payload = persistToStorage(scope, key, options);
+      const payload = persistToStorage(scope, key, { ...options, storage });
       lastPersistAt = Date.now();
       return payload;
     } catch (error) {
@@ -305,14 +323,79 @@ export function autoPersistScope(
     schedulePersist();
   });
 
+  let unsubscribeExternal = () => {
+    // no-op
+  };
+
+  if (options.listenExternalUpdates) {
+    const g = globalThis as {
+      addEventListener?: (
+        type: string,
+        listener: (event: unknown) => void
+      ) => void;
+      removeEventListener?: (
+        type: string,
+        listener: (event: unknown) => void
+      ) => void;
+    };
+
+    if (typeof g.addEventListener === 'function' && typeof g.removeEventListener === 'function') {
+      const onStorage = (event: unknown) => {
+        const e = event as {
+          key?: string | null;
+          newValue?: string | null;
+          storageArea?: StorageLike;
+        };
+        if (e.key !== key || !e.newValue) {
+          return;
+        }
+        if (e.storageArea && e.storageArea !== storage) {
+          return;
+        }
+        try {
+          const parsed = JSON.parse(e.newValue) as unknown;
+          hydrate(scope, parsed, {
+            mode: options.mode ?? 'force',
+            migrate: options.migrate,
+          });
+          options.onExternalHydrate?.(parsed as SerializedScope);
+        } catch (error) {
+          options.onError?.(error);
+        }
+      };
+
+      g.addEventListener('storage', onStorage);
+      unsubscribeExternal = () => {
+        g.removeEventListener?.('storage', onStorage);
+      };
+    }
+  }
+
   return {
     unsubscribe: () => {
       clearTimer();
       unsubscribe();
+      unsubscribeExternal();
     },
     flush: () => {
       clearTimer();
       return persistNow();
+    },
+    hydrateNow: () => {
+      try {
+        const loaded = hydrateFromStorage(scope, key, {
+          mode: options.mode,
+          migrate: options.migrate,
+          storage,
+        });
+        if (loaded) {
+          options.onExternalHydrate?.(loaded);
+        }
+        return loaded;
+      } catch (error) {
+        options.onError?.(error);
+        return null;
+      }
     },
   };
 }

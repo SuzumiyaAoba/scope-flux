@@ -27,8 +27,8 @@ Creates scheduler instance for a scope.
 ## Example
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
-import { createScheduler } from '@scope-flux/scheduler';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 
 const scope = createStore().fork();
 const scheduler = createScheduler({ scope });

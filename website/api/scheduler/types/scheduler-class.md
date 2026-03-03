@@ -11,7 +11,7 @@ Two-channel update orchestrator (committed + buffered).
 ## Example
 
 ```ts
-import type { Scheduler } from '@scope-flux/scheduler';
+import type { Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 
 // Use this type in your app-level contracts
 type Example = Scheduler;

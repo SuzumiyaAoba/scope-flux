@@ -21,7 +21,7 @@ Also supports:
 ## Example
 
 ```ts
-import type { HydrateOptions } from '@scope-flux/serializer';
+import type { HydrateOptions } from '@suzumiyaaoba/scope-flux-serializer';
 
 const options: HydrateOptions = { mode: 'safe' };
 void options;

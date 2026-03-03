@@ -33,8 +33,8 @@ Combined read/write hook similar to `useState`.
 ## Example
 
 ```tsx
-import { cell } from '@scope-flux/core';
-import { useCell, useFlushBuffered } from '@scope-flux/react';
+import { cell } from '@suzumiyaaoba/scope-flux-core';
+import { useCell, useFlushBuffered } from '@suzumiyaaoba/scope-flux-react';
 
 const draftTitle = cell('', { id: 'editor.draftTitle' });
 

@@ -23,7 +23,7 @@ Returns `null` when the key does not exist.
 ## Example
 
 ```ts
-import { hydrateFromStorage } from '@scope-flux/serializer';
+import { hydrateFromStorage } from '@suzumiyaaoba/scope-flux-serializer';
 
 hydrateFromStorage(scope, 'scope-flux:app', { mode: 'safe' });
 ```

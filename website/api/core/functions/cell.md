@@ -36,7 +36,7 @@ Creates a mutable state unit.
 ## Example
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const filterText = cell('', { id: 'todos.filterText' });
 const store = createStore();

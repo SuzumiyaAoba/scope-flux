@@ -11,7 +11,7 @@ Argument tuple inferred from computed dependencies.
 ## Example
 
 ```ts
-import type { ComputedArgs } from '@scope-flux/core';
+import type { ComputedArgs } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = ComputedArgs<any>;

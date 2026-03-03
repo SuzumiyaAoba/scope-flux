@@ -1,6 +1,6 @@
 # Serializer API
 
-`@scope-flux/serializer` handles safe state transport between runtimes (SSR/RSC/client).
+`@suzumiyaaoba/scope-flux-serializer` handles safe state transport between runtimes (SSR/RSC/client).
 
 This package is about deterministic transport, not generic object dumping.
 It intentionally limits values to JSON domain for safety and portability.
@@ -199,8 +199,8 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
 ## Example
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
-import { serialize, hydrate, escapeJsonForHtml } from '@scope-flux/serializer';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { serialize, hydrate, escapeJsonForHtml } from '@suzumiyaaoba/scope-flux-serializer';
 
 const count = cell(0, { id: 'count' });
 const serverScope = createStore().fork();

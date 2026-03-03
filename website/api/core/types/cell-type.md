@@ -11,7 +11,7 @@ Cell unit shape and metadata.
 ## Example
 
 ```ts
-import type { Cell } from '@scope-flux/core';
+import type { Cell } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Cell<any>;

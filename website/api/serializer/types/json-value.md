@@ -11,7 +11,7 @@ JSON-domain recursive value union.
 ## Example
 
 ```ts
-import type { JsonValue } from '@scope-flux/serializer';
+import type { JsonValue } from '@suzumiyaaoba/scope-flux-serializer';
 
 // Use this type in your app-level contracts
 type Example = JsonValue;

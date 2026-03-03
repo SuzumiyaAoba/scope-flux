@@ -17,7 +17,7 @@ Fields:
 ## Example
 
 ```ts
-import type { EffectContext } from '@scope-flux/core';
+import type { EffectContext } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = EffectContext;

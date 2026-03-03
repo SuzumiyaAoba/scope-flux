@@ -13,29 +13,29 @@ At the end, you will understand:
 
 - Node.js 20+ recommended
 - TypeScript 5+
-- React 18+ (or 19) for `@scope-flux/react`
+- React 18+ (or 19) for `@suzumiyaaoba/scope-flux-react`
 
 ## Installation
 
 Install all packages if you want the full feature set (core + react + scheduler + serializer + inspect):
 
 ```bash
-npm install @scope-flux/core @scope-flux/react @scope-flux/scheduler @scope-flux/serializer @scope-flux/inspect
+npm install @suzumiyaaoba/scope-flux-core @suzumiyaaoba/scope-flux-react @suzumiyaaoba/scope-flux-scheduler @suzumiyaaoba/scope-flux-serializer @suzumiyaaoba/scope-flux-inspect
 ```
 
 If you want to start smaller:
 
-- minimum runtime: `@scope-flux/core`
-- React binding only: add `@scope-flux/react`
-- SSR transport: add `@scope-flux/serializer`
-- tracing/devtools: add `@scope-flux/inspect`
+- minimum runtime: `@suzumiyaaoba/scope-flux-core`
+- React binding only: add `@suzumiyaaoba/scope-flux-react`
+- SSR transport: add `@suzumiyaaoba/scope-flux-serializer`
+- tracing/devtools: add `@suzumiyaaoba/scope-flux-inspect`
 
 ## Minimal Example
 
 Start with pure core runtime first. This keeps the model simple.
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const count = cell(0, { id: 'count' });
 const store = createStore();
@@ -62,8 +62,8 @@ Why scope isolation matters:
 Once core behavior is clear, connect it to React.
 
 ```tsx
-import { createStore, cell } from '@scope-flux/core';
-import { StoreProvider, useUnit, useCellAction } from '@scope-flux/react';
+import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
+import { StoreProvider, useUnit, useCellAction } from '@suzumiyaaoba/scope-flux-react';
 
 const count = cell(0, { id: 'count' });
 const scope = createStore().fork();

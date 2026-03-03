@@ -11,7 +11,7 @@ Common options for state updates and dispatch.
 ## Example
 
 ```ts
-import type { UpdateOptions } from '@scope-flux/core';
+import type { UpdateOptions } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = UpdateOptions;

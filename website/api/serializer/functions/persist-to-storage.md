@@ -23,7 +23,7 @@ Default storage is `localStorage` when available.
 ## Example
 
 ```ts
-import { persistToStorage } from '@scope-flux/serializer';
+import { persistToStorage } from '@suzumiyaaoba/scope-flux-serializer';
 
 persistToStorage(scope, 'scope-flux:app');
 ```

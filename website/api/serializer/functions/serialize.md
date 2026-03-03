@@ -29,8 +29,8 @@ Serializes scope state to safe JSON payload.
 ## Example
 
 ```ts
-import { cell, createStore } from '@scope-flux/core';
-import { serialize } from '@scope-flux/serializer';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { serialize } from '@suzumiyaaoba/scope-flux-serializer';
 
 const count = cell(1, { id: 'counter.count' });
 const ephemeral = cell(new Map(), { id: 'tmp.map', serializable: false });

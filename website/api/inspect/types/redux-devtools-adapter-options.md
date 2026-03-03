@@ -11,7 +11,7 @@ Options for `createReduxDevtoolsAdapter`.
 ## Example
 
 ```ts
-import type { ReduxDevtoolsAdapterOptions } from '@scope-flux/inspect';
+import type { ReduxDevtoolsAdapterOptions } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = ReduxDevtoolsAdapterOptions;

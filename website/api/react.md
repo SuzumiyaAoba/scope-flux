@@ -1,6 +1,6 @@
 # React API
 
-`@scope-flux/react` connects core/scheduler to React rendering.
+`@suzumiyaaoba/scope-flux-react` connects core/scheduler to React rendering.
 
 This package provides two things:
 
@@ -248,8 +248,8 @@ Why this pattern is useful:
 ## Example
 
 ```tsx
-import { cell, createStore } from '@scope-flux/core';
-import { StoreProvider, useCell } from '@scope-flux/react';
+import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { StoreProvider, useCell } from '@suzumiyaaoba/scope-flux-react';
 
 const queryCell = cell('', { id: 'query' });
 const scope = createStore().fork();

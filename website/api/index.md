@@ -19,8 +19,8 @@ Use the package pages first, then open Typedoc when you need exact signatures.
 ## Example
 
 ```ts
-import { createStore, cell } from '@scope-flux/core';
-import { serialize } from '@scope-flux/serializer';
+import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
+import { serialize } from '@suzumiyaaoba/scope-flux-serializer';
 
 const count = cell(0, { id: 'count' });
 const scope = createStore().fork();

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import {
   autoPersistScope,
+  createMemoryStorage,
   escapeJsonForHtml,
   hydrate,
   hydrateFromStorage,
@@ -321,5 +322,31 @@ describe('serializer', () => {
     const payload = flush();
     expect(payload?.values.auto_persist_flush_count).toBe(5);
     unsubscribe();
+  });
+
+  it('createMemoryStorage can seed and mutate values', () => {
+    const storage = createMemoryStorage({ a: '1' });
+    expect(storage.getItem('a')).toBe('1');
+    storage.setItem('b', '2');
+    expect(storage.getItem('b')).toBe('2');
+  });
+
+  it('autoPersistScope hydrateNow hydrates from existing storage payload', () => {
+    const count = cell(0, { id: 'auto_persist_hydrate_now_count' });
+    const scope = createStore().fork();
+    const storage = createMemoryStorage();
+
+    const source = createStore().fork();
+    source.set(count, 11);
+    persistToStorage(source, 'scope:auto:hydrate', { storage });
+
+    const persistence = autoPersistScope(scope, 'scope:auto:hydrate', {
+      storage,
+      mode: 'force',
+    });
+    const loaded = persistence.hydrateNow();
+    expect(loaded?.values.auto_persist_hydrate_now_count).toBe(11);
+    expect(scope.get(count)).toBe(11);
+    persistence.unsubscribe();
   });
 });

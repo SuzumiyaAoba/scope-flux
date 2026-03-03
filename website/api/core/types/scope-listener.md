@@ -11,7 +11,7 @@ Commit subscription callback type.
 ## Example
 
 ```ts
-import type { ScopeListener } from '@scope-flux/core';
+import type { ScopeListener } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = ScopeListener;

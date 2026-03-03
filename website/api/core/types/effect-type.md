@@ -19,7 +19,7 @@ Includes:
 ## Example
 
 ```ts
-import type { Effect } from '@scope-flux/core';
+import type { Effect } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Effect<any, any>;

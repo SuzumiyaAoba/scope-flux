@@ -17,7 +17,7 @@ Fields:
 ## Example
 
 ```ts
-import type { SchedulerOptions } from '@scope-flux/scheduler';
+import type { SchedulerOptions } from '@suzumiyaaoba/scope-flux-scheduler';
 
 // Use this type in your app-level contracts
 type Example = SchedulerOptions;

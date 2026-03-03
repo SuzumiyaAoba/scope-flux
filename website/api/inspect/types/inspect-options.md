@@ -11,7 +11,7 @@ Options for `inspect`.
 ## Example
 
 ```ts
-import type { InspectOptions } from '@scope-flux/inspect';
+import type { InspectOptions } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = InspectOptions;

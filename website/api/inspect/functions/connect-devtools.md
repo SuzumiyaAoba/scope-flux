@@ -31,8 +31,8 @@ Bridges inspect records to DevTools-style adapter.
 ## Example
 
 ```ts
-import { createStore } from '@scope-flux/core';
-import { connectDevtools, createReduxDevtoolsAdapter } from '@scope-flux/inspect';
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
+import { connectDevtools, createReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
 const scope = createStore().fork();
 const adapter = createReduxDevtoolsAdapter({ name: 'scope-flux-app' });

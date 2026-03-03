@@ -11,7 +11,7 @@ Normalized trace metadata for a change.
 ## Example
 
 ```ts
-import type { TraceEvent } from '@scope-flux/inspect';
+import type { TraceEvent } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = TraceEvent;

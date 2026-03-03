@@ -27,8 +27,8 @@ Returns a function that flushes scheduler buffered updates.
 ## Example
 
 ```tsx
-import { cell } from '@scope-flux/core';
-import { useCellAction, useBufferedUnit, useFlushBuffered } from '@scope-flux/react';
+import { cell } from '@suzumiyaaoba/scope-flux-core';
+import { useCellAction, useBufferedUnit, useFlushBuffered } from '@suzumiyaaoba/scope-flux-react';
 
 const name = cell('', { id: 'profile.name' });
 

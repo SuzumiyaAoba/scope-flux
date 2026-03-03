@@ -11,7 +11,7 @@ Readonly array type for computed dependencies.
 ## Example
 
 ```ts
-import type { ComputedDeps } from '@scope-flux/core';
+import type { ComputedDeps } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = ComputedDeps;

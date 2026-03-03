@@ -38,7 +38,7 @@ Creates a side-effect unit.
 ## Example
 
 ```ts
-import { effect, cell, createStore } from '@scope-flux/core';
+import { effect, cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const user = cell<{ id: string; name: string } | null>(null, { id: 'user.current' });
 

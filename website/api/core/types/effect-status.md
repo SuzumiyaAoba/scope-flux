@@ -20,7 +20,7 @@ Fields:
 ## Example
 
 ```ts
-import { createStore, effect } from '@scope-flux/core';
+import { createStore, effect } from '@suzumiyaaoba/scope-flux-core';
 
 const scope = createStore().fork();
 const fx = effect(async () => 1);

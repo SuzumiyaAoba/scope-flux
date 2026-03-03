@@ -11,7 +11,7 @@ Options for `serialize`.
 ## Example
 
 ```ts
-import type { SerializeOptions } from '@scope-flux/serializer';
+import type { SerializeOptions } from '@suzumiyaaoba/scope-flux-serializer';
 
 // Use this type in your app-level contracts
 type Example = SerializeOptions;

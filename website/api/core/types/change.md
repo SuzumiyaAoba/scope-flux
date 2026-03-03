@@ -11,7 +11,7 @@ Union of all commit change variants.
 ## Example
 
 ```ts
-import type { Change } from '@scope-flux/core';
+import type { Change } from '@suzumiyaaoba/scope-flux-core';
 
 // Use this type in your app-level contracts
 type Example = Change;

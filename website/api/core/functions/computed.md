@@ -36,7 +36,7 @@ Creates a derived unit from dependencies.
 ## Example
 
 ```ts
-import { cell, computed, createStore } from '@scope-flux/core';
+import { cell, computed, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const todos = cell(
   [

@@ -11,7 +11,7 @@ Record object passed to `onRecord`.
 ## Example
 
 ```ts
-import type { InspectRecord } from '@scope-flux/inspect';
+import type { InspectRecord } from '@suzumiyaaoba/scope-flux-inspect';
 
 // Use this type in your app-level contracts
 type Example = InspectRecord;
