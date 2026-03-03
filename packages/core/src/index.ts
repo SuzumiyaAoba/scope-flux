@@ -42,6 +42,10 @@ export interface Cell<T> {
   readonly __type?: T;
 }
 
+export interface ValueBox<T> {
+  __scopeFluxValue: T;
+}
+
 type DepUnit = Cell<any> | Computed<any, any>;
 type UnitValue<U> = U extends { readonly __type?: infer V } ? V : never;
 export type ComputedDeps = readonly DepUnit[];
@@ -134,6 +138,7 @@ export const ErrorCodes = {
 } as const;
 
 const registeredCellsById = new Map<string, AnyCell>();
+const registeredCells = new Set<AnyCell>();
 
 export function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -141,6 +146,10 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 
 function defaultEqual<T>(a: T, b: T): boolean {
   return Object.is(a, b);
+}
+
+function isValueBox<T>(value: unknown): value is ValueBox<T> {
+  return isObject(value) && '__scopeFluxValue' in value;
 }
 
 function toAbortError(message: string): Error {
@@ -249,6 +258,7 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
     }
     registeredCellsById.set(unit.meta.id, unit as AnyCell);
   }
+  registeredCells.add(unit as AnyCell);
 
   return unit;
 }
@@ -736,12 +746,18 @@ export class Scope {
     throw new Error(ErrorCodes.INVALID_UPDATE);
   }
 
-  public set<T>(unit: Cell<T>, next: T | ((prev: T) => T), options: UpdateOptions = {}): void {
+  public set<T>(unit: Cell<T>, next: T | ((prev: T) => T) | ValueBox<T>, options: UpdateOptions = {}): void {
     if (!unit || unit.kind !== 'cell') {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
-    const resolved = typeof next === 'function' ? (next as (prev: T) => T)(this.get(unit)) : next;
+    const resolved = isValueBox<T>(next)
+      ? next.__scopeFluxValue
+      : typeof next === 'function'
+        ? typeof unit.init === 'function'
+          ? next as T
+          : (next as (prev: T) => T)(this.get(unit))
+        : next;
 
     this._withBatch(() => {
       this._setCellValue(unit, resolved, options);
@@ -956,6 +972,32 @@ export interface Store {
   fork(seed?: SeedInput): Scope;
 }
 
+interface HistoryStep {
+  cell: AnyCell;
+  prev: unknown;
+  next: unknown;
+}
+
+interface HistoryEntry {
+  steps: HistoryStep[];
+}
+
+export interface HistoryController {
+  undo(): boolean;
+  redo(): boolean;
+  clear(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  getSize(): { undo: number; redo: number };
+  unsubscribe(): void;
+}
+
+export interface HistoryOptions {
+  limit?: number;
+  track?: AnyCell[];
+  reasonPrefix?: string;
+}
+
 export function createStore(options: { seed?: SeedInput } = {}): Store {
   const root = new Scope(options.seed);
 
@@ -972,5 +1014,147 @@ export function getRegisteredCellById(id: string): AnyCell | undefined {
 }
 
 export function listRegisteredCells(): AnyCell[] {
-  return Array.from(registeredCellsById.values());
+  return Array.from(registeredCells.values());
+}
+
+export function asValue<T>(value: T): ValueBox<T> {
+  return {
+    __scopeFluxValue: value,
+  };
+}
+
+export function unregisterCellById(id: string): boolean {
+  const cellUnit = registeredCellsById.get(id);
+  if (!cellUnit) {
+    return false;
+  }
+  registeredCellsById.delete(id);
+  registeredCells.delete(cellUnit);
+  return true;
+}
+
+export function clearRegisteredCells(): void {
+  registeredCellsById.clear();
+  registeredCells.clear();
+}
+
+export function createHistoryController(
+  scope: Scope,
+  options: HistoryOptions = {}
+): HistoryController {
+  const limit = Math.max(1, options.limit ?? 100);
+  const trackedCells = options.track ? new Set(options.track) : undefined;
+  const reasonPrefix = options.reasonPrefix ?? 'history';
+  const undoStack: HistoryEntry[] = [];
+  const redoStack: HistoryEntry[] = [];
+  let applying = false;
+
+  const pushUndo = (entry: HistoryEntry) => {
+    undoStack.push(entry);
+    if (undoStack.length > limit) {
+      undoStack.shift();
+    }
+  };
+
+  const collapseEntry = (changes: Change[]): HistoryEntry | null => {
+    const ordered: HistoryStep[] = [];
+    const byCell = new Map<AnyCell, HistoryStep>();
+
+    for (const change of changes) {
+      if (change.kind !== 'set') {
+        continue;
+      }
+      const cellUnit = change.unit as AnyCell;
+      if (trackedCells && !trackedCells.has(cellUnit)) {
+        continue;
+      }
+      const existing = byCell.get(cellUnit);
+      if (!existing) {
+        const step: HistoryStep = {
+          cell: cellUnit,
+          prev: change.prev,
+          next: change.next,
+        };
+        byCell.set(cellUnit, step);
+        ordered.push(step);
+      } else {
+        existing.next = change.next;
+      }
+    }
+
+    if (ordered.length === 0) {
+      return null;
+    }
+
+    return { steps: ordered };
+  };
+
+  const applyEntry = (entry: HistoryEntry, mode: 'undo' | 'redo') => {
+    applying = true;
+    try {
+      scope.batch(() => {
+        const steps = mode === 'undo' ? [...entry.steps].reverse() : entry.steps;
+        for (const step of steps) {
+          scope.set(step.cell, mode === 'undo' ? step.prev : step.next, {
+            priority: 'urgent',
+            reason: `${reasonPrefix}.${mode}`,
+          });
+        }
+      });
+    } finally {
+      applying = false;
+    }
+  };
+
+  const unsub = scope.subscribe((commit) => {
+    if (applying) {
+      return;
+    }
+    const entry = collapseEntry(commit.changes);
+    if (!entry) {
+      return;
+    }
+    pushUndo(entry);
+    redoStack.length = 0;
+  });
+
+  return {
+    undo(): boolean {
+      const entry = undoStack.pop();
+      if (!entry) {
+        return false;
+      }
+      applyEntry(entry, 'undo');
+      redoStack.push(entry);
+      return true;
+    },
+    redo(): boolean {
+      const entry = redoStack.pop();
+      if (!entry) {
+        return false;
+      }
+      applyEntry(entry, 'redo');
+      undoStack.push(entry);
+      return true;
+    },
+    clear(): void {
+      undoStack.length = 0;
+      redoStack.length = 0;
+    },
+    canUndo(): boolean {
+      return undoStack.length > 0;
+    },
+    canRedo(): boolean {
+      return redoStack.length > 0;
+    },
+    getSize(): { undo: number; redo: number } {
+      return {
+        undo: undoStack.length,
+        redo: redoStack.length,
+      };
+    },
+    unsubscribe(): void {
+      unsub();
+    },
+  };
 }

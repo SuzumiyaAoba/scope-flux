@@ -3,10 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import {
   autoPersistScope,
+  autoPersistScopeAsync,
   createMemoryStorage,
   escapeJsonForHtml,
   hydrate,
+  hydrateFromStorageAsync,
   hydrateFromStorage,
+  persistToStorageAsync,
   persistToStorage,
   serialize,
 } from '../src/index.js';
@@ -403,6 +406,35 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
+  it('autoPersistScope hydrateNow applies merge policy for conflicting keys', () => {
+    const value = cell(0, { id: 'merge_conflict_value' });
+    const scope = createStore().fork();
+    const storage = createMemoryStorage();
+    const persistence = autoPersistScope(scope, 'scope:merge:hydrate-now', {
+      storage,
+      conflictPolicy: 'merge',
+      mergePayloads: (localPayload, externalPayload) => ({
+        ...externalPayload,
+        values: {
+          ...externalPayload.values,
+          merge_conflict_value: localPayload.values.merge_conflict_value,
+        },
+      }),
+    });
+
+    scope.set(value, 10);
+    persistence.flush();
+
+    const external = createStore().fork();
+    external.set(value, 99);
+    persistToStorage(external, 'scope:merge:hydrate-now', { storage });
+
+    const merged = persistence.hydrateNow();
+    expect(merged?.values.merge_conflict_value).toBe(10);
+    expect(scope.get(value)).toBe(10);
+    persistence.unsubscribe();
+  });
+
   it('autoPersistScope throttleMs coalesces frequent writes', () => {
     vi.useFakeTimers();
     try {
@@ -558,6 +590,58 @@ describe('serializer', () => {
 
     expect(persistence.hydrateNow()).toBeNull();
     expect(onError).toHaveBeenCalledTimes(1);
+    persistence.unsubscribe();
+  });
+
+  it('persistToStorageAsync and hydrateFromStorageAsync roundtrip', async () => {
+    const count = cell(0, { id: 'async_storage_count' });
+    const source = createStore().fork();
+    source.set(count, 5);
+
+    const memory = new Map<string, string>();
+    const storage = {
+      async getItem(key: string) {
+        return memory.get(key) ?? null;
+      },
+      async setItem(key: string, value: string) {
+        memory.set(key, value);
+      },
+    };
+
+    await persistToStorageAsync(source, 'scope:async:key', { storage });
+    const target = createStore().fork();
+    const loaded = await hydrateFromStorageAsync(target, 'scope:async:key', { storage });
+
+    expect(loaded).not.toBeNull();
+    expect(target.get(count)).toBe(5);
+  });
+
+  it('autoPersistScopeAsync persists and hydrateNow works', async () => {
+    const count = cell(0, { id: 'auto_persist_async_count' });
+    const scope = createStore().fork();
+    const memory = new Map<string, string>();
+    const storage = {
+      async getItem(key: string) {
+        return memory.get(key) ?? null;
+      },
+      async setItem(key: string, value: string) {
+        memory.set(key, value);
+      },
+    };
+
+    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async', {
+      storage,
+      debounceMs: 0,
+    });
+
+    scope.set(count, 3);
+    await persistence.flush();
+    expect(memory.has('scope:auto:async')).toBe(true);
+
+    const next = createStore().fork();
+    const loaded = await hydrateFromStorageAsync(next, 'scope:auto:async', { storage });
+    expect(loaded?.values.auto_persist_async_count).toBe(3);
+    expect(next.get(count)).toBe(3);
     persistence.unsubscribe();
   });
 });

@@ -1,6 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { cell, computed, createStore, effect, event, getRegisteredCellById, listRegisteredCells } from '../src/index.js';
+import {
+  clearRegisteredCells,
+  cell,
+  computed,
+  createHistoryController,
+  createStore,
+  effect,
+  event,
+  getRegisteredCellById,
+  listRegisteredCells,
+  unregisterCellById,
+} from '../src/index.js';
 import type { Computed } from '../src/index.js';
 
 describe('core', () => {
@@ -87,6 +98,20 @@ describe('core', () => {
 
     expect(getRegisteredCellById('registry_lookup_cell_unique')).toBe(registered);
     expect(listRegisteredCells()).toContain(registered);
+  });
+
+  it('supports unregister and clear for cell registry', () => {
+    const first = cell(1, { id: 'registry_cleanup_first' });
+    const second = cell(2, { id: 'registry_cleanup_second' });
+    expect(getRegisteredCellById('registry_cleanup_first')).toBe(first);
+    expect(getRegisteredCellById('registry_cleanup_second')).toBe(second);
+
+    expect(unregisterCellById('registry_cleanup_first')).toBe(true);
+    expect(getRegisteredCellById('registry_cleanup_first')).toBeUndefined();
+    expect(unregisterCellById('registry_cleanup_first')).toBe(false);
+
+    clearRegisteredCells();
+    expect(getRegisteredCellById('registry_cleanup_second')).toBeUndefined();
   });
 
   it('emits event change even when no handlers are registered', () => {
@@ -273,6 +298,22 @@ describe('core', () => {
     expect(listener).toHaveBeenCalledTimes(0);
   });
 
+  it('emit rollback does not commit event when handler throws', () => {
+    const ping = event<void>({ debugName: 'emit_rollback_ping' });
+    const count = cell(0, { id: 'emit_rollback_count' });
+    const scope = createStore().fork();
+    const commits: Array<{ changes: Array<{ kind: string }> }> = [];
+    scope.subscribe((evt) => commits.push(evt as any));
+    scope.on(ping, (_payload, s) => {
+      s.set(count, 1);
+      throw new Error('emit_failed');
+    });
+
+    expect(() => scope.emit(ping, undefined)).toThrowError('emit_failed');
+    expect(scope.get(count)).toBe(0);
+    expect(commits).toHaveLength(0);
+  });
+
   it('batch rollback restores version when same cell is set multiple times', () => {
     const count = cell(0, { id: 'batch_multi_set_rollback_count' });
     const scope = createStore().fork();
@@ -325,6 +366,16 @@ describe('core', () => {
     scope.set(count, 3);
     expect(scope.get(count)).toBe(3);
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('set treats function value as value for function cells', () => {
+    const fnCell = cell<() => number>(() => 1, { id: 'function_cell_value' });
+    const scope = createStore().fork();
+    const nextFn = () => 7;
+
+    scope.set(fnCell, nextFn);
+    expect(scope.get(fnCell)).toBe(nextFn);
+    expect(scope.get(fnCell)()).toBe(7);
   });
 
   it('run emits effect commit with reason and priority before handler resolution', async () => {
@@ -587,5 +638,45 @@ describe('core', () => {
     const status = scope.getEffectStatus(fx);
     expect(status.running).toBe(0);
     expect(status.lastResult).toBe(1);
+  });
+
+  it('history controller supports undo/redo', () => {
+    const count = cell(0, { id: 'history_count' });
+    const scope = createStore().fork();
+    const history = createHistoryController(scope);
+
+    scope.set(count, 1);
+    scope.set(count, 2);
+    expect(scope.get(count)).toBe(2);
+    expect(history.canUndo()).toBe(true);
+
+    expect(history.undo()).toBe(true);
+    expect(scope.get(count)).toBe(1);
+    expect(history.undo()).toBe(true);
+    expect(scope.get(count)).toBe(0);
+    expect(history.undo()).toBe(false);
+
+    expect(history.redo()).toBe(true);
+    expect(scope.get(count)).toBe(1);
+    expect(history.redo()).toBe(true);
+    expect(scope.get(count)).toBe(2);
+    expect(history.redo()).toBe(false);
+  });
+
+  it('history controller can limit tracked cells and stack size', () => {
+    const count = cell(0, { id: 'history_tracked_count' });
+    const other = cell(0, { id: 'history_tracked_other' });
+    const scope = createStore().fork();
+    const history = createHistoryController(scope, { track: [count], limit: 1 });
+
+    scope.set(other, 1);
+    expect(history.canUndo()).toBe(false);
+
+    scope.set(count, 1);
+    scope.set(count, 2);
+    expect(history.getSize().undo).toBe(1);
+
+    expect(history.undo()).toBe(true);
+    expect(scope.get(count)).toBe(1);
   });
 });

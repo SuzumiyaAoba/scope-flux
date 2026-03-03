@@ -33,6 +33,11 @@ export interface StorageLike {
   setItem(key: string, value: string): void;
 }
 
+export interface AsyncStorageLike {
+  getItem(key: string): string | null | Promise<string | null>;
+  setItem(key: string, value: string): void | Promise<void>;
+}
+
 export interface StorageCodec {
   encode(rawJson: string): string;
   decode(encoded: string): string;
@@ -48,6 +53,16 @@ export interface HydrateFromStorageOptions extends HydrateOptions {
   codec?: StorageCodec;
 }
 
+export interface PersistToAsyncStorageOptions extends SerializeOptions {
+  storage?: AsyncStorageLike;
+  codec?: StorageCodec;
+}
+
+export interface HydrateFromAsyncStorageOptions extends HydrateOptions {
+  storage?: AsyncStorageLike;
+  codec?: StorageCodec;
+}
+
 export interface AutoPersistOptions extends PersistToStorageOptions {
   debounceMs?: number;
   throttleMs?: number;
@@ -60,6 +75,14 @@ export interface AutoPersistOptions extends PersistToStorageOptions {
     localPayload: SerializedScope,
     externalPayload: SerializedScope
   ) => SerializedScope;
+  onError?: (error: unknown) => void;
+}
+
+export interface AutoPersistAsyncOptions extends PersistToAsyncStorageOptions {
+  debounceMs?: number;
+  throttleMs?: number;
+  mode?: 'safe' | 'force';
+  migrate?: (payload: SerializedScope) => SerializedScope;
   onError?: (error: unknown) => void;
 }
 
@@ -258,6 +281,18 @@ function resolveStorage(storage?: StorageLike): StorageLike {
   return candidate;
 }
 
+function resolveAsyncStorage(storage?: AsyncStorageLike): AsyncStorageLike {
+  if (storage) {
+    return storage;
+  }
+
+  const candidate = (globalThis as { localStorage?: StorageLike }).localStorage;
+  if (!candidate) {
+    throw new Error('NS_SER_STORAGE_UNAVAILABLE');
+  }
+  return candidate;
+}
+
 export function persistToStorage(
   scope: Scope,
   key: string,
@@ -277,6 +312,38 @@ export function hydrateFromStorage(
 ): SerializedScope | null {
   const storage = resolveStorage(options.storage);
   const raw = storage.getItem(key);
+  if (!raw) {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(decodeStorageValue(raw, options.codec));
+  } catch {
+    throw new Error('NS_SER_INVALID_STORAGE_PAYLOAD');
+  }
+  hydrate(scope, parsed, options);
+  return parsed as SerializedScope;
+}
+
+export async function persistToStorageAsync(
+  scope: Scope,
+  key: string,
+  options: PersistToAsyncStorageOptions = {}
+): Promise<SerializedScope> {
+  const payload = serialize(scope, options);
+  const storage = resolveAsyncStorage(options.storage);
+  const rawJson = JSON.stringify(payload);
+  await Promise.resolve(storage.setItem(key, encodeStorageValue(rawJson, options.codec)));
+  return payload;
+}
+
+export async function hydrateFromStorageAsync(
+  scope: Scope,
+  key: string,
+  options: HydrateFromAsyncStorageOptions = {}
+): Promise<SerializedScope | null> {
+  const storage = resolveAsyncStorage(options.storage);
+  const raw = await Promise.resolve(storage.getItem(key));
   if (!raw) {
     return null;
   }
@@ -328,6 +395,14 @@ export function autoPersistScope(
       options.onError?.(error);
       return null;
     }
+  };
+
+  const resolvePayloadForHydration = (externalPayload: SerializedScope): SerializedScope => {
+    if (conflictPolicy === 'merge' && options.mergePayloads) {
+      const localPayload = serialize(scope, options);
+      return options.mergePayloads(localPayload, externalPayload);
+    }
+    return externalPayload;
   };
 
   const schedulePersist = () => {
@@ -387,12 +462,7 @@ export function autoPersistScope(
         }
         try {
           const parsed = JSON.parse(decodeStorageValue(e.newValue, options.codec)) as unknown;
-          let payloadToHydrate = parsed as SerializedScope;
-
-          if (conflictPolicy === 'merge' && options.mergePayloads) {
-            const localPayload = serialize(scope, options);
-            payloadToHydrate = options.mergePayloads(localPayload, payloadToHydrate);
-          }
+          const payloadToHydrate = resolvePayloadForHydration(parsed as SerializedScope);
 
           hydrate(scope, payloadToHydrate, {
             mode: options.mode ?? 'force',
@@ -424,16 +494,111 @@ export function autoPersistScope(
     },
     hydrateNow: () => {
       try {
-        const loaded = hydrateFromStorage(scope, key, {
+        const raw = storage.getItem(key);
+        if (!raw) {
+          return null;
+        }
+        const parsed = JSON.parse(decodeStorageValue(raw, options.codec)) as SerializedScope;
+        const payloadToHydrate = resolvePayloadForHydration(parsed);
+        hydrate(scope, payloadToHydrate, {
+          mode: options.mode ?? 'force',
+          migrate: options.migrate,
+        });
+        options.onExternalHydrate?.(payloadToHydrate);
+        return payloadToHydrate;
+      } catch (error) {
+        options.onError?.(error);
+        return null;
+      }
+    },
+  };
+}
+
+export function autoPersistScopeAsync(
+  scope: Scope,
+  key: string,
+  options: AutoPersistAsyncOptions = {}
+): {
+  unsubscribe: () => void;
+  flush: () => Promise<SerializedScope | null>;
+  hydrateNow: () => Promise<SerializedScope | null>;
+} {
+  assertScope(scope);
+  const storage = resolveAsyncStorage(options.storage);
+  const debounceMs = Math.max(0, options.debounceMs ?? 0);
+  const throttleMs = Math.max(0, options.throttleMs ?? 0);
+  let lastPersistAt = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let flushing: Promise<SerializedScope | null> | null = null;
+
+  const clearTimer = () => {
+    if (!timer) {
+      return;
+    }
+    clearTimeout(timer);
+    timer = undefined;
+  };
+
+  const persistNow = async (): Promise<SerializedScope | null> => {
+    try {
+      const payload = await persistToStorageAsync(scope, key, { ...options, storage });
+      lastPersistAt = Date.now();
+      return payload;
+    } catch (error) {
+      options.onError?.(error);
+      return null;
+    }
+  };
+
+  const queuePersist = () => {
+    flushing = (async () => {
+      const result = await persistNow();
+      if (flushing) {
+        flushing = null;
+      }
+      return result;
+    })();
+  };
+
+  const schedulePersist = () => {
+    const now = Date.now();
+    const throttleWait = throttleMs > 0 ? Math.max(0, throttleMs - (now - lastPersistAt)) : 0;
+    const waitMs = Math.max(debounceMs, throttleWait);
+    clearTimer();
+    if (waitMs === 0) {
+      queuePersist();
+      return;
+    }
+    timer = setTimeout(() => {
+      timer = undefined;
+      queuePersist();
+    }, waitMs);
+  };
+
+  const unsubscribe = scope.subscribe(() => {
+    schedulePersist();
+  });
+
+  return {
+    unsubscribe: () => {
+      clearTimer();
+      unsubscribe();
+    },
+    flush: async () => {
+      clearTimer();
+      if (flushing) {
+        return await flushing;
+      }
+      return await persistNow();
+    },
+    hydrateNow: async () => {
+      try {
+        return await hydrateFromStorageAsync(scope, key, {
           mode: options.mode,
           migrate: options.migrate,
           storage,
           codec: options.codec,
         });
-        if (loaded) {
-          options.onExternalHydrate?.(loaded);
-        }
-        return loaded;
       } catch (error) {
         options.onError?.(error);
         return null;

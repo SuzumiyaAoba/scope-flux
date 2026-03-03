@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { cell, createStore, event } from '@suzumiyaaoba/scope-flux-core';
-import { connectDevtools, createReduxDevtoolsAdapter, inspect } from '../src/index.js';
+import { connectDevtools, createReduxDevtoolsAdapter, inspect, mountInspectPanel } from '../src/index.js';
 
 describe('inspect', () => {
   it('captures set diffs as inspect records', () => {
@@ -40,6 +40,22 @@ describe('inspect', () => {
     unsub();
 
     expect(onRecord).not.toHaveBeenCalled();
+  });
+
+  it('clamps sampleRate greater than one to one', () => {
+    const count = cell(0, { id: 'inspect_sample_clamp_count' });
+    const scope = createStore().fork();
+    const onRecord = vi.fn();
+
+    const unsub = inspect({
+      scope,
+      sampleRate: 3,
+      onRecord,
+    });
+    scope.set(count, 1);
+    unsub();
+
+    expect(onRecord).toHaveBeenCalledTimes(1);
   });
 
   it('skips records when random value is above sampleRate', () => {
@@ -146,6 +162,27 @@ describe('inspect', () => {
     receive({ type: 'jump_to_state', state: { inspect_jump_count: 7 } });
 
     expect(scope.get(count)).toBe(7);
+    unsub();
+  });
+
+  it('connectDevtools applies jump_to_state by debugName when id is missing', () => {
+    const byName = cell(0, { debugName: 'debug_only_cell' });
+    const scope = createStore().fork();
+    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+        receive = listener;
+        return () => {
+          // no-op
+        };
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    receive({ type: 'jump_to_state', state: { debug_only_cell: 4 } });
+    expect(scope.get(byName)).toBe(4);
     unsub();
   });
 
@@ -439,5 +476,47 @@ describe('inspect', () => {
     });
     expect(scope.get(count)).toBe(9);
     unsub();
+  });
+
+  it('mountInspectPanel renders incoming records', () => {
+    const count = cell(0, { id: 'inspect_panel_count' });
+    const scope = createStore().fork();
+    const originalDocument = (globalThis as { document?: unknown }).document;
+
+    const makeElement = () => {
+      const children: any[] = [];
+      return {
+        className: '',
+        textContent: '',
+        innerHTML: '',
+        children,
+        appendChild(node: unknown) {
+          children.push(node);
+          return node;
+        },
+        remove: vi.fn(),
+      };
+    };
+
+    const target = makeElement();
+    (globalThis as { document?: unknown }).document = {
+      createElement: () => makeElement(),
+      body: target,
+    };
+
+    try {
+      const panel = mountInspectPanel({ scope, target });
+      scope.set(count, 1, { reason: 'panel_test' });
+
+      const records = panel.getRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0].trace.reason).toBe('panel_test');
+
+      panel.clear();
+      expect(panel.getRecords()).toHaveLength(0);
+      panel.destroy();
+    } finally {
+      (globalThis as { document?: unknown }).document = originalDocument;
+    }
   });
 });

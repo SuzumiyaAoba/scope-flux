@@ -38,6 +38,12 @@ Creates adapter for Redux DevTools extension.
 
 - If extension is missing, returns no-op adapter.
 
+### `mountInspectPanel({ scope, target?, maxRecords?, trace?, sampleRate?, title? })`
+Mounts a lightweight official inspect panel into DOM.
+
+- Useful for in-app debug overlays without Redux DevTools extension.
+- Returns controller with `unsubscribe`, `clear`, `destroy`, `getRecords`.
+
 ## Arguments Reference
 
 ### `inspect(options)`

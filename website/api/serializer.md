@@ -79,11 +79,20 @@ Reads payload from storage and hydrates scope.
 
 - Supports `codec` for decoding stored value.
 
+### `persistToStorageAsync(scope, key, options?)`
+Async storage variant for IndexedDB/AsyncStorage-like adapters.
+
+### `hydrateFromStorageAsync(scope, key, options?)`
+Async storage variant of hydrate-from-storage.
+
 ### `autoPersistScope(scope, key, options?)`
 Subscribes to scope commits and persists automatically.
 
 - Supports `debounceMs` and `throttleMs`.
 - Supports `onError` callback for storage/serialization errors.
+
+### `autoPersistScopeAsync(scope, key, options?)`
+Async storage variant of auto persist with `flush`/`hydrateNow` as async methods.
 
 ### `escapeJsonForHtml(json)`
 Escapes JSON for safe HTML script embedding (`<`, `\u2028`, `\u2029`).

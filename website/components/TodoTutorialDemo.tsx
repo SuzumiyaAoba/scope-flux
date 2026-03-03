@@ -134,18 +134,20 @@ function TodoAppBody(): React.JSX.Element {
 
       <div className="todo-demo__input-row">
         <input
+          data-testid="todo-input"
           className="todo-demo__input"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => flush()}
           placeholder="Add todo..."
         />
-        <button className="todo-demo__button todo-demo__button--primary" onClick={onAdd}>Add</button>
+        <button data-testid="todo-add" className="todo-demo__button todo-demo__button--primary" onClick={onAdd}>Add</button>
       </div>
 
       <div className="todo-demo__filter-row">
         {(['all', 'active', 'done'] as const).map((value) => (
           <button
+            data-testid={`todo-filter-${value}`}
             className="todo-demo__button"
             key={value}
             disabled={filter === value}
@@ -154,28 +156,40 @@ function TodoAppBody(): React.JSX.Element {
             {value}
           </button>
         ))}
-        <button className="todo-demo__button todo-demo__button--ghost" onClick={resetDemo}>Reset</button>
+        <button data-testid="todo-reset" className="todo-demo__button todo-demo__button--ghost" onClick={resetDemo}>Reset</button>
       </div>
 
-      <div className="todo-demo__summary">
-        <span className="todo-demo__badge">Total: {summary.total}</span>
-        <span className="todo-demo__badge">Active: {summary.active}</span>
-        <span className="todo-demo__badge">Done: {summary.done}</span>
+      <div className="todo-demo__summary" data-testid="todo-summary">
+        <span className="todo-demo__badge" data-testid="todo-total">Total: {summary.total}</span>
+        <span className="todo-demo__badge" data-testid="todo-active">Active: {summary.active}</span>
+        <span className="todo-demo__badge" data-testid="todo-done">Done: {summary.done}</span>
       </div>
 
       {todos.length === 0 ? (
-        <p className="todo-demo__empty">No todos yet.</p>
+        <p data-testid="todo-empty" className="todo-demo__empty">No todos yet.</p>
       ) : (
         <ul className="todo-demo__list">
           {todos.map((todo) => (
             <li className="todo-demo__item" key={todo.id}>
               <label className="todo-demo__label">
-                <input className="todo-demo__checkbox" type="checkbox" checked={todo.done} onChange={() => toggle(todo.id)} />
+                <input
+                  data-testid={`todo-toggle-${todo.id}`}
+                  className="todo-demo__checkbox"
+                  type="checkbox"
+                  checked={todo.done}
+                  onChange={() => toggle(todo.id)}
+                />
                 <span className={todo.done ? 'todo-demo__text todo-demo__text--done' : 'todo-demo__text'}>
                   {todo.text}
                 </span>
               </label>
-              <button className="todo-demo__button todo-demo__button--danger" onClick={() => remove(todo.id)}>Delete</button>
+              <button
+                data-testid={`todo-delete-${todo.id}`}
+                className="todo-demo__button todo-demo__button--danger"
+                onClick={() => remove(todo.id)}
+              >
+                Delete
+              </button>
             </li>
           ))}
         </ul>

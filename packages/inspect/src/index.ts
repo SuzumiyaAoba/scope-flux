@@ -1,6 +1,7 @@
 import {
   getRegisteredCellById,
   isObject,
+  listRegisteredCells,
   type AnyCell,
   type Change,
   type CommitEvent,
@@ -65,6 +66,62 @@ export interface ConnectDevtoolsOptions {
   trace?: boolean;
   onError?: (error: unknown, phase: 'init' | 'send' | 'receive') => void;
   onUnsupportedMessage?: (message: DevtoolsMessage) => void;
+}
+
+interface PanelElementLike {
+  className: string;
+  textContent: string | null;
+  innerHTML: string;
+  appendChild(node: PanelElementLike): unknown;
+  remove(): void;
+}
+
+interface PanelDocumentLike {
+  createElement(tag: string): PanelElementLike;
+}
+
+interface PanelTargetLike {
+  appendChild(node: PanelElementLike): unknown;
+}
+
+export interface InspectPanelOptions {
+  scope: Scope;
+  target?: PanelTargetLike;
+  title?: string;
+  maxRecords?: number;
+  trace?: boolean;
+  sampleRate?: number;
+}
+
+export interface InspectPanelController {
+  unsubscribe(): void;
+  clear(): void;
+  destroy(): void;
+  getRecords(): InspectRecord[];
+}
+
+function resolvePanelDocument(): PanelDocumentLike {
+  const g = globalThis as { document?: PanelDocumentLike };
+  if (!g.document) {
+    throw new Error('NS_INSPECT_PANEL_DOM_UNAVAILABLE');
+  }
+  return g.document;
+}
+
+function resolvePanelTarget(documentRef: PanelDocumentLike, target?: PanelTargetLike): PanelTargetLike {
+  if (target) {
+    return target;
+  }
+  const g = globalThis as { document?: { body?: PanelTargetLike } };
+  if (g.document?.body) {
+    return g.document.body;
+  }
+  const fallback = documentRef.createElement('div');
+  return {
+    appendChild(node: PanelElementLike) {
+      return fallback.appendChild(node);
+    },
+  };
 }
 
 function getUnitMeta(change: Change): { unitId?: string; unitName?: string } {
@@ -165,9 +222,26 @@ function readImportState(message: DevtoolsMessage): Record<string, unknown> | nu
 }
 
 function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: string): void {
+  const cells = listRegisteredCells();
+  const byDebugName = new Map<string, AnyCell>();
+  const duplicatedDebugNames = new Set<string>();
+  for (const cell of cells) {
+    const debugName = cell.meta?.debugName;
+    if (!debugName) {
+      continue;
+    }
+    if (byDebugName.has(debugName)) {
+      duplicatedDebugNames.add(debugName);
+      byDebugName.delete(debugName);
+      continue;
+    }
+    byDebugName.set(debugName, cell);
+  }
+
   scope.batch(() => {
     for (const [key, value] of Object.entries(snapshot)) {
-      const cellUnit = getRegisteredCellById(key);
+      const cellUnit = getRegisteredCellById(key)
+        ?? (!duplicatedDebugNames.has(key) ? byDebugName.get(key) : undefined);
       if (!cellUnit) {
         continue;
       }
@@ -180,7 +254,7 @@ function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: 
 }
 
 export function inspect(options: InspectOptions): Unsubscribe {
-  const sampleRate = options.sampleRate ?? 1;
+  const sampleRate = Math.max(0, Math.min(1, options.sampleRate ?? 1));
   if (sampleRate <= 0) {
     return () => {
       // no-op
@@ -284,6 +358,67 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
     if (typeof unsubscribeAdapter === 'function') {
       unsubscribeAdapter();
     }
+  };
+}
+
+export function mountInspectPanel(options: InspectPanelOptions): InspectPanelController {
+  const documentRef = resolvePanelDocument();
+  const target = resolvePanelTarget(documentRef, options.target);
+  const maxRecords = Math.max(1, options.maxRecords ?? 100);
+  const records: InspectRecord[] = [];
+
+  const root = documentRef.createElement('section');
+  root.className = 'scope-flux-inspect-panel';
+
+  const title = documentRef.createElement('h3');
+  title.className = 'scope-flux-inspect-panel__title';
+  title.textContent = options.title ?? 'scope-flux Inspect';
+
+  const list = documentRef.createElement('pre');
+  list.className = 'scope-flux-inspect-panel__records';
+  list.textContent = '';
+
+  root.appendChild(title);
+  root.appendChild(list);
+  target.appendChild(root);
+
+  const render = () => {
+    const lines = records.map((record) => {
+      const unit = record.trace.unitId ?? record.trace.unitName ?? 'unknown';
+      const reason = record.trace.reason ? ` reason=${record.trace.reason}` : '';
+      if (record.diffs.length > 0) {
+        const diff = record.diffs[0];
+        return `${record.trace.kind}:${unit}${reason} ${JSON.stringify(diff.prev)} -> ${JSON.stringify(diff.next)}`;
+      }
+      return `${record.trace.kind}:${unit}${reason}`;
+    });
+    list.textContent = lines.join('\n');
+  };
+
+  const unsub = inspect({
+    scope: options.scope,
+    trace: options.trace,
+    sampleRate: options.sampleRate,
+    onRecord: (record) => {
+      records.push(record);
+      if (records.length > maxRecords) {
+        records.shift();
+      }
+      render();
+    },
+  });
+
+  return {
+    unsubscribe: unsub,
+    clear: () => {
+      records.length = 0;
+      list.textContent = '';
+    },
+    destroy: () => {
+      unsub();
+      root.remove();
+    },
+    getRecords: () => [...records],
   };
 }
 

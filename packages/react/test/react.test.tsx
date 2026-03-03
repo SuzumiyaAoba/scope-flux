@@ -340,4 +340,43 @@ describe('react bridge', () => {
     fireEvent.click(screen.getByText('commit'));
     expect(scope.get(query)).toBe('abc');
   });
+
+  it('useBufferedUnit re-subscribes when unit prop changes', () => {
+    const a = cell(0, { id: 'react_buffer_switch_a' });
+    const b = cell(0, { id: 'react_buffer_switch_b' });
+    const scope = createStore().fork();
+
+    function App({ active }: { active: 'a' | 'b' }): React.JSX.Element {
+      const unit = active === 'a' ? a : b;
+      const value = useBufferedUnit(unit);
+      return <span data-testid="value">{value}</span>;
+    }
+
+    const view = render(
+      <StoreProvider scope={scope}>
+        <App active="a" />
+      </StoreProvider>
+    );
+
+    act(() => {
+      scope.set(a, 1);
+    });
+    expect(screen.getByTestId('value').textContent).toBe('1');
+
+    view.rerender(
+      <StoreProvider scope={scope}>
+        <App active="b" />
+      </StoreProvider>
+    );
+
+    act(() => {
+      scope.set(a, 2);
+    });
+    expect(screen.getByTestId('value').textContent).toBe('0');
+
+    act(() => {
+      scope.set(b, 3);
+    });
+    expect(screen.getByTestId('value').textContent).toBe('3');
+  });
 });

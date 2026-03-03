@@ -69,7 +69,6 @@ function useExternalSelected<T>(options: {
     if (equalityRef.current(snapshotRef.current, next)) {
       return snapshotRef.current;
     }
-    snapshotRef.current = next;
     return next;
   }, []);
 
@@ -165,7 +164,7 @@ export function useBufferedUnit<T, S>(
         unsubBuffered();
       };
     },
-    [scope, scheduler]
+    [scope, scheduler, unit]
   );
 
   return useSelectedUnit(
