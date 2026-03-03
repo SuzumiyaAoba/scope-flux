@@ -1,7 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
-import { escapeJsonForHtml, hydrate, hydrateFromStorage, persistToStorage, serialize } from '../src/index.js';
+import {
+  autoPersistScope,
+  escapeJsonForHtml,
+  hydrate,
+  hydrateFromStorage,
+  persistToStorage,
+  serialize,
+} from '../src/index.js';
 
 describe('serializer', () => {
   it('serialize/hydrate roundtrip', () => {
@@ -261,5 +268,58 @@ describe('serializer', () => {
 
     expect(loaded).not.toBeNull();
     expect(target.get(count)).toBe(3);
+  });
+
+  it('autoPersistScope persists on commits with debounce', () => {
+    vi.useFakeTimers();
+    try {
+      const count = cell(0, { id: 'auto_persist_count' });
+      const scope = createStore().fork();
+      const memory = new Map<string, string>();
+      const storage = {
+        getItem: (key: string) => memory.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          memory.set(key, value);
+        },
+      };
+
+      const { unsubscribe } = autoPersistScope(scope, 'scope:auto', {
+        storage,
+        debounceMs: 20,
+      });
+
+      scope.set(count, 1);
+      scope.set(count, 2);
+      expect(memory.has('scope:auto')).toBe(false);
+
+      vi.advanceTimersByTime(20);
+      const persisted = memory.get('scope:auto');
+      expect(persisted).toBeTruthy();
+      expect(JSON.parse(persisted as string).values.auto_persist_count).toBe(2);
+
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('autoPersistScope flush writes immediately', () => {
+    const count = cell(0, { id: 'auto_persist_flush_count' });
+    const scope = createStore().fork();
+    const memory = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        memory.set(key, value);
+      },
+    };
+    const { flush, unsubscribe } = autoPersistScope(scope, 'scope:auto:flush', {
+      storage,
+      debounceMs: 1000,
+    });
+    scope.set(count, 5);
+    const payload = flush();
+    expect(payload?.values.auto_persist_flush_count).toBe(5);
+    unsubscribe();
   });
 });

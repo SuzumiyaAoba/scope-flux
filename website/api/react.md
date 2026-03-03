@@ -94,6 +94,18 @@ Returns event dispatcher.
 ### `useEffectAction(effect, { priority? })`
 Returns async effect invoker.
 
+### `useEffectStatus(effect)`
+Returns live runtime status of the target effect.
+
+Includes `running`, `queued`, `lastResult`, `lastError`, and timestamps.
+
+### `useAsyncEffectAction(effect, options?)`
+High-level helper combining:
+
+- `run(payload)` (same as `useEffectAction`)
+- `cancel()` (calls `scope.cancelEffect`)
+- `status` (same as `useEffectStatus`)
+
 ## Arguments Reference
 
 ### `StoreProvider({ scope, scheduler?, children })`
@@ -156,6 +168,20 @@ Returns async effect invoker.
 - `effect: Effect<P, R>`
 - `options?: { priority?: Priority }`
 - Returns: `(payload: P) => Promise<R>`
+
+### `useEffectStatus(effect)`
+
+- `effect: Effect<P, R>`
+- Returns: `EffectStatus<R>`
+
+### `useAsyncEffectAction(effect, options?)`
+
+- `effect: Effect<P, R>`
+- `options?: { priority?: Priority }`
+- Returns:
+  - `run: (payload: P) => Promise<R>`
+  - `cancel: () => void`
+  - `status: EffectStatus<R>`
 
 ## Literal Union Values
 

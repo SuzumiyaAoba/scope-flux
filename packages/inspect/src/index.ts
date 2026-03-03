@@ -63,6 +63,7 @@ export interface ConnectDevtoolsOptions {
   scope: Scope;
   adapter: DevtoolsAdapter;
   trace?: boolean;
+  onError?: (error: unknown, phase: 'init' | 'send' | 'receive') => void;
 }
 
 function getUnitMeta(change: Change): { unitId?: string; unitName?: string } {
@@ -204,7 +205,11 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
   const { scope, adapter } = options;
   const initialSnapshot = snapshotScope(scope);
 
-  adapter.init(initialSnapshot);
+  try {
+    adapter.init(initialSnapshot);
+  } catch (error) {
+    options.onError?.(error, 'init');
+  }
 
   let seq = 0;
   const nextId = (prefix: string) => `${prefix}_${++seq}`;
@@ -221,46 +226,54 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
       const record = toRecord(scope.id, commit.priority, parentId, change, nextId);
       const typeBase = record.trace.kind;
       const unitName = record.trace.unitId ?? record.trace.unitName ?? 'unknown';
-      adapter.send(
-        {
-          type: `${typeBase}:${unitName}`,
-          payload: {
-            priority: record.trace.priority,
-            reason: record.trace.reason,
-            diffs: record.diffs,
+      try {
+        adapter.send(
+          {
+            type: `${typeBase}:${unitName}`,
+            payload: {
+              priority: record.trace.priority,
+              reason: record.trace.reason,
+              diffs: record.diffs,
+            },
           },
-        },
-        snapshot
-      );
+          snapshot
+        );
+      } catch (error) {
+        options.onError?.(error, 'send');
+      }
     }
   });
 
   const unsubscribeAdapter = adapter.subscribe?.((message) => {
-    if (message.type === 'commit') {
-      adapter.init(snapshotScope(scope));
-      return;
-    }
+    try {
+      if (message.type === 'commit') {
+        adapter.init(snapshotScope(scope));
+        return;
+      }
 
-    if (message.type === 'reset') {
-      const resetSnapshot = readImportState(message) ?? initialSnapshot;
+      if (message.type === 'reset') {
+        const resetSnapshot = readImportState(message) ?? initialSnapshot;
+        applyingFromDevtools = true;
+        try {
+          applySnapshot(scope, resetSnapshot, 'devtools.reset');
+        } finally {
+          applyingFromDevtools = false;
+        }
+        return;
+      }
+
+      const snapshot = readImportState(message);
+      if (!snapshot) {
+        return;
+      }
       applyingFromDevtools = true;
       try {
-        applySnapshot(scope, resetSnapshot, 'devtools.reset');
+        applySnapshot(scope, snapshot, `devtools.${message.type}`);
       } finally {
         applyingFromDevtools = false;
       }
-      return;
-    }
-
-    const snapshot = readImportState(message);
-    if (!snapshot) {
-      return;
-    }
-    applyingFromDevtools = true;
-    try {
-      applySnapshot(scope, snapshot, `devtools.${message.type}`);
-    } finally {
-      applyingFromDevtools = false;
+    } catch (error) {
+      options.onError?.(error, 'receive');
     }
   });
 

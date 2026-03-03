@@ -28,6 +28,10 @@ When adapter supports `subscribe`, inbound messages are also handled:
 - `jump_to_state`
 - `import_state`
 
+Error handling:
+
+- `onError(error, phase)` option is available for `init` / `send` / `receive` failures.
+
 ### `createReduxDevtoolsAdapter({ extension?, name? })`
 Creates adapter for Redux DevTools extension.
 
@@ -58,6 +62,7 @@ Creates adapter for Redux DevTools extension.
     - Optional `subscribe` for inbound state import/jump events.
   - `trace?: boolean`
     - Same trace behavior as `inspect`.
+  - `onError?: (error: unknown, phase: 'init' | 'send' | 'receive') => void`
 - Returns: `Unsubscribe`
 
 ### `createReduxDevtoolsAdapter(options?)`

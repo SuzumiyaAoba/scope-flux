@@ -272,6 +272,26 @@ describe('core', () => {
     expect(listener).toHaveBeenCalledTimes(0);
   });
 
+  it('batch rollback restores version when same cell is set multiple times', () => {
+    const count = cell(0, { id: 'batch_multi_set_rollback_count' });
+    const scope = createStore().fork();
+    const doubled = computed([count], (v) => v * 2);
+
+    expect(() => {
+      scope.batch(() => {
+        scope.set(count, 1);
+        scope.set(count, 2);
+        throw new Error('rollback_multi_set');
+      });
+    }).toThrowError('rollback_multi_set');
+
+    expect(scope.get(count)).toBe(0);
+    expect(scope.get(doubled)).toBe(0);
+
+    scope.set(count, 1);
+    expect(scope.get(doubled)).toBe(2);
+  });
+
   it('custom equal controls whether update emits commit', () => {
     const eq = vi.fn((a: number, b: number) => Math.abs(a - b) < 2);
     const count = cell<number>(0, { id: 'custom_equal_count', equal: eq });
@@ -478,5 +498,19 @@ describe('core', () => {
     await expect(
       scope.run(fx, undefined, { timeoutMs: 5 })
     ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('subscribeEffectStatus receives updates for run lifecycle', async () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => 1);
+    const listener = vi.fn();
+    scope.subscribeEffectStatus(fx, listener);
+
+    await scope.run(fx, undefined);
+
+    expect(listener).toHaveBeenCalled();
+    const status = scope.getEffectStatus(fx);
+    expect(status.running).toBe(0);
+    expect(status.lastResult).toBe(1);
   });
 });

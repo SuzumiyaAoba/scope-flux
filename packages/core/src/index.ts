@@ -31,6 +31,7 @@ export interface EffectContext {
 }
 
 export type ScopeListener = (evt: CommitEvent) => void;
+export type EffectStatusListener = () => void;
 export type Unsubscribe = () => void;
 
 export interface Cell<T> {
@@ -319,6 +320,7 @@ export class Scope {
   private readonly _unitSubscribers = new Map<AnyUnit, Set<() => void>>();
   private readonly _eventHandlers = new Map<Event<unknown>, Set<(payload: unknown, scope: Scope, options: UpdateOptions) => void>>();
   private readonly _effectStates = new Map<Effect<unknown, unknown>, EffectRuntimeState>();
+  private readonly _effectSubscribers = new Map<Effect<unknown, unknown>, Set<EffectStatusListener>>();
   private readonly _knownCells = new Set<AnyCell>();
   private readonly _hydratedIds = new Set<string>();
 
@@ -437,6 +439,16 @@ export class Scope {
     return state;
   }
 
+  private _notifyEffectSubscribers(effectUnit: Effect<unknown, unknown>): void {
+    const listeners = this._effectSubscribers.get(effectUnit);
+    if (!listeners || listeners.size === 0) {
+      return;
+    }
+    for (const listener of Array.from(listeners)) {
+      listener();
+    }
+  }
+
   private _dequeueEffect(state: EffectRuntimeState): void {
     if (state.running > 0) {
       return;
@@ -458,6 +470,7 @@ export class Scope {
     state.controllers.add(controller);
     state.running += 1;
     state.lastStartedAt = Date.now();
+    this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let externalAbortListener: (() => void) | undefined;
@@ -517,14 +530,17 @@ export class Scope {
           }
           state.lastResult = result;
           state.lastError = undefined;
+          this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
           return result;
         } catch (error) {
           if (controller.signal.aborted || isAbortError(error)) {
             state.lastError = error;
+            this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
             throw error;
           }
           if (attempt >= maxAttempts) {
             state.lastError = error;
+            this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
             throw error;
           }
           const rawDelay = unitEffect.policy.retryDelayMs;
@@ -544,6 +560,7 @@ export class Scope {
       state.controllers.delete(controller);
       state.running = Math.max(0, state.running - 1);
       state.lastFinishedAt = Date.now();
+      this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
       this._dequeueEffect(state);
     }
   }
@@ -563,25 +580,32 @@ export class Scope {
       this._batchDepth -= 1;
       const rolledBack = this._pendingChanges.splice(prevLength);
       this._pendingPriority = prevPriority;
-      const cellSnapshots = new Map<AnyCell, { value: unknown; version: number }>();
+      const cellSnapshots = new Map<AnyCell, { value: unknown; versionAfterRollback: number }>();
+      const cellChangeCounts = new Map<AnyCell, number>();
       for (const change of rolledBack) {
         if (change.kind === 'set') {
           const c = change.unit;
+          cellChangeCounts.set(c, (cellChangeCounts.get(c) ?? 0) + 1);
           if (!cellSnapshots.has(c)) {
             cellSnapshots.set(c, {
               value: change.prev,
-              version: (this._cellVersions.get(c) ?? 1) - 1,
+              versionAfterRollback: 0,
             });
           }
         }
       }
+      for (const [c, snapshot] of cellSnapshots) {
+        const currentVersion = this._cellVersions.get(c) ?? 0;
+        const rollbackCount = cellChangeCounts.get(c) ?? 0;
+        snapshot.versionAfterRollback = Math.max(0, currentVersion - rollbackCount);
+      }
       for (const [c, snap] of cellSnapshots) {
-        if (snap.version <= 0) {
+        if (snap.versionAfterRollback <= 0) {
           this._cellValues.delete(c);
           this._cellVersions.delete(c);
         } else {
           this._cellValues.set(c, snap.value);
-          this._cellVersions.set(c, snap.version);
+          this._cellVersions.set(c, snap.versionAfterRollback);
         }
       }
       if (this._batchDepth === 0) {
@@ -792,6 +816,7 @@ export class Scope {
           reject,
         };
         state.queue.push(item);
+        this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
       });
     }
 
@@ -856,6 +881,7 @@ export class Scope {
     for (const item of queued) {
       item.reject(abortError);
     }
+    this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
   }
 
   public getEffectStatus<P, R>(unitEffect: Effect<P, R>): EffectStatus<R> {
@@ -874,6 +900,25 @@ export class Scope {
       lastResult: state.lastResult as R | undefined,
       lastStartedAt: state.lastStartedAt,
       lastFinishedAt: state.lastFinishedAt,
+    };
+  }
+
+  public subscribeEffectStatus<P, R>(
+    unitEffect: Effect<P, R>,
+    listener: EffectStatusListener
+  ): Unsubscribe {
+    const key = unitEffect as Effect<unknown, unknown>;
+    let listeners = this._effectSubscribers.get(key);
+    if (!listeners) {
+      listeners = new Set();
+      this._effectSubscribers.set(key, listeners);
+    }
+    listeners.add(listener);
+    return () => {
+      listeners?.delete(listener);
+      if (listeners && listeners.size === 0) {
+        this._effectSubscribers.delete(key);
+      }
     };
   }
 

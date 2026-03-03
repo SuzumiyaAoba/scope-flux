@@ -53,6 +53,8 @@ const reactFunctionItems = [
   { text: 'useFlushBuffered', link: '/api/react/functions/use-flush-buffered' },
   { text: 'useAction', link: '/api/react/functions/use-action' },
   { text: 'useEffectAction', link: '/api/react/functions/use-effect-action' },
+  { text: 'useEffectStatus', link: '/api/react/functions/use-effect-status' },
+  { text: 'useAsyncEffectAction', link: '/api/react/functions/use-async-effect-action' },
 ];
 
 const reactTypeItems = [
@@ -74,6 +76,7 @@ const serializerFunctionItems = [
   { text: 'hydrate', link: '/api/serializer/functions/hydrate' },
   { text: 'persistToStorage', link: '/api/serializer/functions/persist-to-storage' },
   { text: 'hydrateFromStorage', link: '/api/serializer/functions/hydrate-from-storage' },
+  { text: 'autoPersistScope', link: '/api/serializer/functions/auto-persist-scope' },
   { text: 'escapeJsonForHtml', link: '/api/serializer/functions/escape-json-for-html' },
 ];
 
@@ -113,11 +116,6 @@ export default defineConfig({
           __dirname,
           './runtime/rspress-runtime-wrapper.tsx',
         ),
-        '@scope-flux/core': resolve(__dirname, '../packages/core/src/index.ts'),
-        '@scope-flux/react': resolve(__dirname, '../packages/react/src/index.tsx'),
-        '@scope-flux/scheduler': resolve(__dirname, '../packages/scheduler/src/index.ts'),
-        '@scope-flux/serializer': resolve(__dirname, '../packages/serializer/src/index.ts'),
-        '@scope-flux/inspect': resolve(__dirname, '../packages/inspect/src/index.ts'),
         '@suzumiyaaoba/scope-flux-core': resolve(__dirname, '../packages/core/src/index.ts'),
         '@suzumiyaaoba/scope-flux-react': resolve(__dirname, '../packages/react/src/index.tsx'),
         '@suzumiyaaoba/scope-flux-scheduler': resolve(__dirname, '../packages/scheduler/src/index.ts'),

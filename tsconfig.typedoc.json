@@ -1,7 +1,15 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@suzumiyaaoba/scope-flux-core": ["packages/core/src/index.ts"],
+      "@suzumiyaaoba/scope-flux-scheduler": ["packages/scheduler/src/index.ts"],
+      "@suzumiyaaoba/scope-flux-serializer": ["packages/serializer/src/index.ts"],
+      "@suzumiyaaoba/scope-flux-react": ["packages/react/src/index.tsx"],
+      "@suzumiyaaoba/scope-flux-inspect": ["packages/inspect/src/index.ts"]
+    }
   },
   "include": [
     "packages/*/src/**/*.ts",

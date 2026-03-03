@@ -2,6 +2,7 @@ import {
   type Cell,
   type Computed,
   type Effect,
+  type EffectStatus,
   type Event,
   type Priority,
   type Scope,
@@ -270,4 +271,40 @@ export function useEffectAction<P, R>(
       },
     [scope, unitEffect, priority]
   );
+}
+
+export function useEffectStatus<P, R>(unitEffect: Effect<P, R>): EffectStatus<R> {
+  const scope = useScope();
+  return useExternalSelected({
+    getValue: () => scope.getEffectStatus(unitEffect),
+    subscribe: (onStoreChange) => scope.subscribeEffectStatus(unitEffect, onStoreChange),
+    equality: (a, b) =>
+      a.running === b.running &&
+      a.queued === b.queued &&
+      Object.is(a.lastError, b.lastError) &&
+      Object.is(a.lastResult, b.lastResult) &&
+      a.lastStartedAt === b.lastStartedAt &&
+      a.lastFinishedAt === b.lastFinishedAt,
+  });
+}
+
+export function useAsyncEffectAction<P, R>(
+  unitEffect: Effect<P, R>,
+  options?: { priority?: Priority; reason?: string }
+): {
+  run: (payload: P) => Promise<R>;
+  cancel: () => void;
+  status: EffectStatus<R>;
+} {
+  const scope = useScope();
+  const run = useEffectAction(unitEffect, options);
+  const status = useEffectStatus(unitEffect);
+  const cancel = useCallback(() => {
+    scope.cancelEffect(unitEffect);
+  }, [scope, unitEffect]);
+  return {
+    run,
+    cancel,
+    status,
+  };
 }

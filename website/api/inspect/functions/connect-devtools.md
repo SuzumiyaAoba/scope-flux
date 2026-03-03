@@ -16,6 +16,7 @@ Bridges inspect records to DevTools-style adapter.
 - `options.adapter`: adapter implementing `init`/`send`.
   - if adapter has `subscribe`, `jump_to_state` and `import_state` are applied to scope.
 - `options.trace`: optional trace relation flag.
+- `options.onError`: optional error callback for `init` / `send` / `receive`.
 
 ## Return Value
 

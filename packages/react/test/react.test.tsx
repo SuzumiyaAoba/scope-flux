@@ -1,18 +1,25 @@
-import React from 'react';
-import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import React, { act } from 'react';
+import { cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { cell, createStore, effect, event } from '@suzumiyaaoba/scope-flux-core';
 import {
   useCell,
   StoreProvider,
   useAction,
+  useAsyncEffectAction,
   useBufferedUnit,
   useCellAction,
   useEffectAction,
+  useEffectStatus,
   useFlushBuffered,
   useUnit,
 } from '../src/index.js';
+
+afterEach(() => {
+  cleanup();
+});
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,11 +32,7 @@ describe('react bridge', () => {
       return <>{value}</>;
     }
 
-    expect(() => {
-      act(() => {
-        create(<App />);
-      });
-    }).toThrowError(/NS_REACT_SCOPE_NOT_FOUND/);
+    expect(() => render(<App />)).toThrowError(/NS_REACT_SCOPE_NOT_FOUND/);
   });
 
   it('useUnit selector avoids rerender when selected value is unchanged', () => {
@@ -43,29 +46,21 @@ describe('react bridge', () => {
       return <>{a}</>;
     }
 
-    let renderer: ReactTestRenderer;
-    act(() => {
-      renderer = create(
-        <StoreProvider scope={scope}>
-          <Viewer />
-        </StoreProvider>
-      );
-    });
+    render(
+      <StoreProvider scope={scope}>
+        <Viewer />
+      </StoreProvider>
+    );
 
     act(() => {
       scope.set(state, { a: 1, b: 2 });
     });
-
     expect(renders).toBe(1);
 
     act(() => {
       scope.set(state, { a: 2, b: 2 });
     });
-
     expect(renders).toBe(2);
-    act(() => {
-      renderer!.unmount();
-    });
   });
 
   it('useAction dispatches event updates', () => {
@@ -85,13 +80,11 @@ describe('react bridge', () => {
       return <>{value}</>;
     }
 
-    act(() => {
-      create(
-        <StoreProvider scope={scope}>
-          <App />
-        </StoreProvider>
-      );
-    });
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
 
     act(() => {
       fire(3);
@@ -116,13 +109,11 @@ describe('react bridge', () => {
       return <>{value}</>;
     }
 
-    act(() => {
-      create(
-        <StoreProvider scope={scope}>
-          <App />
-        </StoreProvider>
-      );
-    });
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
 
     let result = 0;
     await act(async () => {
@@ -153,14 +144,11 @@ describe('react bridge', () => {
       );
     }
 
-    let renderer: ReactTestRenderer;
-    act(() => {
-      renderer = create(
-        <StoreProvider scope={scope}>
-          <App />
-        </StoreProvider>
-      );
-    });
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
 
     act(() => {
       setBuffered(5);
@@ -176,10 +164,6 @@ describe('react bridge', () => {
 
     expect(scope.get(count)).toBe(5);
     expect(committedSeen).toBe(5);
-
-    act(() => {
-      renderer!.unmount();
-    });
   });
 
   it('useCell returns value and setter tuple', () => {
@@ -196,13 +180,11 @@ describe('react bridge', () => {
       return <>{value}</>;
     }
 
-    act(() => {
-      create(
-        <StoreProvider scope={scope}>
-          <App />
-        </StoreProvider>
-      );
-    });
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
 
     expect(seen).toBe(0);
 
@@ -212,5 +194,83 @@ describe('react bridge', () => {
 
     expect(scope.get(count)).toBe(3);
     expect(seen).toBe(3);
+  });
+
+  it('useEffectStatus reflects effect lifecycle', async () => {
+    const scope = createStore().fork();
+    let release!: () => void;
+    const fx = effect<void, number>(() => {
+      return new Promise<number>((resolve) => {
+        release = () => resolve(9);
+      });
+    });
+
+    let run!: () => Promise<number>;
+    let running = -1;
+    let lastResult: number | undefined;
+
+    function App(): React.JSX.Element {
+      run = useEffectAction(fx);
+      const status = useEffectStatus(fx);
+      running = status.running;
+      lastResult = status.lastResult;
+      return <>{running}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    let promise!: Promise<number>;
+    await act(async () => {
+      promise = run();
+      await Promise.resolve();
+    });
+    expect(running).toBe(1);
+
+    await act(async () => {
+      release();
+      await promise;
+    });
+    expect(running).toBe(0);
+    expect(lastResult).toBe(9);
+  });
+
+  it('useAsyncEffectAction exposes run/cancel/status', async () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(() => {
+      return new Promise<number>((resolve) => {
+        setTimeout(() => resolve(1), 30);
+      });
+    });
+
+    let api!: ReturnType<typeof useAsyncEffectAction<void, number>>;
+
+    function App(): React.JSX.Element {
+      api = useAsyncEffectAction(fx);
+      return <>{api.status.running}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    let promise!: Promise<number>;
+    await act(async () => {
+      promise = api.run();
+      await Promise.resolve();
+    });
+    void promise.catch(() => {
+      // handled below with explicit expectation
+    });
+    await act(async () => {
+      api.cancel();
+      await Promise.resolve();
+    });
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

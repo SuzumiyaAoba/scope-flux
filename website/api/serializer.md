@@ -75,6 +75,12 @@ Serializes and saves payload into storage (`localStorage` by default).
 ### `hydrateFromStorage(scope, key, options?)`
 Reads payload from storage and hydrates scope.
 
+### `autoPersistScope(scope, key, options?)`
+Subscribes to scope commits and persists automatically.
+
+- Supports `debounceMs` and `throttleMs`.
+- Supports `onError` callback for storage/serialization errors.
+
 ### `escapeJsonForHtml(json)`
 Escapes JSON for safe HTML script embedding (`<`, `\u2028`, `\u2029`).
 
@@ -125,6 +131,19 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
   - `migrate?: (payload: SerializedScope) => SerializedScope`
   - `storage?: StorageLike`
 - Returns: `SerializedScope | null`
+
+### `autoPersistScope(scope, key, options?)`
+
+- `scope: Scope`
+- `key: string`
+- `options?: AutoPersistOptions`
+  - `only?: AnyCell[]`
+  - `maxBytes?: number`
+  - `storage?: StorageLike`
+  - `debounceMs?: number`
+  - `throttleMs?: number`
+  - `onError?: (error: unknown) => void`
+- Returns: `{ unsubscribe: () => void; flush: () => SerializedScope | null }`
 
 ### `escapeJsonForHtml(json)`
 

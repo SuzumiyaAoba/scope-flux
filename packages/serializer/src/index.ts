@@ -41,6 +41,12 @@ export interface HydrateFromStorageOptions extends HydrateOptions {
   storage?: StorageLike;
 }
 
+export interface AutoPersistOptions extends PersistToStorageOptions {
+  debounceMs?: number;
+  throttleMs?: number;
+  onError?: (error: unknown) => void;
+}
+
 function isJsonValue(value: unknown): value is JsonValue {
   if (value === null) {
     return true;
@@ -245,4 +251,68 @@ export function hydrateFromStorage(
   }
   hydrate(scope, parsed, options);
   return parsed as SerializedScope;
+}
+
+export function autoPersistScope(
+  scope: Scope,
+  key: string,
+  options: AutoPersistOptions = {}
+): {
+  unsubscribe: () => void;
+  flush: () => SerializedScope | null;
+} {
+  assertScope(scope);
+  const debounceMs = Math.max(0, options.debounceMs ?? 0);
+  const throttleMs = Math.max(0, options.throttleMs ?? 0);
+  let lastPersistAt = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const clearTimer = () => {
+    if (!timer) {
+      return;
+    }
+    clearTimeout(timer);
+    timer = undefined;
+  };
+
+  const persistNow = (): SerializedScope | null => {
+    try {
+      const payload = persistToStorage(scope, key, options);
+      lastPersistAt = Date.now();
+      return payload;
+    } catch (error) {
+      options.onError?.(error);
+      return null;
+    }
+  };
+
+  const schedulePersist = () => {
+    const now = Date.now();
+    const throttleWait = throttleMs > 0 ? Math.max(0, throttleMs - (now - lastPersistAt)) : 0;
+    const waitMs = Math.max(debounceMs, throttleWait);
+    clearTimer();
+    if (waitMs === 0) {
+      persistNow();
+      return;
+    }
+    timer = setTimeout(() => {
+      timer = undefined;
+      persistNow();
+    }, waitMs);
+  };
+
+  const unsubscribe = scope.subscribe(() => {
+    schedulePersist();
+  });
+
+  return {
+    unsubscribe: () => {
+      clearTimer();
+      unsubscribe();
+    },
+    flush: () => {
+      clearTimer();
+      return persistNow();
+    },
+  };
 }

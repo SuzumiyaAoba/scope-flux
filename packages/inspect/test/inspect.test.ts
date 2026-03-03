@@ -202,4 +202,28 @@ describe('inspect', () => {
       nextLiftedState: undefined,
     });
   });
+
+  it('connectDevtools reports adapter errors via onError', () => {
+    const count = cell(0, { id: 'inspect_on_error_count' });
+    const scope = createStore().fork();
+    const onError = vi.fn();
+    const adapter = {
+      init: () => {
+        throw new Error('init_fail');
+      },
+      send: () => {
+        throw new Error('send_fail');
+      },
+    };
+
+    const unsub = connectDevtools({
+      scope,
+      adapter,
+      onError,
+    });
+
+    scope.set(count, 1);
+    expect(onError).toHaveBeenCalled();
+    unsub();
+  });
 });

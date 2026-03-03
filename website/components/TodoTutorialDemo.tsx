@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
-import { cell, computed, createStore, getRegisteredCellById, type Cell } from '@scope-flux/core';
-import { StoreProvider, useBufferedUnit, useCellAction, useFlushBuffered, useUnit } from '@scope-flux/react';
+import { cell, computed, createStore, getRegisteredCellById, type Cell } from '@suzumiyaaoba/scope-flux-core';
+import { StoreProvider, useBufferedUnit, useCellAction, useFlushBuffered, useUnit } from '@suzumiyaaoba/scope-flux-react';
 import './TodoTutorialDemo.css';
 
 type Todo = {
