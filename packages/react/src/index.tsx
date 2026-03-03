@@ -135,10 +135,7 @@ export function useUnit<T, S>(
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      if (unit.kind === 'cell') {
-        return scope.subscribeUnit(unit, onStoreChange);
-      }
-      return scope.subscribe(onStoreChange);
+      return scope.subscribeUnit(unit, onStoreChange);
     },
     [scope, unit]
   );

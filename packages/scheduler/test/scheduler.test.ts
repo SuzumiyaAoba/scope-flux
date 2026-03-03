@@ -157,4 +157,42 @@ describe('scheduler', () => {
       vi.useRealTimers();
     }
   });
+
+  it('autoFlush:animationFrame flushes via requestAnimationFrame', () => {
+    const count = cell(0, { id: 'scheduler_autoflush_animation_frame' });
+    const scope = createStore().fork();
+    const g = globalThis as { requestAnimationFrame?: (cb: () => void) => unknown };
+    const originalRaf = g.requestAnimationFrame;
+    g.requestAnimationFrame = (cb) => {
+      cb();
+      return 1;
+    };
+    try {
+      const scheduler = createScheduler({ scope, autoFlush: 'animationFrame' });
+      scheduler.set<number>(count, 6, { priority: 'transition' });
+      expect(scope.get(count)).toBe(6);
+    } finally {
+      g.requestAnimationFrame = originalRaf;
+    }
+  });
+
+  it('autoFlush:idle flushes via requestIdleCallback', () => {
+    const count = cell(0, { id: 'scheduler_autoflush_idle' });
+    const scope = createStore().fork();
+    const g = globalThis as {
+      requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => unknown;
+    };
+    const originalIdle = g.requestIdleCallback;
+    g.requestIdleCallback = (cb) => {
+      cb();
+      return 1;
+    };
+    try {
+      const scheduler = createScheduler({ scope, autoFlush: 'idle', autoFlushDelayMs: 10 });
+      scheduler.set<number>(count, 12, { priority: 'transition' });
+      expect(scope.get(count)).toBe(12);
+    } finally {
+      g.requestIdleCallback = originalIdle;
+    }
+  });
 });

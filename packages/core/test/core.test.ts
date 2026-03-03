@@ -77,8 +77,9 @@ describe('core', () => {
   });
 
   it('throws when duplicate stable ids are registered', () => {
-    cell(0, { id: 'dup_test_cell_unique' });
-    expect(() => cell(1, { id: 'dup_test_cell_unique' })).toThrowError(/NS_CORE_DUPLICATE_STABLE_ID/);
+    const duplicateId = `dup_test_cell_unique_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    cell(0, { id: duplicateId });
+    expect(() => cell(1, { id: duplicateId })).toThrowError(/NS_CORE_DUPLICATE_STABLE_ID/);
   });
 
   it('exposes registered cells via registry helpers', () => {
@@ -292,6 +293,24 @@ describe('core', () => {
     expect(scope.get(doubled)).toBe(2);
   });
 
+  it('nested batch rollback restores only failed inner operations', () => {
+    const count = cell(0, { id: 'batch_nested_rollback_count' });
+    const scope = createStore().fork();
+
+    scope.batch(() => {
+      scope.set(count, 1);
+      expect(() => {
+        scope.batch(() => {
+          scope.set(count, 2);
+          scope.set(count, 3);
+          throw new Error('nested_rollback');
+        });
+      }).toThrowError('nested_rollback');
+    });
+
+    expect(scope.get(count)).toBe(1);
+  });
+
   it('custom equal controls whether update emits commit', () => {
     const eq = vi.fn((a: number, b: number) => Math.abs(a - b) < 2);
     const count = cell<number>(0, { id: 'custom_equal_count', equal: eq });
@@ -419,6 +438,34 @@ describe('core', () => {
     expect(seen).toEqual([1, 2, 3]);
   });
 
+  it('effect with replace policy aborts previous run and resolves latest run', async () => {
+    const scope = createStore().fork();
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    let calls = 0;
+    const fx = effect<void, number>(() => {
+      calls += 1;
+      return new Promise<number>((resolve) => {
+        if (calls === 1) {
+          releaseFirst = () => resolve(1);
+          return;
+        }
+        releaseSecond = () => resolve(2);
+      });
+    }, {
+      policy: { concurrency: 'replace' },
+    });
+
+    const p1 = scope.run(fx, undefined);
+    await Promise.resolve();
+    const p2 = scope.run(fx, undefined);
+    releaseFirst();
+    releaseSecond();
+
+    await expect(p1).rejects.toThrowError(/NS_CORE_EFFECT_REPLACED/);
+    await expect(p2).resolves.toBe(2);
+  });
+
   it('effect retries and exposes status', async () => {
     const scope = createStore().fork();
     let attempt = 0;
@@ -437,6 +484,34 @@ describe('core', () => {
     expect(status.running).toBe(0);
     expect(status.lastResult).toBe(10);
     expect(status.lastError).toBeUndefined();
+  });
+
+  it('effect retryDelayMs function receives attempt and error', async () => {
+    const scope = createStore().fork();
+    vi.useFakeTimers();
+    try {
+      let attempt = 0;
+      const retryDelay = vi.fn<(attempt: number, error: unknown) => number>((_attempt, _error) => 25);
+      const fx = effect<void, number>(() => {
+        attempt += 1;
+        if (attempt < 2) {
+          throw new Error('retry_once');
+        }
+        return 5;
+      }, {
+        policy: { retries: 1, retryDelayMs: retryDelay },
+      });
+
+      const runPromise = scope.run(fx, undefined);
+      await vi.runAllTimersAsync();
+      await expect(runPromise).resolves.toBe(5);
+      expect(retryDelay).toHaveBeenCalledTimes(1);
+      const [callAttempt, callError] = retryDelay.mock.calls[0];
+      expect(callAttempt).toBe(1);
+      expect(callError).toBeInstanceOf(Error);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('cancelEffect aborts running and queued tasks', async () => {

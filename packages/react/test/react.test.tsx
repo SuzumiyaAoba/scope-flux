@@ -3,7 +3,7 @@ import React, { act } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cell, createStore, effect, event } from '@suzumiyaaoba/scope-flux-core';
+import { cell, computed, createStore, effect, event } from '@suzumiyaaoba/scope-flux-core';
 import {
   useCell,
   StoreProvider,
@@ -60,6 +60,41 @@ describe('react bridge', () => {
     act(() => {
       scope.set(state, { a: 2, b: 2 });
     });
+    expect(renders).toBe(2);
+  });
+
+  it('useUnit accepts computed unit and ignores unrelated updates', () => {
+    const count = cell(1, { id: 'react_computed_count' });
+    const other = cell(0, { id: 'react_computed_other' });
+    const doubled = computed([count], (v) => v * 2);
+    const scope = createStore().fork();
+    let renders = 0;
+    let seen = -1;
+
+    function Viewer(): React.JSX.Element {
+      seen = useUnit(doubled);
+      renders += 1;
+      return <>{seen}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <Viewer />
+      </StoreProvider>
+    );
+
+    expect(seen).toBe(2);
+    expect(renders).toBe(1);
+
+    act(() => {
+      scope.set(other, 1);
+    });
+    expect(renders).toBe(1);
+
+    act(() => {
+      scope.set(count, 2);
+    });
+    expect(seen).toBe(4);
     expect(renders).toBe(2);
   });
 

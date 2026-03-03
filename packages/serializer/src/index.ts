@@ -428,6 +428,7 @@ export function autoPersistScope(
           mode: options.mode,
           migrate: options.migrate,
           storage,
+          codec: options.codec,
         });
         if (loaded) {
           options.onExternalHydrate?.(loaded);

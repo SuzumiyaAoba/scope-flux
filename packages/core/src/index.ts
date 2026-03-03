@@ -128,6 +128,9 @@ export const ErrorCodes = {
   CYCLE_DETECTED: 'NS_CORE_CYCLE_DETECTED',
   MISSING_HANDLER: 'NS_CORE_MISSING_HANDLER',
   EFFECT_DROPPED: 'NS_CORE_EFFECT_DROPPED',
+  EFFECT_ABORTED: 'NS_CORE_EFFECT_ABORTED',
+  EFFECT_TIMEOUT: 'NS_CORE_EFFECT_TIMEOUT',
+  EFFECT_REPLACED: 'NS_CORE_EFFECT_REPLACED',
 } as const;
 
 const registeredCellsById = new Map<string, AnyCell>();
@@ -177,7 +180,7 @@ function abortReasonAsError(signal: AbortSignal, fallbackMessage: string): Error
 
 function waitMsWithAbort(ms: number, signal: AbortSignal): Promise<void> {
   if (signal.aborted) {
-    return Promise.reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+    return Promise.reject(abortReasonAsError(signal, ErrorCodes.EFFECT_ABORTED));
   }
   if (ms <= 0) {
     return Promise.resolve();
@@ -190,7 +193,7 @@ function waitMsWithAbort(ms: number, signal: AbortSignal): Promise<void> {
     const onAbort = () => {
       clearTimeout(timer);
       signal.removeEventListener('abort', onAbort);
-      reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+      reject(abortReasonAsError(signal, ErrorCodes.EFFECT_ABORTED));
     };
     signal.addEventListener('abort', onAbort, { once: true });
   });
@@ -198,12 +201,12 @@ function waitMsWithAbort(ms: number, signal: AbortSignal): Promise<void> {
 
 function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+    return Promise.reject(abortReasonAsError(signal, ErrorCodes.EFFECT_ABORTED));
   }
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => {
       signal.removeEventListener('abort', onAbort);
-      reject(abortReasonAsError(signal, 'NS_CORE_EFFECT_ABORTED'));
+      reject(abortReasonAsError(signal, ErrorCodes.EFFECT_ABORTED));
     };
     signal.addEventListener('abort', onAbort, { once: true });
     promise.then(
@@ -477,7 +480,7 @@ export class Scope {
 
     if (options.timeoutMs !== undefined && options.timeoutMs >= 0) {
       timeoutId = setTimeout(() => {
-        controller.abort(toAbortError(`NS_CORE_EFFECT_TIMEOUT:${options.timeoutMs}`));
+        controller.abort(toAbortError(`${ErrorCodes.EFFECT_TIMEOUT}:${options.timeoutMs}`));
       }, options.timeoutMs);
     }
 
@@ -512,7 +515,7 @@ export class Scope {
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         if (controller.signal.aborted) {
-          throw toAbortError('NS_CORE_EFFECT_ABORTED');
+          throw toAbortError(ErrorCodes.EFFECT_ABORTED);
         }
         try {
           const result = await raceWithAbort(
@@ -526,7 +529,7 @@ export class Scope {
             controller.signal
           );
           if (controller.signal.aborted) {
-            throw toAbortError('NS_CORE_EFFECT_ABORTED');
+            throw toAbortError(ErrorCodes.EFFECT_ABORTED);
           }
           state.lastResult = result;
           state.lastError = undefined;
@@ -803,7 +806,7 @@ export class Scope {
 
     if (policy === 'replace' && state.running > 0) {
       for (const controller of Array.from(state.controllers)) {
-        controller.abort(toAbortError('NS_CORE_EFFECT_REPLACED'));
+        controller.abort(toAbortError(ErrorCodes.EFFECT_REPLACED));
       }
     }
 
@@ -873,7 +876,7 @@ export class Scope {
       return;
     }
 
-    const abortError = toAbortError('NS_CORE_EFFECT_ABORTED');
+    const abortError = toAbortError(ErrorCodes.EFFECT_ABORTED);
     for (const controller of Array.from(state.controllers)) {
       controller.abort(abortError);
     }

@@ -203,6 +203,39 @@ describe('inspect', () => {
     });
   });
 
+  it('redux devtools adapter normalizes DISPATCH IMPORT_STATE with lifted state', () => {
+    let forwarded: ((message: unknown) => void) | undefined;
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+          subscribe: (listener) => {
+            forwarded = listener as typeof forwarded;
+            return () => {};
+          },
+        }),
+      },
+    });
+
+    const onMessage = vi.fn();
+    adapter.subscribe?.(onMessage);
+    forwarded?.({
+      type: 'DISPATCH',
+      payload: {
+        type: 'IMPORT_STATE',
+        nextLiftedState: '{"computedStates":[{"state":{"inspect_import_count":8}}]}',
+      },
+      state: '{"inspect_import_count":1}',
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'import_state',
+      state: { inspect_import_count: 1 },
+      nextLiftedState: { computedStates: [{ state: { inspect_import_count: 8 } }] },
+    });
+  });
+
   it('redux devtools adapter normalizes STATE message', () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
@@ -230,6 +263,109 @@ describe('inspect', () => {
       state: { count: 3 },
       nextLiftedState: undefined,
     });
+  });
+
+  it('redux devtools adapter normalizes ACTION payload message', () => {
+    let forwarded: ((message: unknown) => void) | undefined;
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+          subscribe: (listener) => {
+            forwarded = listener as typeof forwarded;
+            return () => {};
+          },
+        }),
+      },
+    });
+
+    const onMessage = vi.fn();
+    adapter.subscribe?.(onMessage);
+    forwarded?.({
+      type: 'ACTION',
+      payload: '{"type":"reset","state":{"count":0}}',
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'reset',
+      state: { count: 0 },
+      nextLiftedState: undefined,
+    });
+  });
+
+  it('redux devtools adapter forwards lowercase message as-is', () => {
+    let forwarded: ((message: unknown) => void) | undefined;
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+          subscribe: (listener) => {
+            forwarded = listener as typeof forwarded;
+            return () => {};
+          },
+        }),
+      },
+    });
+
+    const onMessage = vi.fn();
+    adapter.subscribe?.(onMessage);
+    forwarded?.({
+      type: 'rollback',
+      state: '{"count":4}',
+      nextLiftedState: '{"x":1}',
+    });
+
+    expect(onMessage).toHaveBeenCalledWith({
+      type: 'rollback',
+      state: { count: 4 },
+      nextLiftedState: { x: 1 },
+    });
+  });
+
+  it('redux devtools adapter subscribe returns no-op when extension does not provide subscribe', () => {
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+        }),
+      },
+    });
+
+    expect(() => adapter.subscribe?.(() => {})).not.toThrow();
+  });
+
+  it('redux devtools adapter ignores non-object and unsupported messages', () => {
+    let forwarded: ((message: unknown) => void) | undefined;
+    const adapter = createReduxDevtoolsAdapter({
+      extension: {
+        connect: () => ({
+          init: () => {},
+          send: () => {},
+          subscribe: (listener) => {
+            forwarded = listener as typeof forwarded;
+            return () => {};
+          },
+        }),
+      },
+    });
+
+    const onMessage = vi.fn();
+    adapter.subscribe?.(onMessage);
+    forwarded?.('not-an-object');
+    forwarded?.({
+      type: 'DISPATCH',
+      payload: { type: 'UNKNOWN_ACTION' },
+      state: '{}',
+    });
+    forwarded?.({
+      type: 'ACTION',
+      payload: '{"type":"unknown_action"}',
+    });
+
+    expect(onMessage).not.toHaveBeenCalled();
   });
 
   it('connectDevtools reports adapter errors via onError', () => {
@@ -275,6 +411,33 @@ describe('inspect', () => {
     });
     receive({ type: 'import_state', state: 'invalid' });
     expect(onUnsupportedMessage).toHaveBeenCalled();
+    unsub();
+  });
+
+  it('connectDevtools import_state applies latest computedStates snapshot', () => {
+    const count = cell(0, { id: 'inspect_import_apply_count' });
+    const scope = createStore().fork();
+    let receive!: (message: { type: 'import_state'; nextLiftedState?: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'import_state'; nextLiftedState?: unknown }) => void) => {
+        receive = listener;
+        return () => {};
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    receive({
+      type: 'import_state',
+      nextLiftedState: {
+        computedStates: [
+          { state: { inspect_import_apply_count: 3 } },
+          { state: { inspect_import_apply_count: 9 } },
+        ],
+      },
+    });
+    expect(scope.get(count)).toBe(9);
     unsub();
   });
 });

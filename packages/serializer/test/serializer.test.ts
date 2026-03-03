@@ -402,4 +402,162 @@ describe('serializer', () => {
     expect(scope.get(b)).toBe(2);
     persistence.unsubscribe();
   });
+
+  it('autoPersistScope throttleMs coalesces frequent writes', () => {
+    vi.useFakeTimers();
+    try {
+      const count = cell(0, { id: 'auto_persist_throttle_count' });
+      const scope = createStore().fork();
+      const storage = createMemoryStorage();
+      const persistence = autoPersistScope(scope, 'scope:throttle', {
+        storage,
+        debounceMs: 0,
+        throttleMs: 30,
+      });
+
+      scope.set(count, 1);
+      const first = storage.getItem('scope:throttle');
+      expect(first).toBeTruthy();
+
+      scope.set(count, 2);
+      const stillFirst = storage.getItem('scope:throttle');
+      expect(stillFirst).toBe(first);
+
+      vi.advanceTimersByTime(30);
+      const second = storage.getItem('scope:throttle');
+      expect(second).not.toBe(first);
+      expect(JSON.parse(second as string).values.auto_persist_throttle_count).toBe(2);
+      persistence.unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('autoPersistScope listens external updates and can prefer local on conflict', () => {
+    const local = cell(0, { id: 'external_local' });
+    const externalOnly = cell(0, { id: 'external_only' });
+    const scope = createStore().fork();
+    const storage = createMemoryStorage();
+    const listeners: Array<(event: unknown) => void> = [];
+    const g = globalThis as {
+      addEventListener?: (type: string, listener: (event: unknown) => void) => void;
+      removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
+    };
+    const originalAdd = g.addEventListener;
+    const originalRemove = g.removeEventListener;
+    g.addEventListener = (_type, listener) => {
+      listeners.push(listener);
+    };
+    g.removeEventListener = (_type, listener) => {
+      const index = listeners.indexOf(listener);
+      if (index >= 0) {
+        listeners.splice(index, 1);
+      }
+    };
+
+    try {
+      const onExternalHydrate = vi.fn();
+      const persistence = autoPersistScope(scope, 'scope:external', {
+        storage,
+        listenExternalUpdates: true,
+        conflictPolicy: 'prefer_local',
+        debounceMs: 100,
+        onExternalHydrate,
+      });
+
+      scope.set(local, 10);
+      const externalPayload = {
+        version: 1,
+        scopeId: 'remote',
+        values: {
+          external_local: 1,
+          external_only: 2,
+        },
+      };
+      storage.setItem('scope:external', JSON.stringify(externalPayload));
+
+      for (const listener of [...listeners]) {
+        listener({
+          key: 'scope:external',
+          newValue: JSON.stringify(externalPayload),
+          storageArea: storage,
+        });
+      }
+      expect(scope.get(local)).toBe(10);
+      expect(scope.get(externalOnly)).toBe(0);
+      expect(onExternalHydrate).not.toHaveBeenCalled();
+
+      persistence.flush();
+      for (const listener of [...listeners]) {
+        listener({
+          key: 'scope:external',
+          newValue: JSON.stringify(externalPayload),
+          storageArea: storage,
+        });
+      }
+      expect(scope.get(local)).toBe(1);
+      expect(scope.get(externalOnly)).toBe(2);
+      expect(onExternalHydrate).toHaveBeenCalledTimes(1);
+      persistence.unsubscribe();
+    } finally {
+      g.addEventListener = originalAdd;
+      g.removeEventListener = originalRemove;
+    }
+  });
+
+  it('autoPersistScope reports external listener parse errors via onError', () => {
+    const scope = createStore().fork();
+    const storage = createMemoryStorage();
+    const listeners: Array<(event: unknown) => void> = [];
+    const g = globalThis as {
+      addEventListener?: (type: string, listener: (event: unknown) => void) => void;
+      removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
+    };
+    const originalAdd = g.addEventListener;
+    const originalRemove = g.removeEventListener;
+    g.addEventListener = (_type, listener) => {
+      listeners.push(listener);
+    };
+    g.removeEventListener = (_type, listener) => {
+      const index = listeners.indexOf(listener);
+      if (index >= 0) {
+        listeners.splice(index, 1);
+      }
+    };
+    try {
+      const onError = vi.fn();
+      const persistence = autoPersistScope(scope, 'scope:external:error', {
+        storage,
+        listenExternalUpdates: true,
+        onError,
+      });
+      for (const listener of [...listeners]) {
+        listener({
+          key: 'scope:external:error',
+          newValue: '{bad-json',
+          storageArea: storage,
+        });
+      }
+      expect(onError).toHaveBeenCalledTimes(1);
+      persistence.unsubscribe();
+    } finally {
+      g.addEventListener = originalAdd;
+      g.removeEventListener = originalRemove;
+    }
+  });
+
+  it('autoPersistScope hydrateNow returns null and calls onError for invalid payload', () => {
+    const scope = createStore().fork();
+    const storage = createMemoryStorage({ 'scope:hydrate:error': '{bad-json' });
+    const onError = vi.fn();
+
+    const persistence = autoPersistScope(scope, 'scope:hydrate:error', {
+      storage,
+      onError,
+    });
+
+    expect(persistence.hydrateNow()).toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+    persistence.unsubscribe();
+  });
 });
