@@ -2,6 +2,22 @@
   "name": "@suzumiyaaoba/scope-flux-inspect",
   "version": "0.1.0",
   "type": "module",
+  "description": "Inspect/devtools integration utilities for scope-flux.",
+  "keywords": [
+    "state-management",
+    "devtools",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SuzumiyaAoba/scope-flux.git",
+    "directory": "packages/inspect"
+  },
+  "homepage": "https://github.com/SuzumiyaAoba/scope-flux/tree/master/packages/inspect",
+  "bugs": {
+    "url": "https://github.com/SuzumiyaAoba/scope-flux/issues"
+  },
+  "license": "MIT",
   "sideEffects": false,
   "exports": {
     ".": {

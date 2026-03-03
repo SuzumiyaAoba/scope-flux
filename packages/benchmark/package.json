@@ -3,6 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Benchmark scenarios for scope-flux internals.",
+  "keywords": [
+    "benchmark",
+    "state-management",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SuzumiyaAoba/scope-flux.git",
+    "directory": "packages/benchmark"
+  },
+  "homepage": "https://github.com/SuzumiyaAoba/scope-flux/tree/master/packages/benchmark",
+  "bugs": {
+    "url": "https://github.com/SuzumiyaAoba/scope-flux/issues"
+  },
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

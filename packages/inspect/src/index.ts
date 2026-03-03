@@ -43,7 +43,7 @@ export interface InspectOptions {
 export interface DevtoolsAdapter {
   init(initialState: unknown): void;
   send(action: { type: string; payload?: unknown }, state: unknown): void;
-  subscribe?(listener: (message: DevtoolsMessage) => void): Unsubscribe | void;
+  subscribe?(listener: (message: DevtoolsMessage) => void): Unsubscribe | undefined;
 }
 
 export interface DevtoolsMessage {

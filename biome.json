@@ -1,0 +1,42 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "useButtonType": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "style": {
+        "useImportType": "off"
+      },
+      "suspicious": {
+        "noConfusingVoidType": "off",
+        "noExplicitAny": "off"
+      }
+    }
+  },
+  "files": {
+    "ignore": [
+      "node_modules/**",
+      "coverage/**",
+      "doc_build/**",
+      "docs/api/**",
+      "website/public/typedoc/**",
+      "docs-site/doc_build/**",
+      "packages/*/dist/**"
+    ]
+  }
+}

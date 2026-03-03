@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { cell, createStore, event } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler } from '../src/index.js';
 
 describe('scheduler', () => {
@@ -110,10 +110,8 @@ describe('scheduler', () => {
 
     scheduler.set<number>(bad, 5, { priority: 'transition' });
 
-    scope.on(
-      { kind: 'event', meta: {} } as any,
-      () => {}
-    );
+    const noop = event<void>({ debugName: 'scheduler_flush_error_noop' });
+    scope.on(noop, () => {});
 
     const origBatch = scope.batch.bind(scope);
     scope.batch = <T>(fn: () => T): T => {

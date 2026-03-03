@@ -15,10 +15,19 @@ This repository is a monorepo powered by npm workspaces.
 
 ```bash
 npm ci
+npm run lint
 npm run build
 npm run typecheck
 npm test
+npm run test:e2e
+npm run bench:regression
 ```
+
+## Quality & Security
+
+- CI validates Node.js 20/22 matrix.
+- Security workflow runs `npm audit` and CodeQL.
+- Dependabot is enabled for npm and GitHub Actions.
 
 ## Docs
 

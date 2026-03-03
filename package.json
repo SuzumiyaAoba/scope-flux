@@ -2,6 +2,15 @@
   "name": "scope-flux",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SuzumiyaAoba/scope-flux.git"
+  },
+  "homepage": "https://github.com/SuzumiyaAoba/scope-flux",
+  "bugs": {
+    "url": "https://github.com/SuzumiyaAoba/scope-flux/issues"
+  },
+  "license": "MIT",
   "workspaces": [
     "packages/*"
   ],
@@ -9,6 +18,9 @@
     "build": "npm run clean && npm run build:packages",
     "build:packages": "npm -w @suzumiyaaoba/scope-flux-core run build && npm -w @suzumiyaaoba/scope-flux-scheduler run build && npm -w @suzumiyaaoba/scope-flux-serializer run build && npm -w @suzumiyaaoba/scope-flux-inspect run build && npm -w @suzumiyaaoba/scope-flux-react run build && npm -w @suzumiyaaoba/scope-flux-benchmark run build",
     "typecheck": "tsc -p tsconfig.typecheck.json",
+    "lint": "biome lint packages scripts e2e",
+    "lint:fix": "biome lint --write packages scripts e2e",
+    "format": "biome format --write .",
     "clean": "rm -rf packages/*/dist",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -16,6 +28,7 @@
     "test:e2e": "playwright test",
     "lint:ids": "node scripts/check-duplicate-cell-ids.mjs",
     "bench": "npm run build && node packages/benchmark/dist/run.js",
+    "bench:regression": "npm run build && node scripts/check-benchmark-regression.mjs",
     "verify:observability": "npm run build && node scripts/verify-observability-exclusion.mjs",
     "docs:api": "typedoc --options typedoc.json",
     "docs:sync": "node scripts/sync-doc-assets.mjs",
@@ -28,6 +41,7 @@
     "samples:all": "npm run samples:build && node samples/dist/pure.js && node samples/dist/react.js"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.13.10",
     "@types/react": "^19.0.12",
     "@playwright/test": "^1.55.0",

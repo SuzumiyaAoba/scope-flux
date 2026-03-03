@@ -2,6 +2,22 @@
   "name": "@suzumiyaaoba/scope-flux-core",
   "version": "0.1.0",
   "type": "module",
+  "description": "Core reactive state primitives for scope-flux.",
+  "keywords": [
+    "state-management",
+    "typescript",
+    "reactivity"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SuzumiyaAoba/scope-flux.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/SuzumiyaAoba/scope-flux/tree/master/packages/core",
+  "bugs": {
+    "url": "https://github.com/SuzumiyaAoba/scope-flux/issues"
+  },
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

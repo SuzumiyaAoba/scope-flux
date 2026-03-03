@@ -4,7 +4,7 @@ export interface ReduxDevtoolsLike {
   connect(options?: { name?: string }): {
     init(state: unknown): void;
     send(action: { type: string; payload?: unknown }, state: unknown): void;
-    subscribe?: (listener: (message: unknown) => void) => (() => void) | void;
+    subscribe?: (listener: (message: unknown) => void) => (() => void) | undefined;
     unsubscribe?: () => void;
   };
 }

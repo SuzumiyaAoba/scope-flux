@@ -1,14 +1,7 @@
-import {
-  type Cell,
-  type Computed,
-  type Effect,
-  type EffectStatus,
-  type Event,
-  type Priority,
-  type Scope,
-} from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Computed, Effect, EffectStatus, Event, Priority, Scope } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler, type Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
-import React, {
+import type React from 'react';
+import {
   createContext,
   type ReactNode,
   useCallback,
