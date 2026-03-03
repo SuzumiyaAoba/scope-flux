@@ -72,8 +72,12 @@ Ignoring unknown ids helps forward/backward compatibility between server/client 
 ### `persistToStorage(scope, key, options?)`
 Serializes and saves payload into storage (`localStorage` by default).
 
+- Supports `codec` for custom encode/decode (for example encryption wrapper).
+
 ### `hydrateFromStorage(scope, key, options?)`
 Reads payload from storage and hydrates scope.
+
+- Supports `codec` for decoding stored value.
 
 ### `autoPersistScope(scope, key, options?)`
 Subscribes to scope commits and persists automatically.
@@ -120,6 +124,7 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
   - `only?: AnyCell[]`
   - `maxBytes?: number`
   - `storage?: StorageLike`
+  - `codec?: StorageCodec`
 - Returns: `SerializedScope`
 
 ### `hydrateFromStorage(scope, key, options?)`
@@ -130,6 +135,7 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
   - `mode?: 'safe' | 'force'`
   - `migrate?: (payload: SerializedScope) => SerializedScope`
   - `storage?: StorageLike`
+  - `codec?: StorageCodec`
 - Returns: `SerializedScope | null`
 
 ### `autoPersistScope(scope, key, options?)`
@@ -140,10 +146,15 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
   - `only?: AnyCell[]`
   - `maxBytes?: number`
   - `storage?: StorageLike`
+  - `codec?: StorageCodec`
   - `debounceMs?: number`
   - `throttleMs?: number`
+  - `conflictPolicy?: 'prefer_external' | 'prefer_local' | 'merge'`
+  - `mergePayloads?: (localPayload, externalPayload) => SerializedScope`
+  - `listenExternalUpdates?: boolean`
+  - `onExternalHydrate?: (payload: SerializedScope) => void`
   - `onError?: (error: unknown) => void`
-- Returns: `{ unsubscribe: () => void; flush: () => SerializedScope | null }`
+- Returns: `{ unsubscribe: () => void; flush: () => SerializedScope | null; hydrateNow: () => SerializedScope | null }`
 
 ### `escapeJsonForHtml(json)`
 

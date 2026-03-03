@@ -349,4 +349,57 @@ describe('serializer', () => {
     expect(scope.get(count)).toBe(11);
     persistence.unsubscribe();
   });
+
+  it('persistToStorage/hydrateFromStorage support codec hooks', () => {
+    const count = cell(0, { id: 'codec_count' });
+    const source = createStore().fork();
+    source.set(count, 7);
+    const storage = createMemoryStorage();
+    const codec = {
+      encode: (raw: string) => Buffer.from(raw, 'utf8').toString('base64'),
+      decode: (encoded: string) => Buffer.from(encoded, 'base64').toString('utf8'),
+    };
+
+    persistToStorage(source, 'scope:codec', { storage, codec });
+    const raw = storage.getItem('scope:codec');
+    expect(raw).toBeTruthy();
+    expect(raw?.includes('"values"')).toBe(false);
+
+    const target = createStore().fork();
+    hydrateFromStorage(target, 'scope:codec', { storage, codec });
+    expect(target.get(count)).toBe(7);
+  });
+
+  it('autoPersistScope can merge external payloads on conflict', () => {
+    const a = cell(0, { id: 'merge_a' });
+    const b = cell(0, { id: 'merge_b' });
+    const scope = createStore().fork();
+    const storage = createMemoryStorage();
+    const persistence = autoPersistScope(scope, 'scope:merge', {
+      storage,
+      conflictPolicy: 'merge',
+      mergePayloads: (localPayload, externalPayload) => {
+        return {
+          ...externalPayload,
+          values: {
+            ...localPayload.values,
+            ...externalPayload.values,
+          },
+        };
+      },
+    });
+
+    scope.set(a, 1);
+    persistence.flush();
+
+    const external = createStore().fork();
+    external.set(b, 2);
+    persistToStorage(external, 'scope:merge', { storage });
+    const merged = persistence.hydrateNow();
+
+    expect(merged).not.toBeNull();
+    expect(scope.get(a)).toBe(1);
+    expect(scope.get(b)).toBe(2);
+    persistence.unsubscribe();
+  });
 });

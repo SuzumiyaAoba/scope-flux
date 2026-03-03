@@ -255,4 +255,26 @@ describe('inspect', () => {
     expect(onError).toHaveBeenCalled();
     unsub();
   });
+
+  it('connectDevtools reports unsupported inbound message', () => {
+    const scope = createStore().fork();
+    let receive!: (message: { type: 'import_state'; state?: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'import_state'; state?: unknown }) => void) => {
+        receive = listener;
+        return () => {};
+      },
+    };
+    const onUnsupportedMessage = vi.fn();
+    const unsub = connectDevtools({
+      scope,
+      adapter,
+      onUnsupportedMessage,
+    });
+    receive({ type: 'import_state', state: 'invalid' });
+    expect(onUnsupportedMessage).toHaveBeenCalled();
+    unsub();
+  });
 });

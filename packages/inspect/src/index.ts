@@ -64,6 +64,7 @@ export interface ConnectDevtoolsOptions {
   adapter: DevtoolsAdapter;
   trace?: boolean;
   onError?: (error: unknown, phase: 'init' | 'send' | 'receive') => void;
+  onUnsupportedMessage?: (message: DevtoolsMessage) => void;
 }
 
 function getUnitMeta(change: Change): { unitId?: string; unitName?: string } {
@@ -262,10 +263,11 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
         return;
       }
 
-      const snapshot = readImportState(message);
-      if (!snapshot) {
-        return;
-      }
+    const snapshot = readImportState(message);
+    if (!snapshot) {
+      options.onUnsupportedMessage?.(message);
+      return;
+    }
       applyingFromDevtools = true;
       try {
         applySnapshot(scope, snapshot, `devtools.${message.type}`);

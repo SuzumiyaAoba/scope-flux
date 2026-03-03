@@ -31,6 +31,7 @@ When adapter supports `subscribe`, inbound messages are also handled:
 Error handling:
 
 - `onError(error, phase)` option is available for `init` / `send` / `receive` failures.
+- `onUnsupportedMessage(message)` can be used to inspect inbound messages that were ignored.
 
 ### `createReduxDevtoolsAdapter({ extension?, name? })`
 Creates adapter for Redux DevTools extension.
@@ -63,6 +64,7 @@ Creates adapter for Redux DevTools extension.
   - `trace?: boolean`
     - Same trace behavior as `inspect`.
   - `onError?: (error: unknown, phase: 'init' | 'send' | 'receive') => void`
+  - `onUnsupportedMessage?: (message: DevtoolsMessage) => void`
 - Returns: `Unsubscribe`
 
 ### `createReduxDevtoolsAdapter(options?)`

@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "lint:ids": "node scripts/check-duplicate-cell-ids.mjs",
     "bench": "npm run build && node packages/benchmark/dist/run.js",
     "verify:observability": "npm run build && node scripts/verify-observability-exclusion.mjs",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/node": "^22.13.10",
     "@types/react": "^19.0.12",
+    "@playwright/test": "^1.55.0",
     "@testing-library/react": "^16.3.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^3.2.4",

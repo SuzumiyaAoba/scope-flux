@@ -33,12 +33,19 @@ export interface StorageLike {
   setItem(key: string, value: string): void;
 }
 
+export interface StorageCodec {
+  encode(rawJson: string): string;
+  decode(encoded: string): string;
+}
+
 export interface PersistToStorageOptions extends SerializeOptions {
   storage?: StorageLike;
+  codec?: StorageCodec;
 }
 
 export interface HydrateFromStorageOptions extends HydrateOptions {
   storage?: StorageLike;
+  codec?: StorageCodec;
 }
 
 export interface AutoPersistOptions extends PersistToStorageOptions {
@@ -48,6 +55,11 @@ export interface AutoPersistOptions extends PersistToStorageOptions {
   migrate?: (payload: SerializedScope) => SerializedScope;
   listenExternalUpdates?: boolean;
   onExternalHydrate?: (payload: SerializedScope) => void;
+  conflictPolicy?: 'prefer_external' | 'prefer_local' | 'merge';
+  mergePayloads?: (
+    localPayload: SerializedScope,
+    externalPayload: SerializedScope
+  ) => SerializedScope;
   onError?: (error: unknown) => void;
 }
 
@@ -61,6 +73,14 @@ export function createMemoryStorage(seed: Record<string, string> = {}): StorageL
       map.set(key, value);
     },
   };
+}
+
+function encodeStorageValue(rawJson: string, codec?: StorageCodec): string {
+  return codec ? codec.encode(rawJson) : rawJson;
+}
+
+function decodeStorageValue(encoded: string, codec?: StorageCodec): string {
+  return codec ? codec.decode(encoded) : encoded;
 }
 
 function isJsonValue(value: unknown): value is JsonValue {
@@ -245,7 +265,8 @@ export function persistToStorage(
 ): SerializedScope {
   const payload = serialize(scope, options);
   const storage = resolveStorage(options.storage);
-  storage.setItem(key, JSON.stringify(payload));
+  const rawJson = JSON.stringify(payload);
+  storage.setItem(key, encodeStorageValue(rawJson, options.codec));
   return payload;
 }
 
@@ -261,7 +282,7 @@ export function hydrateFromStorage(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(decodeStorageValue(raw, options.codec));
   } catch {
     throw new Error('NS_SER_INVALID_STORAGE_PAYLOAD');
   }
@@ -282,8 +303,11 @@ export function autoPersistScope(
   const storage = resolveStorage(options.storage);
   const debounceMs = Math.max(0, options.debounceMs ?? 0);
   const throttleMs = Math.max(0, options.throttleMs ?? 0);
+  const conflictPolicy = options.conflictPolicy ?? 'prefer_external';
   let lastPersistAt = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let localDirty = false;
+  let lastPersistedEncoded = '';
 
   const clearTimer = () => {
     if (!timer) {
@@ -297,6 +321,8 @@ export function autoPersistScope(
     try {
       const payload = persistToStorage(scope, key, { ...options, storage });
       lastPersistAt = Date.now();
+      lastPersistedEncoded = encodeStorageValue(JSON.stringify(payload), options.codec);
+      localDirty = false;
       return payload;
     } catch (error) {
       options.onError?.(error);
@@ -320,6 +346,7 @@ export function autoPersistScope(
   };
 
   const unsubscribe = scope.subscribe(() => {
+    localDirty = true;
     schedulePersist();
   });
 
@@ -352,13 +379,27 @@ export function autoPersistScope(
         if (e.storageArea && e.storageArea !== storage) {
           return;
         }
+        if (e.newValue === lastPersistedEncoded) {
+          return;
+        }
+        if (conflictPolicy === 'prefer_local' && (localDirty || !!timer)) {
+          return;
+        }
         try {
-          const parsed = JSON.parse(e.newValue) as unknown;
-          hydrate(scope, parsed, {
+          const parsed = JSON.parse(decodeStorageValue(e.newValue, options.codec)) as unknown;
+          let payloadToHydrate = parsed as SerializedScope;
+
+          if (conflictPolicy === 'merge' && options.mergePayloads) {
+            const localPayload = serialize(scope, options);
+            payloadToHydrate = options.mergePayloads(localPayload, payloadToHydrate);
+          }
+
+          hydrate(scope, payloadToHydrate, {
             mode: options.mode ?? 'force',
             migrate: options.migrate,
           });
-          options.onExternalHydrate?.(parsed as SerializedScope);
+          localDirty = false;
+          options.onExternalHydrate?.(payloadToHydrate);
         } catch (error) {
           options.onError?.(error);
         }
