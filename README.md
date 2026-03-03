@@ -1,7 +1,7 @@
 # scope-flux
 
-TypeScript 向けの状態管理ライブラリ群です。  
-このリポジトリは npm workspaces のモノレポ構成になっています。
+A set of state management libraries for TypeScript.  
+This repository is a monorepo powered by npm workspaces.
 
 ## Packages
 
@@ -22,8 +22,8 @@ npm test
 
 ## Docs
 
-- 開発時: `npm run docs:dev`
-- ビルド: `npm run docs:build`
-- API リファレンス生成: `npm run docs:api`
+- Development: `npm run docs:dev`
+- Build: `npm run docs:build`
+- Generate API reference: `npm run docs:api`
 
-GitHub Pages を有効化している場合は `/scope/` 配下でドキュメントを参照できます。
+If GitHub Pages is enabled, you can access the documentation under `/scope/`.
