@@ -644,4 +644,30 @@ describe('serializer', () => {
     expect(next.get(count)).toBe(3);
     persistence.unsubscribe();
   });
+
+  it('autoPersistScopeAsync serializes concurrent flush calls', async () => {
+    const count = cell(0, { id: 'auto_persist_async_serialized_count' });
+    const scope = createStore().fork();
+    const memory = new Map<string, string>();
+    const storage = {
+      async getItem(key: string) {
+        return memory.get(key) ?? null;
+      },
+      async setItem(key: string, value: string) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        memory.set(key, value);
+      },
+    };
+
+    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:serial', {
+      storage,
+      debounceMs: 0,
+    });
+
+    scope.set(count, 1);
+    const [a, b] = await Promise.all([persistence.flush(), persistence.flush()]);
+    expect(a?.values.auto_persist_async_serialized_count).toBe(1);
+    expect(b?.values.auto_persist_async_serialized_count).toBe(1);
+    persistence.unsubscribe();
+  });
 });

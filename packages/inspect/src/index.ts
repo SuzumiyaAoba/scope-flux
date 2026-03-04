@@ -340,11 +340,11 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
         return;
       }
 
-    const snapshot = readImportState(message);
-    if (!snapshot) {
-      options.onUnsupportedMessage?.(message);
-      return;
-    }
+      const snapshot = readImportState(message);
+      if (!snapshot) {
+        options.onUnsupportedMessage?.(message);
+        return;
+      }
       applyingFromDevtools = true;
       try {
         applySnapshot(scope, snapshot, `devtools.${message.type}`);

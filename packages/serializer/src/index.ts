@@ -533,7 +533,8 @@ export function autoPersistScopeAsync(
   const throttleMs = Math.max(0, options.throttleMs ?? 0);
   let lastPersistAt = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let flushing: Promise<SerializedScope | null> | null = null;
+  let latestPersist: Promise<SerializedScope | null> | null = null;
+  let persistChain: Promise<unknown> = Promise.resolve();
 
   const clearTimer = () => {
     if (!timer) {
@@ -554,14 +555,10 @@ export function autoPersistScopeAsync(
     }
   };
 
-  const queuePersist = () => {
-    flushing = (async () => {
-      const result = await persistNow();
-      if (flushing) {
-        flushing = null;
-      }
-      return result;
-    })();
+  const queuePersist = (): Promise<SerializedScope | null> => {
+    latestPersist = persistChain.then(() => persistNow());
+    persistChain = latestPersist.catch(() => null);
+    return latestPersist;
   };
 
   const schedulePersist = () => {
@@ -590,10 +587,10 @@ export function autoPersistScopeAsync(
     },
     flush: async () => {
       clearTimer();
-      if (flushing) {
-        return await flushing;
+      if (latestPersist) {
+        return await latestPersist;
       }
-      return await persistNow();
+      return await queuePersist();
     },
     hydrateNow: async () => {
       try {
