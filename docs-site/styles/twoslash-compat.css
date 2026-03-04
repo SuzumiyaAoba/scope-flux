@@ -26,6 +26,7 @@
   opacity: 0;
   visibility: hidden;
   display: none;
+  z-index: var(--twoslash-popup-z-index, 50);
 }
 
 .twoslash [classname~='twoslash-popup-container'][data-initialized] {
@@ -41,4 +42,19 @@
 .twoslash [classname~='twoslash-popup-container'][data-state='hidden'] {
   opacity: 0;
   visibility: hidden;
+}
+
+.twoslash [classname~='twoslash-popup-inner'] {
+  background: var(--twoslash-popup-bg, var(--rp-c-bg));
+  color: var(--twoslash-popup-color, var(--rp-c-text-1));
+  border: 1px solid var(--twoslash-border-color, var(--rp-c-divider));
+  border-radius: 4px;
+  box-shadow: var(--twoslash-popup-shadow, rgba(0, 0, 0, 0.08) 0px 1px 4px);
+}
+
+.twoslash [classname~='twoslash-popup-code'],
+.twoslash [classname~='twoslash-popup-docs'],
+.twoslash [classname~='twoslash-popup-error'] {
+  background: var(--twoslash-popup-bg, var(--rp-c-bg));
+  color: var(--twoslash-popup-color, var(--rp-c-text-1));
 }

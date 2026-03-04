@@ -11,6 +11,7 @@ samples/dist/
 # test outputs
 coverage/
 .vitest/
+test-results/
 
 # logs
 npm-debug.log*
