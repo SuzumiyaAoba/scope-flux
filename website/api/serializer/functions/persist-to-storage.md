@@ -22,7 +22,7 @@ Default storage is `localStorage` when available.
 
 ## Example
 
-```ts
+```ts twoslash
 import { persistToStorage } from '@suzumiyaaoba/scope-flux-serializer';
 
 persistToStorage(scope, 'scope-flux:app');

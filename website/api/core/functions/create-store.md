@@ -26,7 +26,7 @@ Creates a store with a root scope and forking API.
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
 
 const userId = cell<string | null>(null, { id: 'session.userId' });

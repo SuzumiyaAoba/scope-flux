@@ -28,7 +28,7 @@ Serializes scope state to safe JSON payload.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { serialize } from '@suzumiyaaoba/scope-flux-serializer';
 

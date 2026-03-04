@@ -26,7 +26,7 @@ Creates scheduler instance for a scope.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 

@@ -27,7 +27,7 @@ This helper is useful for app-level persistence wiring without manually subscrib
 
 ## Example
 
-```ts
+```ts twoslash
 import { autoPersistScope } from '@suzumiyaaoba/scope-flux-serializer';
 
 const persistence = autoPersistScope(scope, 'scope-flux:app', {

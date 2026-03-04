@@ -35,7 +35,7 @@ Creates a mutable state unit.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const filterText = cell('', { id: 'todos.filterText' });

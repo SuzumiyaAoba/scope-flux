@@ -35,7 +35,7 @@ Validates and applies serialized payload into scope.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { hydrate } from '@suzumiyaaoba/scope-flux-serializer';
 

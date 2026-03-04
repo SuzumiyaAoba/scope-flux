@@ -30,7 +30,7 @@ Bridges inspect records to DevTools-style adapter.
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore } from '@suzumiyaaoba/scope-flux-core';
 import { connectDevtools, createReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 

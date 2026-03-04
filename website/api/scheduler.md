@@ -163,7 +163,7 @@ In these cases, keep updates `urgent`.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 

@@ -27,7 +27,7 @@ Creates Redux DevTools adapter with graceful no-op fallback.
 
 ## Example
 
-```ts
+```ts twoslash
 import { createReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
 const adapter = createReduxDevtoolsAdapter({ name: 'scope-flux' });

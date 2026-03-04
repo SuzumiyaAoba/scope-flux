@@ -26,7 +26,7 @@ Creates a typed event channel.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore, event } from '@suzumiyaaoba/scope-flux-core';
 
 const submitClicked = event<{ title: string }>({ debugName: 'todo.submit' });

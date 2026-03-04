@@ -270,7 +270,7 @@ Example reasons:
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore, cell, computed } from '@suzumiyaaoba/scope-flux-core';
 
 const count = cell(0, { id: 'count' });

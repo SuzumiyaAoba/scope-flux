@@ -26,7 +26,7 @@ Returns all globally registered cells.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, listRegisteredCells } from '@suzumiyaaoba/scope-flux-core';
 
 cell(0, { id: 'counter.value' });

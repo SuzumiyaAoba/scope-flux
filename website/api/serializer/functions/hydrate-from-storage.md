@@ -22,7 +22,7 @@ Returns `null` when the key does not exist.
 
 ## Example
 
-```ts
+```ts twoslash
 import { hydrateFromStorage } from '@suzumiyaaoba/scope-flux-serializer';
 
 hydrateFromStorage(scope, 'scope-flux:app', { mode: 'safe' });

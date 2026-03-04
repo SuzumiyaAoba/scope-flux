@@ -29,7 +29,7 @@ Subscribes to commit stream and emits normalized records.
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
 import { inspect } from '@suzumiyaaoba/scope-flux-inspect';
 

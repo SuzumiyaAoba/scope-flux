@@ -218,7 +218,7 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
 import { serialize, hydrate, escapeJsonForHtml } from '@suzumiyaaoba/scope-flux-serializer';
 

@@ -125,7 +125,7 @@ interface InspectRecord {
 
 ## Example: Production-safe Sampling
 
-```ts
+```ts twoslash
 const stop = inspect({
   scope,
   trace: true,
@@ -138,7 +138,7 @@ Use low sample rates in high-traffic environments to reduce telemetry overhead.
 
 ## Example: Console Trace
 
-```ts
+```ts twoslash
 const stop = inspect({
   scope,
   trace: true,
@@ -160,7 +160,7 @@ stop();
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore } from '@suzumiyaaoba/scope-flux-core';
 import { inspect, connectDevtools, createReduxDevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 

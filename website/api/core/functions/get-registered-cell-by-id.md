@@ -26,7 +26,7 @@ Returns a globally registered cell by stable ID.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, getRegisteredCellById } from '@suzumiyaaoba/scope-flux-core';
 
 const theme = cell<'light' | 'dark'>('light', { id: 'ui.theme' });

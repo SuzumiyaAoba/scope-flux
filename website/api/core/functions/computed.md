@@ -35,7 +35,7 @@ Creates a derived unit from dependencies.
 
 ## Example
 
-```ts
+```ts twoslash
 import { cell, computed, createStore } from '@suzumiyaaoba/scope-flux-core';
 
 const todos = cell(

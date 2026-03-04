@@ -18,7 +18,7 @@ Use the package pages first, then open Typedoc when you need exact signatures.
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
 import { serialize } from '@suzumiyaaoba/scope-flux-serializer';
 
