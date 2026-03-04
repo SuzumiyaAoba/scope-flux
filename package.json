@@ -41,7 +41,7 @@
     "samples:all": "npm run samples:build && node samples/dist/pure.js && node samples/dist/react.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.4.5",
     "@types/node": "^22.13.10",
     "@types/react": "^19.0.12",
     "@playwright/test": "^1.55.0",
