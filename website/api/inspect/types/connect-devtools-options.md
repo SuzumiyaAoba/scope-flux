@@ -36,7 +36,7 @@ const options: ConnectDevtoolsOptions = {
   },
 };
 options.trace;
-// ^? boolean | undefined
+//^?
 ```
 
 ## Notes

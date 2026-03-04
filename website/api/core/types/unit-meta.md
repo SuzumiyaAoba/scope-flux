@@ -19,7 +19,7 @@ const meta: UnitMeta = {
   serializable: true,
 };
 meta.serializable;
-// ^? (property) serializable?: boolean | undefined
+//^?
 ```
 
 ## Notes

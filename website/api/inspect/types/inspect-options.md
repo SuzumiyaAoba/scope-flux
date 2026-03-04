@@ -25,7 +25,7 @@ const options: InspectOptions = {
   },
 };
 options.sampleRate;
-// ^? number | undefined
+//^?
 ```
 
 ## Notes

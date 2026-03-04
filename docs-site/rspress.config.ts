@@ -1,6 +1,7 @@
-import { defineConfig } from 'rspress/config';
+import { defineConfig } from '@rspress/core';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pluginTwoslash } from '@rspress/plugin-twoslash';
 import mermaid from './plugins/mermaid';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -109,6 +110,12 @@ export default defineConfig({
   root: '../website',
   base: docsBase,
   ssg: false,
+  globalStyles: resolve(__dirname, './styles/twoslash-compat.css'),
+  markdown: {
+    link: {
+      checkDeadLinks: false,
+    },
+  },
   builderConfig: {
     resolve: {
       alias: {
@@ -125,6 +132,29 @@ export default defineConfig({
     },
   },
   plugins: [
+    pluginTwoslash({
+      explicitTrigger: true,
+      twoslashOptions: {
+        compilerOptions: {
+          module: 99,
+          moduleResolution: 100,
+          target: 99,
+          noImplicitAny: false,
+          baseUrl: '.',
+          paths: {
+            '@suzumiyaaoba/scope-flux-core': ['../packages/core/src/index.ts'],
+            '@suzumiyaaoba/scope-flux-react': ['../packages/react/src/index.tsx'],
+            '@suzumiyaaoba/scope-flux-scheduler': ['../packages/scheduler/src/index.ts'],
+            '@suzumiyaaoba/scope-flux-serializer': ['../packages/serializer/src/index.ts'],
+            '@suzumiyaaoba/scope-flux-inspect': ['../packages/inspect/src/index.ts'],
+          },
+        },
+        handbookOptions: {
+          noErrorValidation: true,
+          noErrors: true,
+        },
+      },
+    }),
     mermaid({
       mermaidConfig: {
         theme: 'neutral',

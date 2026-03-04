@@ -21,7 +21,7 @@ const change: EffectChange = {
   payload: 'user-1',
 };
 change.kind;
-// ^? "effect"
+//^?
 ```
 
 ## Notes

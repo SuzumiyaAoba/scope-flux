@@ -25,7 +25,7 @@ const options: ReduxDevtoolsAdapterOptions = {
   },
 };
 options.name;
-// ^? string | undefined
+//^?
 ```
 
 ## Notes

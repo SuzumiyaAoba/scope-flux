@@ -18,7 +18,7 @@ const doubled = computed([count] as const, (n) => n * 2, { id: 'doubled' });
 
 const deps = [count, doubled] as const satisfies ComputedDeps;
 deps;
-// ^? readonly [Cell<number>, Computed<number, readonly [Cell<number>]>]
+//^?
 ```
 
 ## Notes

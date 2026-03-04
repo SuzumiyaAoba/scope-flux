@@ -21,7 +21,7 @@ const options: SerializeOptions = {
   maxBytes: 8 * 1024,
 };
 options.only;
-// ^? Cell<any>[] | undefined
+//^?
 ```
 
 ## Notes

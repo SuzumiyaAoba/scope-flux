@@ -23,7 +23,7 @@ const props: StoreProviderProps = {
   children,
 };
 props.scope.id;
-// ^? string
+//^?
 ```
 
 ## Notes

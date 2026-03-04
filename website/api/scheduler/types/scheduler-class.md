@@ -20,7 +20,7 @@ const scheduler = new Scheduler({ scope: store.scope, autoFlush: 'microtask' });
 
 scheduler.set(count, 1, { priority: 'transition' });
 scheduler.getBuffered(count);
-// ^? number
+//^?
 ```
 
 ## Notes

@@ -22,7 +22,7 @@ const trace: TraceEvent = {
   reason: 'user.increment',
 };
 trace.kind;
-// ^? "event" | "effect" | "set"
+//^?
 ```
 
 ## Notes

@@ -23,7 +23,7 @@ const change: Change = {
   reason: 'user.increment',
 };
 change.reason;
-// ^? string | undefined
+//^?
 ```
 
 ## Notes

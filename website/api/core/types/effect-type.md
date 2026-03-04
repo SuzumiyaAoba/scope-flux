@@ -27,7 +27,7 @@ const fetchUser: Effect<string, { id: string }> = effect(
 );
 
 fetchUser.policy.concurrency;
-// ^? "parallel" | "drop" | "replace" | "queue"
+//^?
 ```
 
 ## Notes

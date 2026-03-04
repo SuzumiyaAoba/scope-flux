@@ -15,7 +15,7 @@ import { cell, type Cell } from '@suzumiyaaoba/scope-flux-core';
 
 const count: Cell<number> = cell(0, { id: 'count' });
 count.kind;
-// ^? "cell"
+//^?
 ```
 
 ## Notes

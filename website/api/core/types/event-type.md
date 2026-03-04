@@ -15,7 +15,7 @@ import { event, type Event } from '@suzumiyaaoba/scope-flux-core';
 
 const increment: Event<{ step: number }> = event({ id: 'increment' });
 increment.kind;
-// ^? "event"
+//^?
 ```
 
 ## Notes

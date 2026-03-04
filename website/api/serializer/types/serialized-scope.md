@@ -26,7 +26,7 @@ const payload: SerializedScope = {
   },
 };
 payload.values.count;
-// ^? JsonValue
+//^?
 ```
 
 ## Notes

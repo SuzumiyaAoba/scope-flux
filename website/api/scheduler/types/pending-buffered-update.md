@@ -23,7 +23,7 @@ const pending: PendingBufferedUpdate = {
   reason: 'input.debounce',
 };
 pending.priority;
-// ^? "transition" | "idle"
+//^?
 ```
 
 ## Notes

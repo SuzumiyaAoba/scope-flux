@@ -16,7 +16,7 @@ import { cell, type AnyCell } from '@suzumiyaaoba/scope-flux-core';
 const count = cell(0, { id: 'count' });
 const anyCell: AnyCell = count;
 anyCell.meta.id;
-// ^? string | undefined
+//^?
 ```
 
 ## Notes

@@ -20,7 +20,7 @@ const json: JsonValue = {
   meta: null,
 };
 json;
-// ^? JsonValue
+//^?
 ```
 
 ## Notes

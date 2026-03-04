@@ -17,7 +17,7 @@ const count = cell(1, { id: 'count' });
 const doubled = computed([count] as const, (n) => n * 2, { id: 'doubled' });
 const anyComputed: AnyComputed = doubled;
 anyComputed.kind;
-// ^? "computed"
+//^?
 ```
 
 ## Notes

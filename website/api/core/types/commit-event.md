@@ -21,7 +21,7 @@ const evt: CommitEvent = {
   changes: [{ kind: 'set', unit: count, prev: 0, next: 1 }],
 };
 evt.changes.length;
-// ^? number
+//^?
 ```
 
 ## Notes

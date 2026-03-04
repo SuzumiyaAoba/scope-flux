@@ -20,7 +20,7 @@ const sum = computed([count, step] as const, (a, b) => a + b, { id: 'sum' });
 type Deps = typeof sum.deps;
 const args: ComputedArgs<Deps> = [1, 2];
 args;
-// ^? [number, number]
+//^?
 ```
 
 ## Notes

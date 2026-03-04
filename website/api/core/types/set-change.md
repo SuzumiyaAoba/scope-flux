@@ -23,7 +23,7 @@ const change: SetChange = {
   reason: 'user.increment',
 };
 change.kind;
-// ^? "set"
+//^?
 ```
 
 ## Notes

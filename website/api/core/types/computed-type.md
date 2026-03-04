@@ -17,7 +17,7 @@ const count = cell(1, { id: 'count' });
 const doubled: Computed<number> = computed([count] as const, (n) => n * 2, { id: 'doubled' });
 
 doubled.cache;
-// ^? "scope" | "none"
+//^?
 ```
 
 ## Notes

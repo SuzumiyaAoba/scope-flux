@@ -1,0 +1,44 @@
+.twoslash [classname~='twoslash-hover'] {
+  position: relative;
+}
+
+.twoslash [classname~='twoslash-hover']::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  border-bottom: 1px dotted var(--twoslash-underline-color, currentColor);
+  transition: opacity 0.3s ease;
+}
+
+.twoslash:hover [classname~='twoslash-hover']::after {
+  opacity: 0.4;
+}
+
+.twoslash [classname~='twoslash-popup-trigger'] {
+  position: relative;
+}
+
+.twoslash [classname~='twoslash-popup-container'] {
+  position: absolute;
+  opacity: 0;
+  visibility: hidden;
+  display: none;
+}
+
+.twoslash [classname~='twoslash-popup-container'][data-initialized] {
+  display: block;
+}
+
+.twoslash [classname~='twoslash-popup-container'][data-state='show'],
+.twoslash [classname~='twoslash-popup-container'][data-always='true'] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.twoslash [classname~='twoslash-popup-container'][data-state='hidden'] {
+  opacity: 0;
+  visibility: hidden;
+}

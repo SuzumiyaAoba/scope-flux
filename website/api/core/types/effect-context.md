@@ -28,7 +28,7 @@ const ctx: EffectContext = {
   attempt: 1,
 };
 ctx.attempt;
-// ^? number
+//^?
 ```
 
 ## Notes

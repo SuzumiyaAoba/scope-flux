@@ -23,7 +23,7 @@ const record: InspectRecord = {
   diffs: [],
 };
 record.diffs;
-// ^? StateDiff[]
+//^?
 ```
 
 ## Notes

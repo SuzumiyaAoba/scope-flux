@@ -19,7 +19,7 @@ const diff: StateDiff = {
   next: 1,
 };
 diff.next;
-// ^? unknown
+//^?
 ```
 
 ## Notes

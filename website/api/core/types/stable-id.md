@@ -15,7 +15,7 @@ import type { StableId } from '@suzumiyaaoba/scope-flux-core';
 
 const id: StableId = 'counter';
 id;
-// ^? const id: string
+//^?
 ```
 
 ## Notes

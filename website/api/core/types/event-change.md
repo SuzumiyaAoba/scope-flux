@@ -21,7 +21,7 @@ const change: EventChange = {
   payload: { step: 1 },
 };
 change.payload;
-// ^? unknown
+//^?
 ```
 
 ## Notes

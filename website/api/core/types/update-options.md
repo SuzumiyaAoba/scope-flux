@@ -18,7 +18,7 @@ const options: UpdateOptions = {
   reason: 'user.increment',
 };
 options.priority;
-// ^? (property) priority?: "urgent" | "transition" | "idle" | undefined
+//^?
 ```
 
 ## Notes

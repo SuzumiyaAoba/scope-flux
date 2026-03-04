@@ -28,7 +28,7 @@ const options: SchedulerOptions = {
   autoFlushDelayMs: 80,
 };
 options.autoFlush;
-// ^? false | "microtask" | "timeout" | "animationFrame" | "idle" | undefined
+//^?
 ```
 
 ## Notes

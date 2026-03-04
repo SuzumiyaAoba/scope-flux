@@ -23,7 +23,7 @@ import { createStore, type Scope } from '@suzumiyaaoba/scope-flux-core';
 const store = createStore();
 const scope: Scope = store.scope;
 scope.id;
-// ^? string
+//^?
 ```
 
 ## Notes
