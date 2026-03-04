@@ -1,16 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  clearRegisteredCells,
   cell,
   computed,
   createHistoryController,
   createStore,
   effect,
   event,
-  getRegisteredCellById,
-  listRegisteredCells,
-  unregisterCellById,
 } from '../src/index.js';
 import type { Computed } from '../src/index.js';
 
@@ -87,31 +83,42 @@ describe('core', () => {
     expect(scope.get(count)).toBe(3);
   });
 
-  it('throws when duplicate stable ids are registered', () => {
+  it('throws when duplicate stable ids are registered in the same store', () => {
     const duplicateId = `dup_test_cell_unique_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    cell(0, { id: duplicateId });
-    expect(() => cell(1, { id: duplicateId })).toThrowError(/NS_CORE_DUPLICATE_STABLE_ID/);
+    const first = cell(0, { id: duplicateId });
+    const second = cell(1, { id: duplicateId });
+    const scope = createStore().fork();
+
+    scope.set(first, 1);
+    expect(() => scope.set(second, 2)).toThrowError(/NS_CORE_DUPLICATE_STABLE_ID/);
   });
 
-  it('exposes registered cells via registry helpers', () => {
+  it('exposes registered cells via store registry helpers', () => {
     const registered = cell(7, { id: 'registry_lookup_cell_unique' });
+    const store = createStore();
+    const scope = store.fork();
+    scope.get(registered);
 
-    expect(getRegisteredCellById('registry_lookup_cell_unique')).toBe(registered);
-    expect(listRegisteredCells()).toContain(registered);
+    expect(store.getRegisteredCellById('registry_lookup_cell_unique')).toBe(registered);
+    expect(store.listRegisteredCells()).toContain(registered);
   });
 
-  it('supports unregister and clear for cell registry', () => {
+  it('supports unregister and clear for store registry', () => {
     const first = cell(1, { id: 'registry_cleanup_first' });
     const second = cell(2, { id: 'registry_cleanup_second' });
-    expect(getRegisteredCellById('registry_cleanup_first')).toBe(first);
-    expect(getRegisteredCellById('registry_cleanup_second')).toBe(second);
+    const store = createStore();
+    const scope = store.fork();
+    scope.get(first);
+    scope.get(second);
 
-    expect(unregisterCellById('registry_cleanup_first')).toBe(true);
-    expect(getRegisteredCellById('registry_cleanup_first')).toBeUndefined();
-    expect(unregisterCellById('registry_cleanup_first')).toBe(false);
+    expect(store.getRegisteredCellById('registry_cleanup_first')).toBe(first);
+    expect(store.getRegisteredCellById('registry_cleanup_second')).toBe(second);
+    expect(store.unregisterCellById('registry_cleanup_first')).toBe(true);
+    expect(store.getRegisteredCellById('registry_cleanup_first')).toBeUndefined();
+    expect(store.unregisterCellById('registry_cleanup_first')).toBe(false);
 
-    clearRegisteredCells();
-    expect(getRegisteredCellById('registry_cleanup_second')).toBeUndefined();
+    store.clearRegisteredCells();
+    expect(store.getRegisteredCellById('registry_cleanup_second')).toBeUndefined();
   });
 
   it('emits event change even when no handlers are registered', () => {

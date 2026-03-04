@@ -26,6 +26,8 @@ describe('serializer', () => {
     const payload = serialize(s1);
 
     const s2 = createStore().fork();
+    s2.registerCell(name);
+    s2.registerCell(age);
     hydrate(s2, payload);
 
     expect(s2.get(name)).toBe('bob');
@@ -60,6 +62,7 @@ describe('serializer', () => {
     const payload = serialize(source);
 
     const target = createStore().fork();
+    target.registerCell(count);
     hydrate(target, payload);
     expect(target.get(count)).toBe(2);
 
@@ -76,6 +79,7 @@ describe('serializer', () => {
     const payload = serialize(source);
 
     const target = createStore().fork();
+    target.registerCell(count);
     target.set(count, 3);
     hydrate(target, payload, { mode: 'force' });
 
@@ -215,6 +219,7 @@ describe('serializer', () => {
     const payload = serialize(source);
 
     const target = createStore().fork();
+    target.registerCell(count);
     expect(() =>
       hydrate(target, payload, { mode: 'unexpected' as 'safe' })
     ).toThrowError(/NS_SER_INVALID_HYDRATE_MODE/);
@@ -223,6 +228,7 @@ describe('serializer', () => {
   it('hydrate supports payload migration', () => {
     const count = cell(0, { id: 'hydrate_migrate_count' });
     const target = createStore().fork();
+    target.registerCell(count);
     const legacyPayload = {
       version: 2,
       scopeId: 'legacy',
@@ -242,6 +248,7 @@ describe('serializer', () => {
   it('hydrate rejects unsupported version without migrate', () => {
     const count = cell(0, { id: 'hydrate_migrate_reject_count' });
     const target = createStore().fork();
+    target.registerCell(count);
 
     expect(() =>
       hydrate(target, {
@@ -268,6 +275,7 @@ describe('serializer', () => {
 
     persistToStorage(source, 'scope:key', { storage });
     const target = createStore().fork();
+    target.registerCell(count);
     const loaded = hydrateFromStorage(target, 'scope:key', { storage });
 
     expect(loaded).not.toBeNull();
@@ -337,6 +345,7 @@ describe('serializer', () => {
   it('autoPersistScope hydrateNow hydrates from existing storage payload', () => {
     const count = cell(0, { id: 'auto_persist_hydrate_now_count' });
     const scope = createStore().fork();
+    scope.registerCell(count);
     const storage = createMemoryStorage();
 
     const source = createStore().fork();
@@ -369,6 +378,7 @@ describe('serializer', () => {
     expect(raw?.includes('"values"')).toBe(false);
 
     const target = createStore().fork();
+    target.registerCell(count);
     hydrateFromStorage(target, 'scope:codec', { storage, codec });
     expect(target.get(count)).toBe(7);
   });
@@ -377,6 +387,8 @@ describe('serializer', () => {
     const a = cell(0, { id: 'merge_a' });
     const b = cell(0, { id: 'merge_b' });
     const scope = createStore().fork();
+    scope.registerCell(a);
+    scope.registerCell(b);
     const storage = createMemoryStorage();
     const persistence = autoPersistScope(scope, 'scope:merge', {
       storage,
@@ -610,6 +622,7 @@ describe('serializer', () => {
 
     await persistToStorageAsync(source, 'scope:async:key', { storage });
     const target = createStore().fork();
+    target.registerCell(count);
     const loaded = await hydrateFromStorageAsync(target, 'scope:async:key', { storage });
 
     expect(loaded).not.toBeNull();
@@ -639,6 +652,7 @@ describe('serializer', () => {
     expect(memory.has('scope:auto:async')).toBe(true);
 
     const next = createStore().fork();
+    next.registerCell(count);
     const loaded = await hydrateFromStorageAsync(next, 'scope:auto:async', { storage });
     expect(loaded?.values.auto_persist_async_count).toBe(3);
     expect(next.get(count)).toBe(3);

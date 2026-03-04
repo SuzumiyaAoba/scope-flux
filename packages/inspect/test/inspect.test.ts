@@ -146,6 +146,7 @@ describe('inspect', () => {
   it('connectDevtools applies jump_to_state from adapter subscription', () => {
     const count = cell(0, { id: 'inspect_jump_count' });
     const scope = createStore().fork();
+    scope.registerCell(count);
     let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
     const adapter = {
       init: vi.fn(),
@@ -168,6 +169,7 @@ describe('inspect', () => {
   it('connectDevtools applies jump_to_state by debugName when id is missing', () => {
     const byName = cell(0, { debugName: 'debug_only_cell' });
     const scope = createStore().fork();
+    scope.registerCell(byName);
     let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
     const adapter = {
       init: vi.fn(),
@@ -454,6 +456,7 @@ describe('inspect', () => {
   it('connectDevtools import_state applies latest computedStates snapshot', () => {
     const count = cell(0, { id: 'inspect_import_apply_count' });
     const scope = createStore().fork();
+    scope.registerCell(count);
     let receive!: (message: { type: 'import_state'; nextLiftedState?: unknown }) => void;
     const adapter = {
       init: vi.fn(),

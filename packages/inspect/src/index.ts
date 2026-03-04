@@ -1,6 +1,4 @@
 import {
-  getRegisteredCellById,
-  listRegisteredCells,
   type Cell,
   type Change,
   type CommitEvent,
@@ -225,7 +223,7 @@ function readImportState(message: DevtoolsMessage): Record<string, unknown> | nu
 }
 
 function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: string): void {
-  const cells = listRegisteredCells();
+  const cells = scope.listRegisteredCells();
   const byDebugName = new Map<string, Cell<any>>();
   const duplicatedDebugNames = new Set<string>();
   for (const cell of cells) {
@@ -243,7 +241,7 @@ function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: 
 
   scope.batch(() => {
     for (const [key, value] of Object.entries(snapshot)) {
-      const cellUnit = getRegisteredCellById(key)
+      const cellUnit = scope.getRegisteredCellById(key)
         ?? (!duplicatedDebugNames.has(key) ? byDebugName.get(key) : undefined);
       if (!cellUnit) {
         continue;

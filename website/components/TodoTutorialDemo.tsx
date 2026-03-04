@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { cell, computed, createStore, getRegisteredCellById, type Cell } from '@suzumiyaaoba/scope-flux-core';
+import { cell, computed, createStore, type Cell } from '@suzumiyaaoba/scope-flux-core';
 import { StoreProvider, useBufferedUnit, useCellAction, useFlushBuffered, useUnit } from '@suzumiyaaoba/scope-flux-react';
 import './TodoTutorialDemo.css';
 
@@ -15,11 +15,17 @@ const CELL_ID_FILTER = 'tutorial_embed_filter';
 const STORAGE_KEY = 'scope-flux:tutorial-embed';
 
 function getOrCreateCell<T>(id: string, init: T): Cell<T> {
-  const existing = getRegisteredCellById(id) as Cell<T> | undefined;
+  const g = globalThis as { __scopeFluxTutorialCells?: Map<string, Cell<unknown>> };
+  if (!g.__scopeFluxTutorialCells) {
+    g.__scopeFluxTutorialCells = new Map<string, Cell<unknown>>();
+  }
+  const existing = g.__scopeFluxTutorialCells.get(id) as Cell<T> | undefined;
   if (existing) {
     return existing;
   }
-  return cell(init, { id });
+  const created = cell(init, { id });
+  g.__scopeFluxTutorialCells.set(id, created as Cell<unknown>);
+  return created;
 }
 
 const todosCell = getOrCreateCell<Todo[]>(CELL_ID_TODOS, []);

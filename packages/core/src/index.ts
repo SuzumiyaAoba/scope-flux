@@ -137,9 +137,6 @@ export const ErrorCodes = {
   EFFECT_REPLACED: 'NS_CORE_EFFECT_REPLACED',
 } as const;
 
-const registeredCellsById = new Map<string, AnyCell>();
-const registeredCells = new Set<AnyCell>();
-
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -251,15 +248,6 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
     equal: options.equal,
   };
 
-  if (unit.meta.id) {
-    const existing = registeredCellsById.get(unit.meta.id);
-    if (existing && existing !== unit) {
-      throw new Error(`${ErrorCodes.DUPLICATE_STABLE_ID}:${unit.meta.id}`);
-    }
-    registeredCellsById.set(unit.meta.id, unit as AnyCell);
-  }
-  registeredCells.add(unit as AnyCell);
-
   return unit;
 }
 
@@ -321,6 +309,47 @@ interface EffectRuntimeState {
   lastFinishedAt?: number;
 }
 
+class StoreRegistry {
+  private readonly cellsById = new Map<string, AnyCell>();
+  private readonly cells = new Set<AnyCell>();
+
+  public register(cellUnit: AnyCell): void {
+    this.cells.add(cellUnit);
+    const id = cellUnit.meta.id;
+    if (!id) {
+      return;
+    }
+    const existing = this.cellsById.get(id);
+    if (existing && existing !== cellUnit) {
+      throw new Error(`${ErrorCodes.DUPLICATE_STABLE_ID}:${id}`);
+    }
+    this.cellsById.set(id, cellUnit);
+  }
+
+  public getById(id: string): AnyCell | undefined {
+    return this.cellsById.get(id);
+  }
+
+  public list(): AnyCell[] {
+    return Array.from(this.cells);
+  }
+
+  public unregisterById(id: string): boolean {
+    const cellUnit = this.cellsById.get(id);
+    if (!cellUnit) {
+      return false;
+    }
+    this.cellsById.delete(id);
+    this.cells.delete(cellUnit);
+    return true;
+  }
+
+  public clear(): void {
+    this.cellsById.clear();
+    this.cells.clear();
+  }
+}
+
 export class Scope {
   private static _nextId = 0;
   public readonly id: string;
@@ -336,16 +365,23 @@ export class Scope {
   private readonly _effectSubscribers = new Map<Effect<unknown, unknown>, Set<EffectStatusListener>>();
   private readonly _knownCells = new Set<AnyCell>();
   private readonly _hydratedIds = new Set<string>();
+  private readonly _registry: StoreRegistry;
 
   private _batchDepth = 0;
   private _pendingChanges: Change[] = [];
   private _pendingPriority: Priority | undefined;
 
-  constructor(seed?: SeedInput) {
+  constructor(registry: StoreRegistry, seed?: SeedInput) {
+    this._registry = registry;
     this.id = `scope_${Scope._nextId++}`;
     if (seed) {
       this._applySeed(seed);
     }
+  }
+
+  private _registerCell(cellUnit: AnyCell): void {
+    this._knownCells.add(cellUnit);
+    this._registry.register(cellUnit);
   }
 
   private _applySeed(seed: SeedInput): void {
@@ -353,7 +389,7 @@ export class Scope {
       if (!unit || unit.kind !== 'cell') {
         throw new Error(ErrorCodes.INVALID_UPDATE);
       }
-      this._knownCells.add(unit);
+      this._registerCell(unit);
       this._cellValues.set(unit, value);
       this._cellVersions.set(unit, 1);
     };
@@ -582,6 +618,12 @@ export class Scope {
     this._batchDepth += 1;
     const prevLength = this._pendingChanges.length;
     const prevPriority = this._pendingPriority;
+    const prevCellValues = new Map(this._cellValues);
+    const prevCellVersions = new Map(this._cellVersions);
+    const prevComputedVersions = new Map(this._computedVersions);
+    const prevComputedCache = new Map(this._computedCache);
+    const prevKnownCells = new Set(this._knownCells);
+    const prevHydratedIds = new Set(this._hydratedIds);
     try {
       const result = fn();
       this._batchDepth -= 1;
@@ -591,36 +633,20 @@ export class Scope {
       return result;
     } catch (error) {
       this._batchDepth -= 1;
-      const rolledBack = this._pendingChanges.splice(prevLength);
+      this._pendingChanges.splice(prevLength);
       this._pendingPriority = prevPriority;
-      const cellSnapshots = new Map<AnyCell, { value: unknown; versionAfterRollback: number }>();
-      const cellChangeCounts = new Map<AnyCell, number>();
-      for (const change of rolledBack) {
-        if (change.kind === 'set') {
-          const c = change.unit;
-          cellChangeCounts.set(c, (cellChangeCounts.get(c) ?? 0) + 1);
-          if (!cellSnapshots.has(c)) {
-            cellSnapshots.set(c, {
-              value: change.prev,
-              versionAfterRollback: 0,
-            });
-          }
-        }
-      }
-      for (const [c, snapshot] of cellSnapshots) {
-        const currentVersion = this._cellVersions.get(c) ?? 0;
-        const rollbackCount = cellChangeCounts.get(c) ?? 0;
-        snapshot.versionAfterRollback = Math.max(0, currentVersion - rollbackCount);
-      }
-      for (const [c, snap] of cellSnapshots) {
-        if (snap.versionAfterRollback <= 0) {
-          this._cellValues.delete(c);
-          this._cellVersions.delete(c);
-        } else {
-          this._cellValues.set(c, snap.value);
-          this._cellVersions.set(c, snap.versionAfterRollback);
-        }
-      }
+      this._cellValues.clear();
+      this._cellVersions.clear();
+      this._computedVersions.clear();
+      this._computedCache.clear();
+      this._knownCells.clear();
+      this._hydratedIds.clear();
+      for (const [k, v] of prevCellValues.entries()) this._cellValues.set(k, v);
+      for (const [k, v] of prevCellVersions.entries()) this._cellVersions.set(k, v);
+      for (const [k, v] of prevComputedVersions.entries()) this._computedVersions.set(k, v);
+      for (const [k, v] of prevComputedCache.entries()) this._computedCache.set(k, v);
+      for (const v of prevKnownCells.values()) this._knownCells.add(v);
+      for (const v of prevHydratedIds.values()) this._hydratedIds.add(v);
       if (this._batchDepth === 0) {
         this._flush();
       }
@@ -635,7 +661,7 @@ export class Scope {
       return false;
     }
 
-    this._knownCells.add(unit as AnyCell);
+    this._registerCell(unit as AnyCell);
     this._cellValues.set(unit as AnyCell, next);
 
     const currentVersion = this._cellVersions.get(unit as AnyCell) ?? 0;
@@ -732,7 +758,7 @@ export class Scope {
 
     if (unit.kind === 'cell') {
       const c = unit as AnyCell;
-      this._knownCells.add(c);
+      this._registerCell(c);
       if (this._cellValues.has(c)) {
         return this._cellValues.get(c) as T;
       }
@@ -766,6 +792,13 @@ export class Scope {
 
   public batch<T>(fn: () => T): T {
     return this._withBatch(fn);
+  }
+
+  public registerCell<T>(unit: Cell<T>): void {
+    if (!unit || unit.kind !== 'cell') {
+      throw new Error(ErrorCodes.INVALID_UPDATE);
+    }
+    this._registerCell(unit as AnyCell);
   }
 
   public on<P>(unitEvent: Event<P>, handler: (payload: P, scope: Scope, options: UpdateOptions) => void): Unsubscribe {
@@ -942,7 +975,7 @@ export class Scope {
   }
 
   public fork(seed?: SeedInput): Scope {
-    const child = new Scope();
+    const child = new Scope(this._registry);
     for (const [cellUnit, value] of this._cellValues.entries()) {
       child._knownCells.add(cellUnit);
       child._cellValues.set(cellUnit, value);
@@ -958,6 +991,22 @@ export class Scope {
     return Array.from(this._knownCells);
   }
 
+  public getRegisteredCellById(id: string): Cell<any> | undefined {
+    return this._registry.getById(id);
+  }
+
+  public listRegisteredCells(): Cell<any>[] {
+    return this._registry.list();
+  }
+
+  public unregisterCellById(id: string): boolean {
+    return this._registry.unregisterById(id);
+  }
+
+  public clearRegisteredCells(): void {
+    this._registry.clear();
+  }
+
   public isHydrated(id: string): boolean {
     return this._hydratedIds.has(id);
   }
@@ -970,6 +1019,10 @@ export class Scope {
 export interface Store {
   root: Scope;
   fork(seed?: SeedInput): Scope;
+  getRegisteredCellById(id: string): Cell<any> | undefined;
+  listRegisteredCells(): Cell<any>[];
+  unregisterCellById(id: string): boolean;
+  clearRegisteredCells(): void;
 }
 
 interface HistoryStep {
@@ -999,22 +1052,27 @@ export interface HistoryOptions {
 }
 
 export function createStore(options: { seed?: SeedInput } = {}): Store {
-  const root = new Scope(options.seed);
+  const registry = new StoreRegistry();
+  const root = new Scope(registry, options.seed);
 
   return {
     root,
     fork(seed?: SeedInput): Scope {
       return root.fork(seed);
     },
+    getRegisteredCellById(id: string): Cell<any> | undefined {
+      return registry.getById(id);
+    },
+    listRegisteredCells(): Cell<any>[] {
+      return registry.list();
+    },
+    unregisterCellById(id: string): boolean {
+      return registry.unregisterById(id);
+    },
+    clearRegisteredCells(): void {
+      registry.clear();
+    },
   };
-}
-
-export function getRegisteredCellById(id: string): Cell<any> | undefined {
-  return registeredCellsById.get(id);
-}
-
-export function listRegisteredCells(): Cell<any>[] {
-  return Array.from(registeredCells.values());
 }
 
 export function asValue<T>(value: T): ValueBox<T> {
@@ -1023,20 +1081,6 @@ export function asValue<T>(value: T): ValueBox<T> {
   };
 }
 
-export function unregisterCellById(id: string): boolean {
-  const cellUnit = registeredCellsById.get(id);
-  if (!cellUnit) {
-    return false;
-  }
-  registeredCellsById.delete(id);
-  registeredCells.delete(cellUnit);
-  return true;
-}
-
-export function clearRegisteredCells(): void {
-  registeredCellsById.clear();
-  registeredCells.clear();
-}
 
 export function createHistoryController(
   scope: Scope,

@@ -1,4 +1,4 @@
-import { getRegisteredCellById, type Cell, type Scope } from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Scope } from '@suzumiyaaoba/scope-flux-core';
 
 export type JsonValue =
   | null
@@ -247,7 +247,7 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
   }
 
   for (const [id, value] of Object.entries(sourcePayload.values)) {
-    const cellUnit = getRegisteredCellById(id);
+    const cellUnit = scope.getRegisteredCellById(id);
     if (!cellUnit) {
       continue;
     }
