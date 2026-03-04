@@ -10,12 +10,12 @@ Cell unit shape and metadata.
 
 ## Example
 
-```ts
-import type { Cell } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, type Cell } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Cell<any>;
-void (null as unknown as Example);
+const count: Cell<number> = cell(0, { id: 'count' });
+count.kind;
+// ^? "cell"
 ```
 
 ## Notes

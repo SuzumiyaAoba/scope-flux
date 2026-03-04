@@ -10,12 +10,20 @@ Commit change payload for cell updates.
 
 ## Example
 
-```ts
-import type { SetChange } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, type SetChange } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = SetChange;
-void (null as unknown as Example);
+const count = cell(0, { id: 'count' });
+
+const change: SetChange = {
+  kind: 'set',
+  unit: count,
+  prev: 0,
+  next: 1,
+  reason: 'user.increment',
+};
+change.kind;
+// ^? "set"
 ```
 
 ## Notes

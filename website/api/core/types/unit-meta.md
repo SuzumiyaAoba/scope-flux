@@ -10,12 +10,16 @@ Shared metadata object for units.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { UnitMeta } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = UnitMeta;
-void (null as unknown as Example);
+const meta: UnitMeta = {
+  id: 'count',
+  debugName: 'countCell',
+  serializable: true,
+};
+meta.serializable;
+// ^? (property) serializable?: boolean | undefined
 ```
 
 ## Notes

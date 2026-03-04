@@ -10,12 +10,18 @@ Commit envelope emitted to subscribers.
 
 ## Example
 
-```ts
-import type { CommitEvent } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, type CommitEvent } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = CommitEvent;
-void (null as unknown as Example);
+const count = cell(0, { id: 'count' });
+
+const evt: CommitEvent = {
+  type: 'commit',
+  priority: 'urgent',
+  changes: [{ kind: 'set', unit: count, prev: 0, next: 1 }],
+};
+evt.changes.length;
+// ^? number
 ```
 
 ## Notes

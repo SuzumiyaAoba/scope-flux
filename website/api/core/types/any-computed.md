@@ -10,12 +10,14 @@ Computed<any, ComputedDeps> shortcut alias.
 
 ## Example
 
-```ts
-import type { AnyComputed } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, computed, type AnyComputed } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = AnyComputed;
-void (null as unknown as Example);
+const count = cell(1, { id: 'count' });
+const doubled = computed([count] as const, (n) => n * 2, { id: 'doubled' });
+const anyComputed: AnyComputed = doubled;
+anyComputed.kind;
+// ^? "computed"
 ```
 
 ## Notes

@@ -10,12 +10,16 @@ Diff payload for `set` changes.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { StateDiff } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = StateDiff;
-void (null as unknown as Example);
+const diff: StateDiff = {
+  unitId: 'count',
+  prev: 0,
+  next: 1,
+};
+diff.next;
+// ^? unknown
 ```
 
 ## Notes

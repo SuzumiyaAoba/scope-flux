@@ -10,12 +10,17 @@ JSON-domain recursive value union.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { JsonValue } from '@suzumiyaaoba/scope-flux-serializer';
 
-// Use this type in your app-level contracts
-type Example = JsonValue;
-void (null as unknown as Example);
+const json: JsonValue = {
+  count: 1,
+  tags: ['a', 'b'],
+  active: true,
+  meta: null,
+};
+json;
+// ^? JsonValue
 ```
 
 ## Notes

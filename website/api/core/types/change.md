@@ -10,12 +10,20 @@ Union of all commit change variants.
 
 ## Example
 
-```ts
-import type { Change } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, type Change } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Change;
-void (null as unknown as Example);
+const count = cell(0, { id: 'count' });
+
+const change: Change = {
+  kind: 'set',
+  unit: count,
+  prev: 0,
+  next: 1,
+  reason: 'user.increment',
+};
+change.reason;
+// ^? string | undefined
 ```
 
 ## Notes

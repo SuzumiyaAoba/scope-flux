@@ -18,12 +18,25 @@ If adapter exposes `subscribe`, inbound devtools messages can also update scope 
 
 ## Example
 
-```ts
+```ts twoslash
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
 import type { ConnectDevtoolsOptions } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = ConnectDevtoolsOptions;
-void (null as unknown as Example);
+const store = createStore();
+
+const options: ConnectDevtoolsOptions = {
+  scope: store.scope,
+  adapter: {
+    init() {},
+    send() {},
+  },
+  trace: true,
+  onError(error, phase) {
+    console.error(phase, error);
+  },
+};
+options.trace;
+// ^? boolean | undefined
 ```
 
 ## Notes

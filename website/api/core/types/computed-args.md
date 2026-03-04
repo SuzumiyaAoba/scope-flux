@@ -10,12 +10,17 @@ Argument tuple inferred from computed dependencies.
 
 ## Example
 
-```ts
-import type { ComputedArgs } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, computed, type ComputedArgs } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = ComputedArgs<any>;
-void (null as unknown as Example);
+const count = cell(1, { id: 'count' });
+const step = cell(2, { id: 'step' });
+const sum = computed([count, step] as const, (a, b) => a + b, { id: 'sum' });
+
+type Deps = typeof sum.deps;
+const args: ComputedArgs<Deps> = [1, 2];
+args;
+// ^? [number, number]
 ```
 
 ## Notes

@@ -10,12 +10,12 @@ Store interface exposing root scope and fork API.
 
 ## Example
 
-```ts
-import type { Store } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { createStore, type Store } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Store;
-void (null as unknown as Example);
+const store: Store = createStore();
+store.scope.id;
+// ^? string
 ```
 
 ## Notes

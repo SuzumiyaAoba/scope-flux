@@ -10,12 +10,17 @@ Two-channel update orchestrator (committed + buffered).
 
 ## Example
 
-```ts
-import type { Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
+```ts twoslash
+import { createStore, cell } from '@suzumiyaaoba/scope-flux-core';
+import { Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 
-// Use this type in your app-level contracts
-type Example = Scheduler;
-void (null as unknown as Example);
+const store = createStore();
+const count = cell(0, { id: 'count' });
+const scheduler = new Scheduler({ scope: store.scope, autoFlush: 'microtask' });
+
+scheduler.set(count, 1, { priority: 'transition' });
+scheduler.getBuffered(count);
+// ^? number
 ```
 
 ## Notes

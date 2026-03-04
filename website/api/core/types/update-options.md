@@ -10,12 +10,15 @@ Common options for state updates and dispatch.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { UpdateOptions } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = UpdateOptions;
-void (null as unknown as Example);
+const options: UpdateOptions = {
+  priority: 'transition',
+  reason: 'user.increment',
+};
+options.priority;
+// ^? (property) priority?: "urgent" | "transition" | "idle" | undefined
 ```
 
 ## Notes

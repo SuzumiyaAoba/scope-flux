@@ -10,12 +10,19 @@ Normalized trace metadata for a change.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { TraceEvent } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = TraceEvent;
-void (null as unknown as Example);
+const trace: TraceEvent = {
+  id: 'trace-1',
+  ts: Date.now(),
+  scopeId: 'scope-1',
+  kind: 'set',
+  unitId: 'count',
+  reason: 'user.increment',
+};
+trace.kind;
+// ^? "event" | "effect" | "set"
 ```
 
 ## Notes

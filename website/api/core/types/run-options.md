@@ -18,7 +18,7 @@ Main fields:
 
 ## Example
 
-```ts
+```ts twoslash
 import { createStore, effect } from '@suzumiyaaoba/scope-flux-core';
 
 const scope = createStore().fork();

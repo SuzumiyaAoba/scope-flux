@@ -10,12 +10,20 @@ Shape of one buffered pending update.
 
 ## Example
 
-```ts
+```ts twoslash
+import { cell, type Cell } from '@suzumiyaaoba/scope-flux-core';
 import type { PendingBufferedUpdate } from '@suzumiyaaoba/scope-flux-scheduler';
 
-// Use this type in your app-level contracts
-type Example = PendingBufferedUpdate;
-void (null as unknown as Example);
+const count: Cell<number> = cell(0, { id: 'count' });
+
+const pending: PendingBufferedUpdate = {
+  cell: count,
+  value: 1,
+  priority: 'transition',
+  reason: 'input.debounce',
+};
+pending.priority;
+// ^? "transition" | "idle"
 ```
 
 ## Notes

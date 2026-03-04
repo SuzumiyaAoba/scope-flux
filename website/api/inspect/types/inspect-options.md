@@ -10,12 +10,22 @@ Options for `inspect`.
 
 ## Example
 
-```ts
+```ts twoslash
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
 import type { InspectOptions } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = InspectOptions;
-void (null as unknown as Example);
+const store = createStore();
+
+const options: InspectOptions = {
+  scope: store.scope,
+  trace: true,
+  sampleRate: 1,
+  onRecord(record) {
+    console.log(record.trace.kind);
+  },
+};
+options.sampleRate;
+// ^? number | undefined
 ```
 
 ## Notes

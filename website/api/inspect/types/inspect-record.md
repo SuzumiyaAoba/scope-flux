@@ -10,12 +10,20 @@ Record object passed to `onRecord`.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { InspectRecord } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = InspectRecord;
-void (null as unknown as Example);
+const record: InspectRecord = {
+  trace: {
+    id: 'trace-1',
+    ts: Date.now(),
+    scopeId: 'scope-1',
+    kind: 'event',
+  },
+  diffs: [],
+};
+record.diffs;
+// ^? StateDiff[]
 ```
 
 ## Notes

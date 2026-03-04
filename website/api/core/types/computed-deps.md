@@ -10,12 +10,15 @@ Readonly array type for computed dependencies.
 
 ## Example
 
-```ts
-import type { ComputedDeps } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, computed, type ComputedDeps } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = ComputedDeps;
-void (null as unknown as Example);
+const count = cell(1, { id: 'count' });
+const doubled = computed([count] as const, (n) => n * 2, { id: 'doubled' });
+
+const deps = [count, doubled] as const satisfies ComputedDeps;
+deps;
+// ^? readonly [Cell<number>, Computed<number, readonly [Cell<number>]>]
 ```
 
 ## Notes

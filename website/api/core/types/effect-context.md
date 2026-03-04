@@ -16,12 +16,19 @@ Fields:
 
 ## Example
 
-```ts
-import type { EffectContext } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { createStore, type EffectContext } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = EffectContext;
-void (null as unknown as Example);
+const store = createStore();
+const controller = new AbortController();
+
+const ctx: EffectContext = {
+  scope: store.scope,
+  signal: controller.signal,
+  attempt: 1,
+};
+ctx.attempt;
+// ^? number
 ```
 
 ## Notes

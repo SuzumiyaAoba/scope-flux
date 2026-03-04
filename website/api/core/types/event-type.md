@@ -10,12 +10,12 @@ Event unit shape.
 
 ## Example
 
-```ts
-import type { Event } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { event, type Event } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Event<any>;
-void (null as unknown as Example);
+const increment: Event<{ step: number }> = event({ id: 'increment' });
+increment.kind;
+// ^? "event"
 ```
 
 ## Notes

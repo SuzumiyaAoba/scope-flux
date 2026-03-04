@@ -16,12 +16,19 @@ Fields:
 
 ## Example
 
-```ts
+```ts twoslash
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
 import type { SchedulerOptions } from '@suzumiyaaoba/scope-flux-scheduler';
 
-// Use this type in your app-level contracts
-type Example = SchedulerOptions;
-void (null as unknown as Example);
+const store = createStore();
+
+const options: SchedulerOptions = {
+  scope: store.scope,
+  autoFlush: 'idle',
+  autoFlushDelayMs: 80,
+};
+options.autoFlush;
+// ^? false | "microtask" | "timeout" | "animationFrame" | "idle" | undefined
 ```
 
 ## Notes

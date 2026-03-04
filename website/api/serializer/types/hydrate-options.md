@@ -20,7 +20,7 @@ Also supports:
 
 ## Example
 
-```ts
+```ts twoslash
 import type { HydrateOptions } from '@suzumiyaaoba/scope-flux-serializer';
 
 const options: HydrateOptions = { mode: 'safe' };

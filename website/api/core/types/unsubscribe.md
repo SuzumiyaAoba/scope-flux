@@ -10,12 +10,13 @@ Unsubscribe function type.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { Unsubscribe } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Unsubscribe;
-void (null as unknown as Example);
+const unsubscribe: Unsubscribe = () => {
+  console.log('listener removed');
+};
+unsubscribe();
 ```
 
 ## Notes

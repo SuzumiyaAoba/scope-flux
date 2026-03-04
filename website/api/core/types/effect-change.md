@@ -10,12 +10,18 @@ Commit change payload for effect executions.
 
 ## Example
 
-```ts
-import type { EffectChange } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { effect, type EffectChange } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = EffectChange;
-void (null as unknown as Example);
+const fetchUser = effect<string, { id: string }>(async (id) => ({ id }), { id: 'fetchUser' });
+
+const change: EffectChange = {
+  kind: 'effect',
+  unit: fetchUser,
+  payload: 'user-1',
+};
+change.kind;
+// ^? "effect"
 ```
 
 ## Notes

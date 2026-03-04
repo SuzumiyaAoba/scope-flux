@@ -10,12 +10,23 @@ Transport payload structure for serialized scope.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { SerializedScope } from '@suzumiyaaoba/scope-flux-serializer';
 
-// Use this type in your app-level contracts
-type Example = SerializedScope;
-void (null as unknown as Example);
+const payload: SerializedScope = {
+  version: 1,
+  scopeId: 'scope-1',
+  values: {
+    count: 1,
+    userName: 'alice',
+  },
+  meta: {
+    source: 'persist',
+    createdAt: new Date().toISOString(),
+  },
+};
+payload.values.count;
+// ^? JsonValue
 ```
 
 ## Notes

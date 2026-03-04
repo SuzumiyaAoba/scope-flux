@@ -10,12 +10,24 @@ Seed input type accepted by scope/store creation.
 
 ## Example
 
-```ts
-import type { SeedInput } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, type SeedInput } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = SeedInput;
-void (null as unknown as Example);
+const count = cell(0, { id: 'count' });
+const userName = cell('guest', { id: 'userName' });
+
+const fromArray: SeedInput = [
+  [count, 1],
+  [userName, 'alice'],
+];
+
+const fromMap: SeedInput = new Map([
+  [count, 2],
+  [userName, 'bob'],
+]);
+
+fromArray;
+fromMap;
 ```
 
 ## Notes

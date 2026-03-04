@@ -10,12 +10,13 @@ Commit subscription callback type.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { ScopeListener } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = ScopeListener;
-void (null as unknown as Example);
+const listener: ScopeListener = (evt) => {
+  console.log(evt.priority, evt.changes.length);
+};
+listener;
 ```
 
 ## Notes

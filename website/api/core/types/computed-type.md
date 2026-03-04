@@ -10,12 +10,14 @@ Computed unit shape with deps and read function.
 
 ## Example
 
-```ts
-import type { Computed } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, computed, type Computed } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Computed<any, any>;
-void (null as unknown as Example);
+const count = cell(1, { id: 'count' });
+const doubled: Computed<number> = computed([count] as const, (n) => n * 2, { id: 'doubled' });
+
+doubled.cache;
+// ^? "scope" | "none"
 ```
 
 ## Notes

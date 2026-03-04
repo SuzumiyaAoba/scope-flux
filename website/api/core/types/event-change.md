@@ -10,12 +10,18 @@ Commit change payload for event emissions.
 
 ## Example
 
-```ts
-import type { EventChange } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { event, type EventChange } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = EventChange;
-void (null as unknown as Example);
+const increment = event<{ step: number }>({ id: 'increment' });
+
+const change: EventChange = {
+  kind: 'event',
+  unit: increment,
+  payload: { step: 1 },
+};
+change.payload;
+// ^? unknown
 ```
 
 ## Notes

@@ -18,12 +18,16 @@ Includes:
 
 ## Example
 
-```ts
-import type { Effect } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { effect, type Effect } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Effect<any, any>;
-void (null as unknown as Example);
+const fetchUser: Effect<string, { id: string }> = effect(
+  async (id) => ({ id }),
+  { id: 'fetchUser' }
+);
+
+fetchUser.policy.concurrency;
+// ^? "parallel" | "drop" | "replace" | "queue"
 ```
 
 ## Notes

@@ -17,12 +17,13 @@ Notable runtime methods include:
 
 ## Example
 
-```ts
-import type { Scope } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { createStore, type Scope } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = Scope;
-void (null as unknown as Example);
+const store = createStore();
+const scope: Scope = store.scope;
+scope.id;
+// ^? string
 ```
 
 ## Notes

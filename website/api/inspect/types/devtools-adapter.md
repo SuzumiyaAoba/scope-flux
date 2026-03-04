@@ -16,12 +16,22 @@ Contract:
 
 ## Example
 
-```ts
+```ts twoslash
 import type { DevtoolsAdapter } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = DevtoolsAdapter;
-void (null as unknown as Example);
+const adapter: DevtoolsAdapter = {
+  init(initialState) {
+    console.log(initialState);
+  },
+  send(action, state) {
+    console.log(action.type, state);
+  },
+  subscribe(listener) {
+    listener({ type: 'commit' });
+    return () => {};
+  },
+};
+adapter.send({ type: 'INC' }, { count: 1 });
 ```
 
 ## Notes

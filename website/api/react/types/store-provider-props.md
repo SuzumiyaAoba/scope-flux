@@ -10,11 +10,20 @@ Props contract for StoreProvider.
 
 ## Example
 
-```ts
+```ts twoslash
+import type { ReactNode } from 'react';
+import { createStore } from '@suzumiyaaoba/scope-flux-core';
 import type { StoreProviderProps } from '@suzumiyaaoba/scope-flux-react';
 
-const props = {} as StoreProviderProps;
-void props;
+const store = createStore();
+const children: ReactNode = 'hello';
+
+const props: StoreProviderProps = {
+  scope: store.scope,
+  children,
+};
+props.scope.id;
+// ^? string
 ```
 
 ## Notes

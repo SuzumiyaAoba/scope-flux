@@ -10,12 +10,22 @@ Options for `createReduxDevtoolsAdapter`.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { ReduxDevtoolsAdapterOptions } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = ReduxDevtoolsAdapterOptions;
-void (null as unknown as Example);
+const options: ReduxDevtoolsAdapterOptions = {
+  name: 'scope-flux-app',
+  extension: {
+    connect() {
+      return {
+        init() {},
+        send() {},
+      };
+    },
+  },
+};
+options.name;
+// ^? string | undefined
 ```
 
 ## Notes

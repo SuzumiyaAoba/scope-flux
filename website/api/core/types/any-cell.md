@@ -10,12 +10,13 @@ Cell<any> shortcut alias.
 
 ## Example
 
-```ts
-import type { AnyCell } from '@suzumiyaaoba/scope-flux-core';
+```ts twoslash
+import { cell, type AnyCell } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = AnyCell;
-void (null as unknown as Example);
+const count = cell(0, { id: 'count' });
+const anyCell: AnyCell = count;
+anyCell.meta.id;
+// ^? string | undefined
 ```
 
 ## Notes

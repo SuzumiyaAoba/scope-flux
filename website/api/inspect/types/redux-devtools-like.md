@@ -10,12 +10,21 @@ Redux extension-like shape expected by adapter factory.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { ReduxDevtoolsLike } from '@suzumiyaaoba/scope-flux-inspect';
 
-// Use this type in your app-level contracts
-type Example = ReduxDevtoolsLike;
-void (null as unknown as Example);
+const extension: ReduxDevtoolsLike = {
+  connect() {
+    return {
+      init() {},
+      send() {},
+      subscribe() {
+        return () => {};
+      },
+    };
+  },
+};
+extension.connect({ name: 'scope-flux' });
 ```
 
 ## Notes

@@ -10,12 +10,18 @@ Options for `serialize`.
 
 ## Example
 
-```ts
+```ts twoslash
+import { cell } from '@suzumiyaaoba/scope-flux-core';
 import type { SerializeOptions } from '@suzumiyaaoba/scope-flux-serializer';
 
-// Use this type in your app-level contracts
-type Example = SerializeOptions;
-void (null as unknown as Example);
+const count = cell(0, { id: 'count' });
+
+const options: SerializeOptions = {
+  only: [count],
+  maxBytes: 8 * 1024,
+};
+options.only;
+// ^? Cell<any>[] | undefined
 ```
 
 ## Notes

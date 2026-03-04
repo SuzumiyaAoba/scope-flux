@@ -10,12 +10,12 @@ Type alias for stable string IDs used across serialization and inspection.
 
 ## Example
 
-```ts
+```ts twoslash
 import type { StableId } from '@suzumiyaaoba/scope-flux-core';
 
-// Use this type in your app-level contracts
-type Example = StableId;
-void (null as unknown as Example);
+const id: StableId = 'counter';
+id;
+// ^? const id: string
 ```
 
 ## Notes
