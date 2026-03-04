@@ -1,14 +1,17 @@
 import {
   getRegisteredCellById,
-  isObject,
   listRegisteredCells,
-  type AnyCell,
+  type Cell,
   type Change,
   type CommitEvent,
   type Priority,
   type Scope,
   type Unsubscribe,
 } from '@suzumiyaaoba/scope-flux-core';
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
 export interface TraceEvent {
   id: string;
@@ -175,7 +178,7 @@ function toRecord(
 
 function snapshotScope(scope: Scope): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  const known = scope._listKnownCells() as AnyCell[];
+  const known = scope.listKnownCells();
 
   for (let i = 0; i < known.length; i++) {
     const cell = known[i];
@@ -223,7 +226,7 @@ function readImportState(message: DevtoolsMessage): Record<string, unknown> | nu
 
 function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: string): void {
   const cells = listRegisteredCells();
-  const byDebugName = new Map<string, AnyCell>();
+  const byDebugName = new Map<string, Cell<any>>();
   const duplicatedDebugNames = new Set<string>();
   for (const cell of cells) {
     const debugName = cell.meta?.debugName;
@@ -245,7 +248,7 @@ function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: 
       if (!cellUnit) {
         continue;
       }
-      scope.set(cellUnit as AnyCell, value, {
+      scope.set(cellUnit, value, {
         reason,
         priority: 'urgent',
       });

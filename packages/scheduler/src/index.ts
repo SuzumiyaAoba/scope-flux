@@ -1,4 +1,6 @@
-import type { AnyCell, Cell, Priority, Scope, UpdateOptions } from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Priority, Scope, UpdateOptions } from '@suzumiyaaoba/scope-flux-core';
+
+type AnyCell = Cell<unknown>;
 
 export interface PendingBufferedUpdate {
   cell: AnyCell;

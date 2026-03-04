@@ -18,6 +18,7 @@
     "url": "https://github.com/SuzumiyaAoba/scope-flux/issues"
   },
   "license": "MIT",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

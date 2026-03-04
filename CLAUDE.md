@@ -38,11 +38,11 @@ core (no deps)
 
 ### Key packages
 
-- **`@scope-flux/core`** — Foundation. Single-file (`src/index.ts`) with all primitives: `cell`, `computed`, `event`, `effect`, `Scope`, `createStore`. Units are plain objects with a `kind` discriminant. Version tracking drives cache invalidation. Commit batching via `_batchDepth` counter.
-- **`@scope-flux/scheduler`** — `Scheduler` class for transition/idle priority buffering.
-- **`@scope-flux/serializer`** — `serialize()`/`hydrate()` for SSR. Relies on cell `id` for lookup via global `registeredCellsById`.
-- **`@scope-flux/inspect`** — Observability (`inspect()`, `connectDevtools()`, Redux DevTools adapter). Must be tree-shakeable and excluded from production bundles.
-- **`@scope-flux/react`** — React 19 hooks: `StoreProvider`, `useUnit`, `useBufferedUnit`, `useCell`, `useCellAction`, `useAction`, `useEffectAction`, `useFlushBuffered`.
+- **`@suzumiyaaoba/scope-flux-core`** — Foundation. Single-file (`src/index.ts`) with all primitives: `cell`, `computed`, `event`, `effect`, `Scope`, `createStore`. Units are plain objects with a `kind` discriminant. Version tracking drives cache invalidation. Commit batching via `_batchDepth` counter.
+- **`@suzumiyaaoba/scope-flux-scheduler`** — `Scheduler` class for transition/idle priority buffering.
+- **`@suzumiyaaoba/scope-flux-serializer`** — `serialize()`/`hydrate()` for SSR. Relies on cell `id` for lookup via global `registeredCellsById`.
+- **`@suzumiyaaoba/scope-flux-inspect`** — Observability (`inspect()`, `connectDevtools()`, Redux DevTools adapter). Must be tree-shakeable and excluded from production bundles.
+- **`@suzumiyaaoba/scope-flux-react`** — React 19 hooks: `StoreProvider`, `useUnit`, `useBufferedUnit`, `useCell`, `useCellAction`, `useAction`, `useEffectAction`, `useFlushBuffered`.
 
 ### Invariants
 
@@ -56,7 +56,7 @@ core (no deps)
 - 2-space indentation
 - Package entrypoints: `src/index.ts` or `src/index.tsx`
 - Test files: `packages/<name>/test/<name>.test.ts(x)` (not in `src/`)
-- Vitest aliases resolve `@scope-flux/*` to source (not dist) during testing
+- Vitest aliases resolve `@suzumiyaaoba/scope-flux-*` packages to source (not dist) during testing
 - Priority levels: `'urgent' | 'transition' | 'idle'`
 - Error code namespace: `NS_CORE_*`, `NS_SER_*`, `NS_REACT_*`
 

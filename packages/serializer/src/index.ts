@@ -1,4 +1,4 @@
-import { getRegisteredCellById, isObject, type AnyCell, type Scope } from '@suzumiyaaoba/scope-flux-core';
+import { getRegisteredCellById, type Cell, type Scope } from '@suzumiyaaoba/scope-flux-core';
 
 export type JsonValue =
   | null
@@ -19,7 +19,7 @@ export interface SerializedScope {
 }
 
 export interface SerializeOptions {
-  only?: AnyCell[];
+  only?: Array<Cell<any>>;
   maxBytes?: number;
 }
 
@@ -123,6 +123,10 @@ function isJsonValue(value: unknown): value is JsonValue {
   return false;
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 function assertScope(scope: Scope): void {
   if (!scope || typeof scope.get !== 'function' || typeof scope.set !== 'function') {
     throw new Error('NS_SER_INVALID_SCOPE');
@@ -157,7 +161,7 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
   const only = opts.only;
   const maxBytes = opts.maxBytes ?? Number.POSITIVE_INFINITY;
 
-  const cells = only ?? scope._listKnownCells();
+  const cells = only ?? scope.listKnownCells();
   const values: Record<string, JsonValue> = {};
 
   for (const unit of cells) {
@@ -248,12 +252,12 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
       continue;
     }
 
-    if (mode !== 'force' && scope._isHydrated(id)) {
+    if (mode !== 'force' && scope.isHydrated(id)) {
       continue;
     }
 
     scope.set(cellUnit, value, { reason: 'hydrate', priority: 'urgent' });
-    scope._markHydrated(id);
+    scope.markHydrated(id);
   }
 }
 

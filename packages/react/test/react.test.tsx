@@ -128,6 +128,30 @@ describe('react bridge', () => {
     expect(scope.get(count)).toBe(3);
   });
 
+  it('useAction defaults priority to urgent', () => {
+    const ping = event<void>({ debugName: 'react_default_priority_event' });
+    const scope = createStore().fork();
+    let fire!: () => void;
+    const commits: Array<{ priority: string }> = [];
+    scope.subscribe((evt) => commits.push(evt as any));
+
+    function App(): React.JSX.Element {
+      fire = useAction(ping);
+      return <></>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    act(() => {
+      fire();
+    });
+    expect(commits[0].priority).toBe('urgent');
+  });
+
   it('useEffectAction runs effect and updates state', async () => {
     const count = cell(0, { id: 'react_effect_count' });
     const setCountFx = effect<number, number>(async (payload, { scope }) => {
@@ -156,6 +180,31 @@ describe('react bridge', () => {
     });
     expect(result).toBe(7);
     expect(scope.get(count)).toBe(7);
+  });
+
+  it('useEffectAction defaults priority to urgent', async () => {
+    const fx = effect<void, void>(async () => {});
+    const scope = createStore().fork();
+    let run!: () => Promise<void>;
+    const commits: Array<{ priority: string; changes: Array<{ kind: string }> }> = [];
+    scope.subscribe((evt) => commits.push(evt as any));
+
+    function App(): React.JSX.Element {
+      run = useEffectAction(fx);
+      return <></>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    await act(async () => {
+      await run();
+    });
+    const effectCommit = commits.find((c) => c.changes[0]?.kind === 'effect');
+    expect(effectCommit?.priority).toBe('urgent');
   });
 
   it('useCellAction with transition updates buffered value before commit', () => {

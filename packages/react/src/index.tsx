@@ -225,7 +225,7 @@ export function useAction<P>(
   options?: { priority?: Priority; reason?: string }
 ): (payload: P) => void {
   const scope = useScope();
-  const priority = options?.priority;
+  const priority = options?.priority ?? 'urgent';
   const reasonRef = useRef(options?.reason);
   reasonRef.current = options?.reason;
 
@@ -246,7 +246,7 @@ export function useEffectAction<P, R>(
   options?: { priority?: Priority; reason?: string }
 ): (payload: P) => Promise<R> {
   const scope = useScope();
-  const priority = options?.priority;
+  const priority = options?.priority ?? 'urgent';
   const reasonRef = useRef(options?.reason);
   reasonRef.current = options?.reason;
 

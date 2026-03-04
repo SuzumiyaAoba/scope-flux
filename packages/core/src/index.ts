@@ -83,8 +83,8 @@ export interface EffectStatus<R = unknown> {
   lastFinishedAt?: number;
 }
 
-export type AnyCell = Cell<any>;
-export type AnyComputed = Computed<any, ComputedDeps>;
+type AnyCell = Cell<any>;
+type AnyComputed = Computed<unknown, ComputedDeps>;
 
 type AnyUnit = AnyCell | AnyComputed;
 
@@ -124,7 +124,7 @@ export interface CommitEvent {
   changes: Change[];
 }
 
-export type SeedInput = Map<AnyCell, unknown> | Array<readonly [AnyCell, unknown]>;
+export type SeedInput = Map<Cell<any>, unknown> | Array<readonly [Cell<any>, unknown]>;
 
 export const ErrorCodes = {
   DUPLICATE_STABLE_ID: 'NS_CORE_DUPLICATE_STABLE_ID',
@@ -140,7 +140,7 @@ export const ErrorCodes = {
 const registeredCellsById = new Map<string, AnyCell>();
 const registeredCells = new Set<AnyCell>();
 
-export function isObject(value: unknown): value is Record<string, unknown> {
+function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
@@ -954,15 +954,15 @@ export class Scope {
     return child;
   }
 
-  public _listKnownCells(): AnyCell[] {
+  public listKnownCells(): Cell<any>[] {
     return Array.from(this._knownCells);
   }
 
-  public _isHydrated(id: string): boolean {
+  public isHydrated(id: string): boolean {
     return this._hydratedIds.has(id);
   }
 
-  public _markHydrated(id: string): void {
+  public markHydrated(id: string): void {
     this._hydratedIds.add(id);
   }
 }
@@ -994,7 +994,7 @@ export interface HistoryController {
 
 export interface HistoryOptions {
   limit?: number;
-  track?: AnyCell[];
+  track?: Cell<any>[];
   reasonPrefix?: string;
 }
 
@@ -1009,11 +1009,11 @@ export function createStore(options: { seed?: SeedInput } = {}): Store {
   };
 }
 
-export function getRegisteredCellById(id: string): AnyCell | undefined {
+export function getRegisteredCellById(id: string): Cell<any> | undefined {
   return registeredCellsById.get(id);
 }
 
-export function listRegisteredCells(): AnyCell[] {
+export function listRegisteredCells(): Cell<any>[] {
   return Array.from(registeredCells.values());
 }
 
