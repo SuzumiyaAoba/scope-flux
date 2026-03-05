@@ -409,6 +409,12 @@ export function autoPersistScope(
     return externalPayload;
   };
 
+  const parseStoredPayload = (raw: string): SerializedScope => {
+    const parsed = JSON.parse(decodeStorageValue(raw, options.codec)) as unknown;
+    validatePayload(parsed);
+    return parsed;
+  };
+
   const schedulePersist = () => {
     const now = Date.now();
     const throttleWait = throttleMs > 0 ? Math.max(0, throttleMs - (now - lastPersistAt)) : 0;
@@ -465,8 +471,8 @@ export function autoPersistScope(
           return;
         }
         try {
-          const parsed = JSON.parse(decodeStorageValue(e.newValue, options.codec)) as unknown;
-          const payloadToHydrate = resolvePayloadForHydration(parsed as SerializedScope);
+          const parsed = parseStoredPayload(e.newValue);
+          const payloadToHydrate = resolvePayloadForHydration(parsed);
 
           hydrate(scope, payloadToHydrate, {
             mode: options.mode ?? 'force',
@@ -502,7 +508,7 @@ export function autoPersistScope(
         if (!raw) {
           return null;
         }
-        const parsed = JSON.parse(decodeStorageValue(raw, options.codec)) as SerializedScope;
+        const parsed = parseStoredPayload(raw);
         const payloadToHydrate = resolvePayloadForHydration(parsed);
         hydrate(scope, payloadToHydrate, {
           mode: options.mode ?? 'force',

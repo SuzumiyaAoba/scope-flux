@@ -590,6 +590,60 @@ describe('serializer', () => {
     }
   });
 
+  it('autoPersistScope does not call mergePayloads for invalid external payload', () => {
+    const value = cell(0, { id: 'scope_merge_invalid_external' });
+    const scope = createStore().fork();
+    const storage = createMemoryStorage();
+    const listeners: Array<(event: unknown) => void> = [];
+    const g = globalThis as {
+      addEventListener?: (type: string, listener: (event: unknown) => void) => void;
+      removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
+    };
+    const originalAdd = g.addEventListener;
+    const originalRemove = g.removeEventListener;
+    g.addEventListener = (_type, listener) => {
+      listeners.push(listener);
+    };
+    g.removeEventListener = (_type, listener) => {
+      const index = listeners.indexOf(listener);
+      if (index >= 0) {
+        listeners.splice(index, 1);
+      }
+    };
+
+    try {
+      const mergePayloads = vi.fn((localPayload, externalPayload) => ({
+        ...localPayload,
+        values: { ...localPayload.values, ...externalPayload.values },
+      }));
+      const onError = vi.fn();
+      const persistence = autoPersistScope(scope, 'scope:merge:invalid-external', {
+        storage,
+        listenExternalUpdates: true,
+        conflictPolicy: 'merge',
+        mergePayloads,
+        onError,
+      });
+      scope.set(value, 10);
+
+      for (const listener of [...listeners]) {
+        listener({
+          key: 'scope:merge:invalid-external',
+          newValue: JSON.stringify({ version: 1, scopeId: 'external', values: 123 }),
+          storageArea: storage,
+        });
+      }
+
+      expect(mergePayloads).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(scope.get(value)).toBe(10);
+      persistence.unsubscribe();
+    } finally {
+      g.addEventListener = originalAdd;
+      g.removeEventListener = originalRemove;
+    }
+  });
+
   it('autoPersistScope hydrateNow returns null and calls onError for invalid payload', () => {
     const scope = createStore().fork();
     const storage = createMemoryStorage({ 'scope:hydrate:error': '{bad-json' });
