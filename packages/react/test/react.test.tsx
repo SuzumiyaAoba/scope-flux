@@ -14,6 +14,7 @@ import {
   useEffectAction,
   useEffectStatus,
   useFlushBuffered,
+  useHydrateUnits,
   useUnit,
 } from '../src/index.js';
 
@@ -278,6 +279,100 @@ describe('react bridge', () => {
 
     expect(scope.get(count)).toBe(3);
     expect(seen).toBe(3);
+  });
+
+  it('useHydrateUnits hydrates id-less cells before first read', () => {
+    const count = cell(0);
+    const scope = createStore().fork();
+
+    function App(): React.JSX.Element {
+      useHydrateUnits([[count, 5]]);
+      const value = useUnit(count);
+      return <>{value}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    expect(screen.getByText('5')).toBeTruthy();
+    expect(scope.get(count)).toBe(5);
+  });
+
+  it('useHydrateUnits hydrates each unit only once by default', () => {
+    const count = cell(0);
+    const scope = createStore().fork();
+
+    function App({ value }: { value: number }): React.JSX.Element {
+      useHydrateUnits([[count, value]]);
+      return <>{useUnit(count)}</>;
+    }
+
+    const { rerender } = render(
+      <StoreProvider scope={scope}>
+        <App value={1} />
+      </StoreProvider>
+    );
+
+    expect(scope.get(count)).toBe(1);
+
+    act(() => {
+      scope.set(count, 9);
+    });
+    expect(scope.get(count)).toBe(9);
+
+    rerender(
+      <StoreProvider scope={scope}>
+        <App value={2} />
+      </StoreProvider>
+    );
+    expect(scope.get(count)).toBe(9);
+  });
+
+  it('useHydrateUnits force option reapplies values', () => {
+    const count = cell(0);
+    const scope = createStore().fork();
+
+    function App({ value }: { value: number }): React.JSX.Element {
+      useHydrateUnits([[count, value]], { force: true });
+      return <>{useUnit(count)}</>;
+    }
+
+    const { rerender } = render(
+      <StoreProvider scope={scope}>
+        <App value={1} />
+      </StoreProvider>
+    );
+    expect(scope.get(count)).toBe(1);
+
+    rerender(
+      <StoreProvider scope={scope}>
+        <App value={2} />
+      </StoreProvider>
+    );
+    expect(scope.get(count)).toBe(2);
+  });
+
+  it('useHydrateUnits treats function values as plain values', () => {
+    const fnCell = cell<() => number>(() => 0);
+    const scope = createStore().fork();
+
+    function App(): React.JSX.Element {
+      useHydrateUnits([[fnCell, () => 123]]);
+      const fn = useUnit(fnCell);
+      return <>{fn()}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    expect(scope.get(fnCell)()).toBe(123);
+    expect(screen.getByText('123')).toBeTruthy();
   });
 
   it('useEffectStatus reflects effect lifecycle', async () => {

@@ -1,4 +1,5 @@
-import type { Cell, Computed, Effect, EffectStatus, Event, Priority, Scope } from '@suzumiyaaoba/scope-flux-core';
+import { asValue } from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Computed, Effect, EffectStatus, Event, Priority, Scope, SeedInput } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler, type Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 import type React from 'react';
 import {
@@ -6,6 +7,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
@@ -49,6 +51,10 @@ function useScope(): Scope {
 
 function useScheduler(): Scheduler {
   return useStoreContext().scheduler;
+}
+
+function seedToEntries(seed: SeedInput): Array<readonly [Cell<any>, unknown]> {
+  return seed instanceof Map ? Array.from(seed.entries()) : seed;
 }
 
 function useExternalSelected<T>(options: {
@@ -296,4 +302,50 @@ export function useAsyncEffectAction<P, R>(
     cancel,
     status,
   };
+}
+
+export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }): void {
+  const scope = useScope();
+  const hydratedRef = useRef(new WeakMap<Scope, WeakSet<Cell<any>>>());
+  const force = options?.force ?? false;
+
+  const entries = seedToEntries(seed);
+  if (entries.length === 0) {
+    return;
+  }
+
+  let seenUnits = hydratedRef.current.get(scope);
+  if (!seenUnits) {
+    seenUnits = new WeakSet<Cell<any>>();
+    hydratedRef.current.set(scope, seenUnits);
+  }
+
+  const hydrateUnits = (forceApply: boolean) => {
+    scope.batch(() => {
+      for (const [unit, value] of entries) {
+        if (!unit || unit.kind !== 'cell') {
+          throw new Error('NS_CORE_INVALID_UPDATE');
+        }
+        if (!forceApply && seenUnits.has(unit)) {
+          continue;
+        }
+        scope.set(unit, asValue(value), { priority: 'urgent', reason: 'hydrate' });
+        if (unit.meta?.id) {
+          scope.markHydrated(unit.meta.id);
+        }
+        seenUnits.add(unit);
+      }
+    });
+  };
+
+  if (!force) {
+    hydrateUnits(false);
+  }
+
+  useEffect(() => {
+    if (!force) {
+      return;
+    }
+    hydrateUnits(true);
+  });
 }
