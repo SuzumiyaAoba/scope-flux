@@ -96,20 +96,19 @@ function useExternalSelected<T>(options: {
 
 function useSelectedUnit<T, S>(
   readValue: () => T,
-  readDeps: readonly unknown[],
   subscribe: (onStoreChange: () => void) => () => void,
   selector?: (value: T) => S,
   equality?: (a: S, b: S) => boolean,
 ): T | S {
+  const readValueRef = useRef(readValue);
+  readValueRef.current = readValue;
   const selectorRef = useRef(selector);
   selectorRef.current = selector;
 
   const getSelected = useCallback((): T | S => {
-    const value = readValue();
+    const value = readValueRef.current();
     return selectorRef.current ? selectorRef.current(value) : value;
-    // Deps array is intentionally provided by the caller (readDeps) rather than inlined.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, readDeps);
+  }, []);
 
   return useExternalSelected({
     getValue: getSelected,
@@ -140,7 +139,6 @@ export function useUnit<T, S>(
 
   return useSelectedUnit(
     () => scope.get(unit),
-    [scope, unit],
     subscribe,
     selector,
     options?.equality,
@@ -175,7 +173,6 @@ export function useBufferedUnit<T, S>(
 
   return useSelectedUnit(
     () => scheduler.getBuffered<T>(unit),
-    [scheduler, unit],
     subscribe,
     selector,
     options?.equality,
@@ -219,6 +216,13 @@ export function useCell<T>(
   const value = useUnit(cell);
   const setValue = useCellAction(cell, options);
   return [value, setValue];
+}
+
+export function useSetCell<T>(
+  cell: Cell<T>,
+  options?: { priority?: Priority; reason?: string }
+): (next: T | ((prev: T) => T)) => void {
+  return useCellAction(cell, options);
 }
 
 export function useFlushBuffered(): () => void {
@@ -301,6 +305,54 @@ export function useAsyncEffectAction<P, R>(
     run,
     cancel,
     status,
+  };
+}
+
+export function useSuspenseEffectAction<P, R>(
+  unitEffect: Effect<P, R>,
+  options?: { priority?: Priority; reason?: string }
+): {
+  run: (payload: P) => Promise<R>;
+  cancel: () => void;
+  status: EffectStatus<R>;
+  read: () => R | undefined;
+} {
+  const scope = useScope();
+  const status = useEffectStatus(unitEffect);
+  const inFlightRef = useRef<Promise<R> | null>(null);
+  const runBase = useEffectAction(unitEffect, options);
+  const run = useMemo(
+    () =>
+      (payload: P) => {
+        const current = runBase(payload);
+        inFlightRef.current = current;
+        void current.finally(() => {
+          if (inFlightRef.current === current) {
+            inFlightRef.current = null;
+          }
+        });
+        return current;
+      },
+    [runBase]
+  );
+  const cancel = useCallback(() => {
+    scope.cancelEffect(unitEffect);
+  }, [scope, unitEffect]);
+  const read = useCallback(() => {
+    if (status.lastError) {
+      throw status.lastError;
+    }
+    if (status.running > 0 && inFlightRef.current) {
+      throw inFlightRef.current;
+    }
+    return status.lastResult;
+  }, [status]);
+
+  return {
+    run,
+    cancel,
+    status,
+    read,
   };
 }
 

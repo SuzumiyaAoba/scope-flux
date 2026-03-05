@@ -15,6 +15,8 @@ import {
   useEffectStatus,
   useFlushBuffered,
   useHydrateUnits,
+  useSetCell,
+  useSuspenseEffectAction,
   useUnit,
 } from '../src/index.js';
 
@@ -281,6 +283,32 @@ describe('react bridge', () => {
     expect(seen).toBe(3);
   });
 
+  it('useSetCell returns a stable setter without reading value', () => {
+    const count = cell(0, { id: 'react_use_set_cell_count' });
+    const scope = createStore().fork();
+    let setCount!: (next: number | ((prev: number) => number)) => void;
+    let renders = 0;
+
+    function App(): React.JSX.Element {
+      setCount = useSetCell(count);
+      renders += 1;
+      return <>ok</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+    expect(renders).toBe(1);
+
+    act(() => {
+      setCount((prev) => prev + 2);
+    });
+    expect(scope.get(count)).toBe(2);
+    expect(renders).toBe(1);
+  });
+
   it('useHydrateUnits hydrates id-less cells before first read', () => {
     const count = cell(0);
     const scope = createStore().fork();
@@ -451,6 +479,49 @@ describe('react bridge', () => {
       await Promise.resolve();
     });
     await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('useSuspenseEffectAction read throws pending promise and returns resolved value', async () => {
+    const scope = createStore().fork();
+    let release!: () => void;
+    const fx = effect<void, number>(() => {
+      return new Promise<number>((resolve) => {
+        release = () => resolve(11);
+      });
+    });
+
+    let api!: ReturnType<typeof useSuspenseEffectAction<void, number>>;
+
+    function App(): React.JSX.Element {
+      api = useSuspenseEffectAction(fx);
+      return <>{api.status.running}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    let promise!: Promise<number>;
+    await act(async () => {
+      promise = api.run();
+      await Promise.resolve();
+    });
+
+    let thrown: unknown;
+    try {
+      api.read();
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBe(promise);
+
+    await act(async () => {
+      release();
+      await promise;
+    });
+    expect(api.read()).toBe(11);
   });
 
   it('supports user interaction flow with buffered input and flush button', () => {
