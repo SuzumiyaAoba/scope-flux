@@ -216,6 +216,12 @@ Always escape before embedding JSON into HTML to avoid accidental script breakou
 - Serializing sensitive data without explicit filtering.
 - Assuming functions/classes/Date objects can be safely serialized as-is.
 
+## ID Requirement Boundary
+
+- `serialize` / `hydrate` and storage transports (`persistToStorage`, `hydrateFromStorage`) identify cells by `id`.
+- For this JSON transport path, cells without `id` are skipped and cannot be restored from payload.
+- This does **not** apply to direct unit-reference hydration flows such as `createStore({ seed })` or `useHydrateUnits`, because those APIs receive actual unit references instead of string keys.
+
 ## Example
 
 ```ts twoslash

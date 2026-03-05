@@ -188,6 +188,58 @@ describe('inspect', () => {
     unsub();
   });
 
+  it('connectDevtools resolves cell via resolveUnit before id/debugName fallback', () => {
+    const target = cell(0, { id: 'inspect_resolve_target', debugName: 'resolve_target' });
+    const distractor = cell(0, { id: 'inspect_resolve_key', debugName: 'inspect_resolve_key' });
+    const scope = createStore().fork();
+    scope.registerCell(target);
+    scope.registerCell(distractor);
+    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+        receive = listener;
+        return () => {};
+      },
+    };
+
+    const unsub = connectDevtools({
+      scope,
+      adapter,
+      resolveUnit: (key) => (key === 'inspect_resolve_key' ? target : undefined),
+    });
+    receive({ type: 'jump_to_state', state: { inspect_resolve_key: 9 } });
+
+    expect(scope.get(target)).toBe(9);
+    expect(scope.get(distractor)).toBe(0);
+    unsub();
+  });
+
+  it('connectDevtools falls back to id/debugName when resolveUnit returns undefined', () => {
+    const count = cell(0, { id: 'inspect_resolve_fallback' });
+    const scope = createStore().fork();
+    scope.registerCell(count);
+    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+        receive = listener;
+        return () => {};
+      },
+    };
+
+    const unsub = connectDevtools({
+      scope,
+      adapter,
+      resolveUnit: () => undefined,
+    });
+    receive({ type: 'jump_to_state', state: { inspect_resolve_fallback: 6 } });
+    expect(scope.get(count)).toBe(6);
+    unsub();
+  });
+
   it('connectDevtools reset applies provided snapshot', () => {
     const count = cell(5, { id: 'inspect_reset_count' });
     const scope = createStore().fork();

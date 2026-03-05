@@ -65,6 +65,7 @@ export interface ConnectDevtoolsOptions {
   scope: Scope;
   adapter: DevtoolsAdapter;
   trace?: boolean;
+  resolveUnit?: (key: string, scope: Scope) => Cell<any> | undefined;
   onError?: (error: unknown, phase: 'init' | 'send' | 'receive') => void;
   onUnsupportedMessage?: (message: DevtoolsMessage) => void;
 }
@@ -222,7 +223,12 @@ function readImportState(message: DevtoolsMessage): Record<string, unknown> | nu
   return null;
 }
 
-function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: string): void {
+function applySnapshot(
+  scope: Scope,
+  snapshot: Record<string, unknown>,
+  reason: string,
+  resolveUnit?: (key: string, scope: Scope) => Cell<any> | undefined,
+): void {
   const cells = scope.listRegisteredCells();
   const byDebugName = new Map<string, Cell<any>>();
   const duplicatedDebugNames = new Set<string>();
@@ -241,7 +247,8 @@ function applySnapshot(scope: Scope, snapshot: Record<string, unknown>, reason: 
 
   scope.batch(() => {
     for (const [key, value] of Object.entries(snapshot)) {
-      const cellUnit = scope.getRegisteredCellById(key)
+      const cellUnit = resolveUnit?.(key, scope)
+        ?? scope.getRegisteredCellById(key)
         ?? (!duplicatedDebugNames.has(key) ? byDebugName.get(key) : undefined);
       if (!cellUnit) {
         continue;
@@ -331,7 +338,7 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
         const resetSnapshot = readImportState(message) ?? initialSnapshot;
         applyingFromDevtools = true;
         try {
-          applySnapshot(scope, resetSnapshot, 'devtools.reset');
+          applySnapshot(scope, resetSnapshot, 'devtools.reset', options.resolveUnit);
         } finally {
           applyingFromDevtools = false;
         }
@@ -345,7 +352,7 @@ export function connectDevtools(options: ConnectDevtoolsOptions): Unsubscribe {
       }
       applyingFromDevtools = true;
       try {
-        applySnapshot(scope, snapshot, `devtools.${message.type}`);
+        applySnapshot(scope, snapshot, `devtools.${message.type}`, options.resolveUnit);
       } finally {
         applyingFromDevtools = false;
       }
