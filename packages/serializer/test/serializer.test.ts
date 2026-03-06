@@ -738,4 +738,41 @@ describe('serializer', () => {
     expect(b?.values.auto_persist_async_serialized_count).toBe(1);
     persistence.unsubscribe();
   });
+
+  it('autoPersistScopeAsync flush persists even when no pending write exists', async () => {
+    const scope = createStore().fork();
+    const memory = new Map<string, string>();
+    const storage = {
+      async getItem(key: string) {
+        return memory.get(key) ?? null;
+      },
+      async setItem(key: string, value: string) {
+        memory.set(key, value);
+      },
+    };
+    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:empty-flush', {
+      storage,
+      debounceMs: 100,
+    });
+
+    const payload = await persistence.flush();
+    expect(payload).not.toBeNull();
+    expect(memory.has('scope:auto:async:empty-flush')).toBe(true);
+    persistence.unsubscribe();
+  });
+
+  it('autoPersistScopeAsync hydrateNow returns null and calls onError on invalid payload', async () => {
+    const scope = createStore().fork();
+    const storage = createMemoryStorage({ 'scope:auto:async:hydrate:error': '{bad-json' });
+    const onError = vi.fn();
+    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:hydrate:error', {
+      storage,
+      onError,
+    });
+
+    const loaded = await persistence.hydrateNow();
+    expect(loaded).toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+    persistence.unsubscribe();
+  });
 });
