@@ -739,6 +739,36 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
+  it('autoPersistScopeAsync flush persists the latest dirty state after an earlier flush', async () => {
+    const count = cell(0, { id: 'auto_persist_async_latest_flush_count' });
+    const scope = createStore().fork();
+    const memory = new Map<string, string>();
+    const storage = {
+      async getItem(key: string) {
+        return memory.get(key) ?? null;
+      },
+      async setItem(key: string, value: string) {
+        memory.set(key, value);
+      },
+    };
+
+    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:latest-flush', {
+      storage,
+      debounceMs: 1000,
+    });
+
+    scope.set(count, 1);
+    await persistence.flush();
+
+    scope.set(count, 2);
+    const payload = await persistence.flush();
+    const stored = memory.get('scope:auto:async:latest-flush');
+
+    expect(payload?.values.auto_persist_async_latest_flush_count).toBe(2);
+    expect(stored).toContain('"auto_persist_async_latest_flush_count":2');
+    persistence.unsubscribe();
+  });
+
   it('autoPersistScopeAsync flush persists even when no pending write exists', async () => {
     const scope = createStore().fork();
     const memory = new Map<string, string>();

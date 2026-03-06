@@ -57,6 +57,90 @@ function seedToEntries(seed: SeedInput): Array<readonly [Cell<any>, unknown]> {
   return seed instanceof Map ? Array.from(seed.entries()) : seed;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function markSeen(
+  seen: WeakMap<object, WeakSet<object>>,
+  left: object,
+  right: object,
+): boolean {
+  const existing = seen.get(left);
+  if (existing?.has(right)) {
+    return true;
+  }
+  if (existing) {
+    existing.add(right);
+    return false;
+  }
+  seen.set(left, new WeakSet([right]));
+  return false;
+}
+
+function seedValueEqual(
+  left: unknown,
+  right: unknown,
+  seen: WeakMap<object, WeakSet<object>> = new WeakMap(),
+): boolean {
+  if (Object.is(left, right)) {
+    return true;
+  }
+
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) {
+      return false;
+    }
+    if (markSeen(seen, left, right)) {
+      return true;
+    }
+    for (let index = 0; index < left.length; index += 1) {
+      if (!seedValueEqual(left[index], right[index], seen)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (isPlainObject(left) && isPlainObject(right)) {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length !== rightKeys.length) {
+      return false;
+    }
+    if (markSeen(seen, left, right)) {
+      return true;
+    }
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key) || !seedValueEqual(left[key], right[key], seen)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function seedEntriesEqual(
+  left: Array<readonly [Cell<any>, unknown]>,
+  right: Array<readonly [Cell<any>, unknown]>,
+): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    const [leftUnit, leftValue] = left[index];
+    const [rightUnit, rightValue] = right[index];
+    if (leftUnit !== rightUnit || !seedValueEqual(leftValue, rightValue)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function useExternalSelected<T>(options: {
   getValue: () => T;
   subscribe: (onStoreChange: () => void) => () => void;
@@ -359,6 +443,7 @@ export function useSuspenseEffectAction<P, R>(
 export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }): void {
   const scope = useScope();
   const hydratedRef = useRef(new WeakMap<Scope, WeakSet<Cell<any>>>());
+  const forcedSeedRef = useRef(new WeakMap<Scope, Array<readonly [Cell<any>, unknown]>>());
   const force = options?.force ?? false;
 
   const entries = seedToEntries(seed);
@@ -398,6 +483,11 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
     if (!force) {
       return;
     }
+    const prevEntries = forcedSeedRef.current.get(scope);
+    if (prevEntries && seedEntriesEqual(prevEntries, entries)) {
+      return;
+    }
     hydrateUnits(true);
+    forcedSeedRef.current.set(scope, entries.map(([unit, value]) => [unit, value] as const));
   });
 }

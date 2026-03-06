@@ -541,6 +541,8 @@ export function autoPersistScopeAsync(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let latestPersist: Promise<SerializedScope | null> | null = null;
   let persistChain: Promise<unknown> = Promise.resolve();
+  let changeVersion = 0;
+  let queuedVersion = 0;
 
   const clearTimer = () => {
     if (!timer) {
@@ -562,6 +564,7 @@ export function autoPersistScopeAsync(
   };
 
   const queuePersist = (): Promise<SerializedScope | null> => {
+    queuedVersion = Math.max(queuedVersion, changeVersion);
     latestPersist = persistChain.then(() => persistNow());
     persistChain = latestPersist.catch(() => null);
     return latestPersist;
@@ -583,6 +586,7 @@ export function autoPersistScopeAsync(
   };
 
   const unsubscribe = scope.subscribe(() => {
+    changeVersion += 1;
     schedulePersist();
   });
 
@@ -593,6 +597,9 @@ export function autoPersistScopeAsync(
     },
     flush: async () => {
       clearTimer();
+      if (!latestPersist || queuedVersion < changeVersion) {
+        return await queuePersist();
+      }
       if (latestPersist) {
         return await latestPersist;
       }

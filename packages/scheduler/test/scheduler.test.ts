@@ -103,6 +103,22 @@ describe('scheduler', () => {
     expect(listener).toHaveBeenCalled();
   });
 
+  it('external committed writes invalidate stale buffered entries before flush', () => {
+    const count = cell(0, { id: 'scheduler_external_commit_invalidates_buffer' });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope });
+
+    scheduler.set<number>(count, (prev) => prev + 1, { priority: 'transition' });
+    expect(scheduler.getBuffered<number>(count)).toBe(1);
+
+    scope.set(count, 10, { priority: 'urgent' });
+    expect(scheduler.getPendingBufferedUpdates()).toHaveLength(0);
+    expect(scheduler.getBuffered<number>(count)).toBe(10);
+
+    scheduler.flushBuffered();
+    expect(scope.get(count)).toBe(10);
+  });
+
   it('flushBuffered restores pending updates when batch throws', () => {
     const bad = cell(0, { id: 'scheduler_flush_error_cell', equal: () => false });
     const scope = createStore().fork();

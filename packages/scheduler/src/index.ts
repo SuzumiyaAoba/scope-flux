@@ -27,6 +27,20 @@ export class Scheduler {
     this.scope = options.scope;
     this.autoFlush = options.autoFlush ?? false;
     this.autoFlushDelayMs = Math.max(0, options.autoFlushDelayMs ?? 0);
+    this.scope.subscribe((commit) => {
+      let changed = false;
+      for (const change of commit.changes) {
+        if (change.kind !== 'set') {
+          continue;
+        }
+        if (this.pendingByCell.delete(change.unit as AnyCell)) {
+          changed = true;
+        }
+      }
+      if (changed) {
+        this._notifyBuffered();
+      }
+    });
   }
 
   public getCommitted<T>(cell: Cell<T>): T {

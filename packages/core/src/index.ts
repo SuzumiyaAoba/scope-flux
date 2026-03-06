@@ -297,6 +297,7 @@ export function effect<P, R>(
 interface EffectQueueItem {
   start: () => void;
   reject: (error: unknown) => void;
+  dispose: () => void;
 }
 
 interface EffectRuntimeState {
@@ -861,12 +862,44 @@ export class Scope {
 
     if (policy === 'queue' && state.running > 0) {
       return await new Promise<R>((resolve, reject) => {
-        const item: EffectQueueItem = {
+        if (options.signal?.aborted) {
+          reject(abortReasonAsError(options.signal, ErrorCodes.EFFECT_ABORTED));
+          return;
+        }
+
+        let item!: EffectQueueItem;
+        const cleanup = () => {
+          if (!options.signal || !onAbort) {
+            return;
+          }
+          options.signal.removeEventListener('abort', onAbort);
+        };
+        const onAbort = options.signal
+          ? () => {
+              const index = state.queue.indexOf(item);
+              if (index === -1) {
+                return;
+              }
+              state.queue.splice(index, 1);
+              item.reject(abortReasonAsError(options.signal!, ErrorCodes.EFFECT_ABORTED));
+              this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
+            }
+          : undefined;
+
+        item = {
           start: () => {
+            cleanup();
             this._executeEffect(unitEffect, payload, options, state).then(resolve, reject);
           },
-          reject,
+          reject: (error) => {
+            cleanup();
+            reject(error);
+          },
+          dispose: cleanup,
         };
+        if (options.signal && onAbort) {
+          options.signal.addEventListener('abort', onAbort, { once: true });
+        }
         state.queue.push(item);
         this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
       });
@@ -931,6 +964,7 @@ export class Scope {
     }
     const queued = state.queue.splice(0);
     for (const item of queued) {
+      item.dispose();
       item.reject(abortError);
     }
     this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);

@@ -383,6 +383,29 @@ describe('react bridge', () => {
     expect(scope.get(count)).toBe(2);
   });
 
+  it('useHydrateUnits force avoids repeated hydration for structurally equal object seeds', () => {
+    const data = cell({ value: 0 }, { id: 'react_force_hydrate_object' });
+    const scope = createStore().fork();
+    let renders = 0;
+
+    function App(): React.JSX.Element {
+      renders += 1;
+      useHydrateUnits([[data, { value: 1 }]], { force: true });
+      const value = useUnit(data);
+      return <>{value.value}</>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    expect(screen.getByText('1')).toBeTruthy();
+    expect(scope.get(data)).toEqual({ value: 1 });
+    expect(renders).toBe(2);
+  });
+
   it('useHydrateUnits treats function values as plain values', () => {
     const fnCell = cell<() => number>(() => 0);
     const scope = createStore().fork();

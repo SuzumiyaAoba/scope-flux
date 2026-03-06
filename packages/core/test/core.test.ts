@@ -592,6 +592,32 @@ describe('core', () => {
     await expect(p2).rejects.toMatchObject({ name: 'AbortError' });
   });
 
+  it('queued effect run rejects immediately when caller aborts before start', async () => {
+    const scope = createStore().fork();
+    let release!: () => void;
+    const fx = effect<number, number>((payload) => {
+      if (payload === 1) {
+        return new Promise<number>((resolve) => {
+          release = () => resolve(1);
+        });
+      }
+      return Promise.resolve(2);
+    }, {
+      policy: { concurrency: 'queue' },
+    });
+
+    const first = scope.run(fx, 1);
+    const controller = new AbortController();
+    const second = scope.run(fx, 2, { signal: controller.signal });
+    controller.abort();
+
+    await expect(second).rejects.toMatchObject({ name: 'AbortError' });
+    expect(scope.getEffectStatus(fx).queued).toBe(0);
+
+    release();
+    await expect(first).resolves.toBe(1);
+  });
+
   it('subscribeUnit listens only to the target cell', () => {
     const a = cell(0, { id: 'unit_sub_a' });
     const b = cell(0, { id: 'unit_sub_b' });
