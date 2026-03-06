@@ -12,7 +12,8 @@
   },
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "docs-site"
   ],
   "scripts": {
     "build": "npm run clean && npm run build:packages",
