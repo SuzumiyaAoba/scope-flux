@@ -818,6 +818,9 @@ export class Scope {
 
     return () => {
       set?.delete(wrapped);
+      if (set && set.size === 0) {
+        this._eventHandlers.delete(key);
+      }
     };
   }
 

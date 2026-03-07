@@ -133,8 +133,16 @@ export class Scheduler {
 
   private _notifyBuffered(): void {
     const listeners = [...this.bufferedSubscribers];
+    let firstError: unknown;
     for (const listener of listeners) {
-      listener();
+      try {
+        listener();
+      } catch (e) {
+        firstError ??= e;
+      }
+    }
+    if (firstError !== undefined) {
+      throw firstError;
     }
   }
 

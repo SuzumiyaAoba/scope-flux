@@ -573,8 +573,9 @@ export function autoPersistScopeAsync(
   };
 
   const queuePersist = (): Promise<SerializedScope | null> => {
-    latestPersist = persistChain.then(() => persistNow());
-    persistChain = latestPersist.catch(() => null);
+    const next = persistChain.then(() => persistNow());
+    persistChain = next.catch(() => null);
+    latestPersist = next.catch(() => null);
     return latestPersist;
   };
 
