@@ -17,6 +17,7 @@ All commands run from the repo root:
 - `npm run test:coverage` — tests with v8 coverage (thresholds: lines 85%, statements 85%, functions 90%, branches 80%)
 - `npm run lint:ids` — check for duplicate `cell({ id })` values
 - `npm run verify:observability` — ensure inspect package doesn't leak into runtime bundles
+- `npm run docs:api` — regenerate TypeDoc API docs into `docs/api/`
 - `npm run docs:dev` — Rspress docs dev server (port 3000)
 - `npm run samples:all` — build + run all samples
 
@@ -38,11 +39,11 @@ core (no deps)
 
 ### Key packages
 
-- **`@suzumiyaaoba/scope-flux-core`** — Foundation. Single-file (`src/index.ts`) with all primitives: `cell`, `computed`, `event`, `effect`, `Scope`, `createStore`. Units are plain objects with a `kind` discriminant. Version tracking drives cache invalidation. Commit batching via `_batchDepth` counter.
+- **`@suzumiyaaoba/scope-flux-core`** — Foundation. Single-file (`src/index.ts`) with all primitives: `cell`, `computed`, `combine`, `event`, `effect`, `asValue`, `Scope`, `createStore`, `createHistoryController`. Scope methods include `get`, `set`, `reset`, `batch`, `emit`, `on`, `run`, `cancelEffect`, `getEffectStatus`, `subscribe*`, `fork`, `destroy`. Units are plain objects with a `kind` discriminant. Version tracking drives cache invalidation. Commit batching via `_batchDepth` counter.
 - **`@suzumiyaaoba/scope-flux-scheduler`** — `Scheduler` class for transition/idle priority buffering.
 - **`@suzumiyaaoba/scope-flux-serializer`** — `serialize()`/`hydrate()` for SSR. Relies on cell `id` for lookup via global `registeredCellsById`.
 - **`@suzumiyaaoba/scope-flux-inspect`** — Observability (`inspect()`, `connectDevtools()`, Redux DevTools adapter). Must be tree-shakeable and excluded from production bundles.
-- **`@suzumiyaaoba/scope-flux-react`** — React 19 hooks: `StoreProvider`, `useUnit`, `useBufferedUnit`, `useCell`, `useCellAction`, `useAction`, `useEffectAction`, `useFlushBuffered`.
+- **`@suzumiyaaoba/scope-flux-react`** — React 19 hooks: `StoreProvider`, `useUnit`, `useBufferedUnit`, `useCell`, `useSetCell`, `useCellAction`, `useAction`, `useEffectAction`, `useEffectStatus`, `useAsyncEffectAction`, `useSuspenseEffectAction`, `useFlushBuffered`, `useHydrateUnits`.
 
 ### Invariants
 

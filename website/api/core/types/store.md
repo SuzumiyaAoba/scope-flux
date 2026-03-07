@@ -6,7 +6,14 @@
 
 ## Description
 
-Store interface exposing root scope and fork API.
+Store interface exposing root scope, fork, and destroy APIs.
+
+Properties and methods:
+
+- `root: Scope` — the root scope instance
+- `fork(seed?)` — create an isolated child scope
+- `destroy()` — destroy root scope and clear cell registry
+- `getRegisteredCellById(id)` / `listRegisteredCells()` / `unregisterCellById(id)` / `clearRegisteredCells()`
 
 ## Example
 

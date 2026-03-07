@@ -9,9 +9,12 @@ const docsBase = process.env.DOCS_BASE_PATH || '/';
 const coreFunctionItems = [
   { text: 'cell', link: '/api/core/functions/cell' },
   { text: 'computed', link: '/api/core/functions/computed' },
+  { text: 'combine', link: '/api/core/functions/combine' },
   { text: 'event', link: '/api/core/functions/event' },
   { text: 'effect', link: '/api/core/functions/effect' },
   { text: 'createStore', link: '/api/core/functions/create-store' },
+  { text: 'createHistoryController', link: '/api/core/functions/create-history-controller' },
+  { text: 'asValue', link: '/api/core/functions/as-value' },
   { text: 'getRegisteredCellById', link: '/api/core/functions/get-registered-cell-by-id' },
   { text: 'listRegisteredCells', link: '/api/core/functions/list-registered-cells' },
 ];
@@ -43,6 +46,11 @@ const coreTypeItems = [
   { text: 'CommitEvent', link: '/api/core/types/commit-event' },
   { text: 'SeedInput', link: '/api/core/types/seed-input' },
   { text: 'Store', link: '/api/core/types/store' },
+  { text: 'HistoryController', link: '/api/core/types/history-controller' },
+  { text: 'HistoryOptions', link: '/api/core/types/history-options' },
+  { text: 'ValueBox<T>', link: '/api/core/types/value-box' },
+  { text: 'ErrorCodes', link: '/api/core/types/error-codes' },
+  { text: 'EffectStatusListener', link: '/api/core/types/effect-status-listener' },
 ];
 
 const reactFunctionItems = [
@@ -56,6 +64,9 @@ const reactFunctionItems = [
   { text: 'useEffectAction', link: '/api/react/functions/use-effect-action' },
   { text: 'useEffectStatus', link: '/api/react/functions/use-effect-status' },
   { text: 'useAsyncEffectAction', link: '/api/react/functions/use-async-effect-action' },
+  { text: 'useSuspenseEffectAction', link: '/api/react/functions/use-suspense-effect-action' },
+  { text: 'useSetCell', link: '/api/react/functions/use-set-cell' },
+  { text: 'useHydrateUnits', link: '/api/react/functions/use-hydrate-units' },
 ];
 
 const reactTypeItems = [
@@ -79,6 +90,10 @@ const serializerFunctionItems = [
   { text: 'hydrateFromStorage', link: '/api/serializer/functions/hydrate-from-storage' },
   { text: 'autoPersistScope', link: '/api/serializer/functions/auto-persist-scope' },
   { text: 'escapeJsonForHtml', link: '/api/serializer/functions/escape-json-for-html' },
+  { text: 'persistToStorageAsync', link: '/api/serializer/functions/persist-to-storage-async' },
+  { text: 'hydrateFromStorageAsync', link: '/api/serializer/functions/hydrate-from-storage-async' },
+  { text: 'autoPersistScopeAsync', link: '/api/serializer/functions/auto-persist-scope-async' },
+  { text: 'createMemoryStorage', link: '/api/serializer/functions/create-memory-storage' },
 ];
 
 const serializerTypeItems = [
@@ -86,12 +101,20 @@ const serializerTypeItems = [
   { text: 'SerializedScope', link: '/api/serializer/types/serialized-scope' },
   { text: 'SerializeOptions', link: '/api/serializer/types/serialize-options' },
   { text: 'HydrateOptions', link: '/api/serializer/types/hydrate-options' },
+  { text: 'StorageLike', link: '/api/serializer/types/storage-like' },
+  { text: 'AsyncStorageLike', link: '/api/serializer/types/async-storage-like' },
+  { text: 'StorageCodec', link: '/api/serializer/types/storage-codec' },
+  { text: 'PersistToStorageOptions', link: '/api/serializer/types/persist-to-storage-options' },
+  { text: 'HydrateFromStorageOptions', link: '/api/serializer/types/hydrate-from-storage-options' },
+  { text: 'AutoPersistOptions', link: '/api/serializer/types/auto-persist-options' },
+  { text: 'AutoPersistAsyncOptions', link: '/api/serializer/types/auto-persist-async-options' },
 ];
 
 const inspectFunctionItems = [
   { text: 'inspect', link: '/api/inspect/functions/inspect' },
   { text: 'connectDevtools', link: '/api/inspect/functions/connect-devtools' },
   { text: 'createReduxDevtoolsAdapter', link: '/api/inspect/functions/create-redux-devtools-adapter' },
+  { text: 'mountInspectPanel', link: '/api/inspect/functions/mount-inspect-panel' },
 ];
 
 const inspectTypeItems = [
@@ -104,6 +127,9 @@ const inspectTypeItems = [
   { text: 'ReduxDevtoolsLike', link: '/api/inspect/types/redux-devtools-like' },
   { text: 'ReduxDevtoolsAdapterOptions', link: '/api/inspect/types/redux-devtools-adapter-options' },
   { text: 'ReduxDevtoolsAdapter', link: '/api/inspect/types/redux-devtools-adapter' },
+  { text: 'DevtoolsMessage', link: '/api/inspect/types/devtools-message' },
+  { text: 'InspectPanelOptions', link: '/api/inspect/types/inspect-panel-options' },
+  { text: 'InspectPanelController', link: '/api/inspect/types/inspect-panel-controller' },
 ];
 
 export default defineConfig({

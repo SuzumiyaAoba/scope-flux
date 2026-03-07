@@ -10,10 +10,13 @@ Runtime boundary holding cell values, computed cache, subscriptions, and event h
 
 Notable runtime methods include:
 
-- `run(effect, payload, options?)`
-- `cancelEffect(effect)`
-- `getEffectStatus(effect)`
-- `subscribeUnit(unit, listener)`
+- `get(unit)` / `set(cell, next, options?)`
+- `reset(cell, options?)` — restore cell to initial value
+- `batch(fn)` — group updates into one commit
+- `run(effect, payload, options?)` / `cancelEffect(effect)` / `getEffectStatus(effect)`
+- `subscribeUnit(unit, listener)` / `subscribe(listener)` / `subscribeEffectStatus(effect, listener)`
+- `destroy()` — release all subscriptions, cancel effects, clear state
+- `fork(seed?)` — create child scope with inherited state
 
 ## Example
 

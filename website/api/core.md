@@ -80,6 +80,18 @@ Effect options also support execution policy:
 - `retries`: retry count for failures
 - `retryDelayMs`: retry backoff delay
 
+### `combine(deps, options?)`
+Shorthand for creating a `computed` that returns a tuple of all dependency values.
+
+```ts
+const combined = combine([name, age]);
+scope.get(combined); // [nameValue, ageValue]
+```
+
+- Accepts the same `deps` and `options` as `computed`.
+- The resulting computed caches like a normal `computed`.
+- Useful for combining multiple cells into a single subscription point.
+
 ## Store / Scope API
 
 ### `createStore({ seed? })`
@@ -103,6 +115,13 @@ Writes to a cell.
 
 - `next` can be value or updater function `(prev) => next`.
 
+### `scope.reset(cell, options?)`
+Resets a cell to its initial value (`cell.init`).
+
+- Equivalent to `scope.set(cell, cell.init, options)`.
+- Skipped if the current value already equals the init value.
+- Useful for form resets, modal closes, or returning to default state.
+
 ### `scope.emit(event, payload, options?)`
 Emits event payload to registered handlers.
 
@@ -125,6 +144,14 @@ Subscribes to updates of a specific unit.
 
 - `cell`: notified on updates to the target cell.
 - `computed`: falls back to scope commit subscription.
+
+### `scope.destroy()`
+Destroys the scope, releasing all resources.
+
+- Cancels all running and queued effects (AbortSignal fires).
+- Clears all subscriptions (scope, unit, effect status, event handlers).
+- Clears all internal state (cell values, versions, computed cache).
+- Use for cleanup in SPA route transitions, test teardown, or when a scope is no longer needed.
 
 ### `scope.cancelEffect(effect)`
 Aborts running and queued executions for the target effect.
@@ -200,6 +227,15 @@ Example reasons:
   - `seed` injects initial cell values.
   - `SeedInput` is `Map<Cell, unknown>` or `Array<[Cell, unknown]>`.
 
+### `combine(deps, options?)`
+
+- `deps: readonly (Cell<any> | Computed<any>)[]`
+  - Dependency unit list.
+- `options?: { debugName?: string; cache?: 'scope' | 'none' }`
+  - Same options as `computed`.
+- Returns: `Computed<[...values], D>`
+  - A computed unit whose value is a tuple of all dependency values.
+
 ### `scope.get(unit)`
 
 - `unit: Cell<T> | Computed<T>`
@@ -215,6 +251,21 @@ Example reasons:
 - `options?: UpdateOptions`
   - `priority?: Priority`
   - `reason?: string`
+
+### `scope.reset(unit, options?)`
+
+- `unit: Cell<T>`
+  - Target cell to reset.
+  - Throws `NS_CORE_INVALID_UPDATE` for non-cell units.
+- `options?: UpdateOptions`
+  - `priority?: Priority`
+  - `reason?: string`
+
+### `scope.destroy()`
+
+- No arguments.
+- Cancels all running/queued effects, clears all subscriptions and internal state.
+- After calling, the scope is empty but can still be used (all values revert to cell defaults on next access).
 
 ### `scope.on(event, handler)`
 
@@ -300,6 +351,11 @@ console.log(scope.get(doubled)); // 2
 
 - `seed?: SeedInput`
   - Initial values for the new `Scope`.
+
+### `store.destroy()`
+
+- No arguments.
+- Destroys the root scope and clears the cell registry.
 
 ### `getRegisteredCellById(id)`
 
