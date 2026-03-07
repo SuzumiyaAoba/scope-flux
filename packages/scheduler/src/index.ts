@@ -111,6 +111,7 @@ export class Scheduler {
       for (const update of updates) {
         this.pendingByCell.set(update.cell, update);
       }
+      this._notifyBuffered();
       throw error;
     }
 

@@ -246,19 +246,21 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
     throw new Error('NS_SER_INVALID_HYDRATE_MODE');
   }
 
-  for (const [id, value] of Object.entries(sourcePayload.values)) {
-    const cellUnit = scope.getRegisteredCellById(id);
-    if (!cellUnit) {
-      continue;
-    }
+  scope.batch(() => {
+    for (const [id, value] of Object.entries(sourcePayload.values)) {
+      const cellUnit = scope.getRegisteredCellById(id);
+      if (!cellUnit) {
+        continue;
+      }
 
-    if (mode !== 'force' && scope.isHydrated(id)) {
-      continue;
-    }
+      if (mode !== 'force' && scope.isHydrated(id)) {
+        continue;
+      }
 
-    scope.set(cellUnit, value, { reason: 'hydrate', priority: 'urgent' });
-    scope.markHydrated(id);
-  }
+      scope.set(cellUnit, value, { reason: 'hydrate', priority: 'urgent' });
+      scope.markHydrated(id);
+    }
+  });
 }
 
 const escapeMap: Record<string, string> = {
@@ -379,6 +381,7 @@ export function autoPersistScope(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let localDirty = false;
   let lastPersistedEncoded = '';
+  let applyingExternal = false;
 
   const clearTimer = () => {
     if (!timer) {
@@ -431,6 +434,9 @@ export function autoPersistScope(
   };
 
   const unsubscribe = scope.subscribe(() => {
+    if (applyingExternal) {
+      return;
+    }
     localDirty = true;
     schedulePersist();
   });
@@ -474,10 +480,15 @@ export function autoPersistScope(
           const parsed = parseStoredPayload(e.newValue);
           const payloadToHydrate = resolvePayloadForHydration(parsed);
 
-          hydrate(scope, payloadToHydrate, {
-            mode: options.mode ?? 'force',
-            migrate: options.migrate,
-          });
+          applyingExternal = true;
+          try {
+            hydrate(scope, payloadToHydrate, {
+              mode: options.mode ?? 'force',
+              migrate: options.migrate,
+            });
+          } finally {
+            applyingExternal = false;
+          }
           localDirty = false;
           options.onExternalHydrate?.(payloadToHydrate);
         } catch (error) {
