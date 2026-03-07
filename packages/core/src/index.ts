@@ -804,6 +804,13 @@ export class Scope {
     throw new Error(ErrorCodes.INVALID_UPDATE);
   }
 
+  public reset<T>(unit: Cell<T>, options: UpdateOptions = {}): void {
+    if (!unit || unit.kind !== 'cell') {
+      throw new Error(ErrorCodes.INVALID_UPDATE);
+    }
+    this.set(unit, unit.init, options);
+  }
+
   public set<T>(unit: Cell<T>, next: T | ((prev: T) => T) | ValueBox<T>, options: UpdateOptions = {}): void {
     if (!unit || unit.kind !== 'cell') {
       throw new Error(ErrorCodes.INVALID_UPDATE);
@@ -1009,6 +1016,32 @@ export class Scope {
     };
   }
 
+  public destroy(): void {
+    for (const [effectUnit, state] of this._effectStates.entries()) {
+      const abortError = toAbortError(ErrorCodes.EFFECT_ABORTED);
+      for (const controller of Array.from(state.controllers)) {
+        controller.abort(abortError);
+      }
+      const queued = state.queue.splice(0);
+      for (const item of queued) {
+        item.reject(abortError);
+      }
+    }
+    this._subscribers.clear();
+    this._unitSubscribers.clear();
+    this._effectSubscribers.clear();
+    this._eventHandlers.clear();
+    this._effectStates.clear();
+    this._cellValues.clear();
+    this._cellVersions.clear();
+    this._computedVersions.clear();
+    this._computedCache.clear();
+    this._knownCells.clear();
+    this._hydratedIds.clear();
+    this._pendingChanges = [];
+    this._pendingPriority = undefined;
+  }
+
   public fork(seed?: SeedInput): Scope {
     const child = new Scope(this._registry);
     for (const [cellUnit, value] of this._cellValues.entries()) {
@@ -1057,6 +1090,7 @@ export class Scope {
 export interface Store {
   root: Scope;
   fork(seed?: SeedInput): Scope;
+  destroy(): void;
   getRegisteredCellById(id: string): Cell<any> | undefined;
   listRegisteredCells(): Cell<any>[];
   unregisterCellById(id: string): boolean;
@@ -1098,6 +1132,10 @@ export function createStore(options: { seed?: SeedInput } = {}): Store {
     fork(seed?: SeedInput): Scope {
       return root.fork(seed);
     },
+    destroy(): void {
+      root.destroy();
+      registry.clear();
+    },
     getRegisteredCellById(id: string): Cell<any> | undefined {
       return registry.getById(id);
     },
@@ -1111,6 +1149,18 @@ export function createStore(options: { seed?: SeedInput } = {}): Store {
       registry.clear();
     },
   };
+}
+
+export function combine<const D extends ComputedDeps>(
+  deps: D,
+  options: { debugName?: string; cache?: 'scope' | 'none' } = {}
+): Computed<{ [K in keyof D]: UnitValue<D[K]> }, D> {
+  type Result = { [K in keyof D]: UnitValue<D[K]> };
+  return computed<D, Result>(
+    deps,
+    ((...args: ComputedArgs<D>) => args as unknown as Result) as (...args: ComputedArgs<D>) => Result,
+    options
+  );
 }
 
 export function asValue<T>(value: T): ValueBox<T> {

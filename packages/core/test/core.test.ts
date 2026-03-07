@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   asValue,
   cell,
+  combine,
   computed,
   createHistoryController,
   createStore,
@@ -1109,6 +1110,131 @@ describe('core', () => {
     await expect(scope.run(fx, undefined)).rejects.toThrowError('effect_boom');
     expect(listenerA).toHaveBeenCalled();
     expect(listenerB).toHaveBeenCalled();
+  });
+
+  it('reset restores cell to its init value', () => {
+    const count = cell(10, { id: 'reset_count' });
+    const scope = createStore().fork();
+    scope.set(count, 42);
+    expect(scope.get(count)).toBe(42);
+
+    scope.reset(count);
+    expect(scope.get(count)).toBe(10);
+  });
+
+  it('reset emits a commit with the change', () => {
+    const count = cell(0, { id: 'reset_commit_count' });
+    const scope = createStore().fork();
+    scope.set(count, 5);
+
+    const commits: Array<{ changes: Array<{ kind: string; prev: unknown; next: unknown }> }> = [];
+    scope.subscribe((evt) => {
+      commits.push(evt as any);
+    });
+
+    scope.reset(count);
+    expect(commits).toHaveLength(1);
+    expect(commits[0].changes[0]).toMatchObject({ kind: 'set', prev: 5, next: 0 });
+  });
+
+  it('reset is a no-op when cell already has init value', () => {
+    const count = cell(0, { id: 'reset_noop_count' });
+    const scope = createStore().fork();
+    const listener = vi.fn();
+    scope.subscribe(listener);
+
+    scope.reset(count);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('reset throws for non-cell units', () => {
+    const scope = createStore().fork();
+    expect(() => scope.reset(null as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);
+  });
+
+  it('destroy clears all subscriptions and state', () => {
+    const a = cell(1, { id: 'destroy_a' });
+    const scope = createStore().fork();
+    scope.set(a, 10);
+
+    const listener = vi.fn();
+    scope.subscribe(listener);
+    scope.subscribeUnit(a, vi.fn());
+
+    scope.destroy();
+
+    expect(scope.listKnownCells()).toEqual([]);
+    // Listener should not fire after destroy
+    expect(() => scope.set(a, 20)).not.toThrow();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('destroy cancels running effects', async () => {
+    const scope = createStore().fork();
+    let aborted = false;
+    const fx = effect<void, void>(async (_p, ctx) => {
+      try {
+        await new Promise((_, reject) => {
+          ctx.signal.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      } catch {
+        aborted = true;
+        throw new Error('aborted');
+      }
+    });
+
+    const promise = scope.run(fx, undefined).catch(() => {});
+    scope.destroy();
+    await promise;
+    expect(aborted).toBe(true);
+  });
+
+  it('store.destroy clears root scope and registry', () => {
+    const a = cell(1, { id: 'store_destroy_a' });
+    const store = createStore();
+    store.root.set(a, 10);
+    expect(store.getRegisteredCellById('store_destroy_a')).toBe(a);
+
+    store.destroy();
+    expect(store.getRegisteredCellById('store_destroy_a')).toBeUndefined();
+    expect(store.root.listKnownCells()).toEqual([]);
+  });
+
+  it('combine creates a computed tuple from multiple cells', () => {
+    const a = cell(1, { id: 'combine_a' });
+    const b = cell('hello', { id: 'combine_b' });
+    const combined = combine([a, b]);
+    const scope = createStore().fork();
+
+    expect(scope.get(combined)).toEqual([1, 'hello']);
+
+    scope.set(a, 2);
+    expect(scope.get(combined)).toEqual([2, 'hello']);
+
+    scope.set(b, 'world');
+    expect(scope.get(combined)).toEqual([2, 'world']);
+  });
+
+  it('combine caches like a regular computed', () => {
+    const a = cell(1, { id: 'combine_cache_a' });
+    const b = cell(2, { id: 'combine_cache_b' });
+    const combined = combine([a, b]);
+    const scope = createStore().fork();
+
+    const first = scope.get(combined);
+    const second = scope.get(combined);
+    expect(first).toBe(second);
+  });
+
+  it('combine works with computed dependencies', () => {
+    const a = cell(3, { id: 'combine_computed_a' });
+    const doubled = computed([a], (v) => v * 2);
+    const combined = combine([a, doubled]);
+    const scope = createStore().fork();
+
+    expect(scope.get(combined)).toEqual([3, 6]);
+    scope.set(a, 5);
+    expect(scope.get(combined)).toEqual([5, 10]);
   });
 
   it('fork copies hydratedIds from parent', () => {
