@@ -775,4 +775,37 @@ describe('serializer', () => {
     expect(onError).toHaveBeenCalledTimes(1);
     persistence.unsubscribe();
   });
+
+  it('autoPersistScopeAsync flush persists latest state after debounced change', async () => {
+    const count = cell(0, { id: 'async_flush_stale_count' });
+    const scope = createStore().fork();
+    const memory = new Map<string, string>();
+    const storage = {
+      async getItem(key: string) {
+        return memory.get(key) ?? null;
+      },
+      async setItem(key: string, value: string) {
+        memory.set(key, value);
+      },
+    };
+
+    const persistence = autoPersistScopeAsync(scope, 'scope:async:flush-stale', {
+      storage,
+      debounceMs: 50,
+    });
+
+    // First change — debounce timer set, then we flush to force persist
+    scope.set(count, 1);
+    const payload1 = await persistence.flush();
+    expect(payload1?.values.async_flush_stale_count).toBe(1);
+
+    // Second change — debounce timer set but not yet fired
+    scope.set(count, 2);
+    // flush() should persist the NEW state (count=2), not return stale payload1
+    const payload2 = await persistence.flush();
+    expect(payload2).not.toBeNull();
+    expect(payload2?.values.async_flush_stale_count).toBe(2);
+
+    persistence.unsubscribe();
+  });
 });

@@ -390,10 +390,19 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
     });
   };
 
+  // Intentional render-time side effect: hydration must complete before
+  // subsequent useUnit calls in the same render read the values.  Moving
+  // this into useEffect would break the "hydrate before first read"
+  // contract.  The operation is idempotent (guarded by seenUnits) so it
+  // is safe under Strict Mode double-renders and concurrent render aborts.
   if (!force) {
     hydrateUnits(false);
   }
 
+  // Intentional: no dependency array.  In force mode the effect must
+  // re-run on every render so it picks up new seed values passed via
+  // props.  Scope.set's internal equality check prevents unnecessary
+  // notifications when the value has not actually changed.
   useEffect(() => {
     if (!force) {
       return;

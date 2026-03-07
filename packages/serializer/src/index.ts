@@ -593,9 +593,6 @@ export function autoPersistScopeAsync(
     },
     flush: async () => {
       clearTimer();
-      if (latestPersist) {
-        return await latestPersist;
-      }
       return await queuePersist();
     },
     hydrateNow: async () => {

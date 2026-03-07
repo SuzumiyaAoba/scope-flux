@@ -686,4 +686,25 @@ describe('core', () => {
     expect(history.undo()).toBe(true);
     expect(scope.get(count)).toBe(1);
   });
+
+  it('batch rollback removes newly registered cells from the registry', () => {
+    const store = createStore();
+    const scope = store.root;
+
+    const newCell = cell(0, { id: 'batch_rollback_registry_cell' });
+
+    expect(store.getRegisteredCellById('batch_rollback_registry_cell')).toBeUndefined();
+
+    expect(() => {
+      scope.batch(() => {
+        scope.set(newCell, 1);
+        // The cell is now registered in the registry
+        expect(store.getRegisteredCellById('batch_rollback_registry_cell')).toBe(newCell);
+        throw new Error('rollback');
+      });
+    }).toThrowError('rollback');
+
+    // After rollback, the cell should no longer be in the registry
+    expect(store.getRegisteredCellById('batch_rollback_registry_cell')).toBeUndefined();
+  });
 });

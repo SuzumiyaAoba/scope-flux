@@ -1,6 +1,14 @@
-import type { Cell, Priority, Scope, UpdateOptions } from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Priority, Scope, UpdateOptions, ValueBox } from '@suzumiyaaoba/scope-flux-core';
 
 type AnyCell = Cell<unknown>;
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValueBox<T>(value: unknown): value is ValueBox<T> {
+  return isObject(value) && '__scopeFluxValue' in value;
+}
 
 export interface PendingBufferedUpdate {
   cell: AnyCell;
@@ -44,7 +52,7 @@ export class Scheduler {
 
   public set<T>(
     cell: Cell<T>,
-    next: T | ((prev: T) => T),
+    next: T | ((prev: T) => T) | ValueBox<T>,
     options: UpdateOptions = {}
   ): void {
     const anyCell = cell as AnyCell;
@@ -60,7 +68,13 @@ export class Scheduler {
     }
 
     const prev = this.getBuffered<T>(cell);
-    const value = typeof next === 'function' ? (next as (prev: T) => T)(prev) : next;
+    const value = isValueBox<T>(next)
+      ? next.__scopeFluxValue
+      : typeof next === 'function'
+        ? typeof cell.init === 'function'
+          ? next as T
+          : (next as (prev: T) => T)(prev)
+        : next;
 
     this.pendingByCell.set(anyCell, {
       cell: anyCell,

@@ -193,4 +193,20 @@ describe('scheduler', () => {
       g.requestIdleCallback = originalIdle;
     }
   });
+
+  it('buffered set treats function literal as value for function-valued cells', () => {
+    const fn1 = () => 1;
+    const fn2 = () => 2;
+    const callback = cell(fn1, { id: 'scheduler_fn_cell' });
+    const scope = createStore().fork();
+    const scheduler = createScheduler({ scope });
+
+    scheduler.set(callback, fn2, { priority: 'transition' });
+
+    // fn2 should be stored as-is, not invoked as an updater
+    expect(scheduler.getBuffered(callback)).toBe(fn2);
+
+    scheduler.flushBuffered();
+    expect(scope.get(callback)).toBe(fn2);
+  });
 });

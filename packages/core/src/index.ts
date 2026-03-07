@@ -635,6 +635,14 @@ export class Scope {
       this._batchDepth -= 1;
       this._pendingChanges.splice(prevLength);
       this._pendingPriority = prevPriority;
+      for (const cellUnit of this._knownCells) {
+        if (!prevKnownCells.has(cellUnit)) {
+          const id = cellUnit.meta.id;
+          if (id) {
+            this._registry.unregisterById(id);
+          }
+        }
+      }
       this._cellValues.clear();
       this._cellVersions.clear();
       this._computedVersions.clear();
