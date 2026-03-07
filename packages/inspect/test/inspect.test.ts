@@ -533,6 +533,124 @@ describe('inspect', () => {
     unsub();
   });
 
+  it('connectDevtools handles adapter.send() throwing repeatedly', () => {
+    const count = cell(0, { id: 'inspect_send_error_count' });
+    const scope = createStore().fork();
+    const onError = vi.fn();
+    let sendCallCount = 0;
+    const adapter = {
+      init: vi.fn(),
+      send: () => {
+        sendCallCount++;
+        throw new Error(`send_fail_${sendCallCount}`);
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter, onError });
+    scope.set(count, 1);
+    scope.set(count, 2);
+
+    expect(onError).toHaveBeenCalledTimes(2);
+    unsub();
+  });
+
+  it('connectDevtools works with send-only adapter (no subscribe)', () => {
+    const count = cell(0, { id: 'inspect_send_only_count' });
+    const scope = createStore().fork();
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    scope.set(count, 1);
+
+    expect(adapter.send).toHaveBeenCalled();
+    unsub();
+  });
+
+  it('inspect with trace=false omits parentId', () => {
+    const count = cell(0, { id: 'inspect_no_trace_count' });
+    const scope = createStore().fork();
+    const records: any[] = [];
+
+    const unsub = inspect({
+      scope,
+      trace: false,
+      onRecord: (record) => records.push(record),
+    });
+
+    scope.set(count, 1);
+    unsub();
+
+    expect(records.length).toBeGreaterThan(0);
+    expect(records[0].trace.parentId).toBeUndefined();
+  });
+
+  it('inspect captures event records with empty diffs', () => {
+    const ping = event<number>({ debugName: 'inspect_event_diff_ping' });
+    const scope = createStore().fork();
+    const records: any[] = [];
+
+    const unsub = inspect({
+      scope,
+      onRecord: (record) => records.push(record),
+    });
+
+    scope.emit(ping, 42);
+    unsub();
+
+    const eventRecords = records.filter((r: any) => r.trace.kind === 'event');
+    expect(eventRecords.length).toBeGreaterThan(0);
+    expect(eventRecords[0].diffs).toHaveLength(0);
+  });
+
+  it('connectDevtools applies jump_to_action like jump_to_state', () => {
+    const count = cell(0, { id: 'inspect_jump_action_count' });
+    const scope = createStore().fork();
+    scope.registerCell(count);
+    let receive!: (message: { type: string; state?: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: any) => void) => {
+        receive = listener;
+        return () => {};
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    receive({ type: 'jump_to_action', state: { inspect_jump_action_count: 12 } });
+    expect(scope.get(count)).toBe(12);
+    unsub();
+  });
+
+  it('applySnapshot skips keys that match no registered cell', () => {
+    const count = cell(0, { id: 'inspect_snapshot_unknown_count' });
+    const scope = createStore().fork();
+    scope.registerCell(count);
+    let receive!: (message: { type: string; state?: unknown }) => void;
+    const adapter = {
+      init: vi.fn(),
+      send: vi.fn(),
+      subscribe: (listener: (message: any) => void) => {
+        receive = listener;
+        return () => {};
+      },
+    };
+
+    const unsub = connectDevtools({ scope, adapter });
+    receive({
+      type: 'jump_to_state',
+      state: {
+        inspect_snapshot_unknown_count: 5,
+        nonexistent_key: 99,
+      },
+    });
+    expect(scope.get(count)).toBe(5);
+    unsub();
+  });
+
   it('mountInspectPanel renders incoming records', () => {
     const count = cell(0, { id: 'inspect_panel_count' });
     const scope = createStore().fork();

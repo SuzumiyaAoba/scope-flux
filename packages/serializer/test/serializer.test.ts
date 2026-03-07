@@ -776,6 +776,34 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
+  it('autoPersistScopeAsync flush returns null (not rejected) when persist fails', async () => {
+    const scope = createStore().fork();
+    let callCount = 0;
+    const storage = {
+      async getItem() { return null; },
+      async setItem() {
+        callCount++;
+        if (callCount <= 1) throw new Error('storage_fail');
+      },
+    };
+    const onError = vi.fn();
+    const persistence = autoPersistScopeAsync(scope, 'scope:async:error-chain', {
+      storage,
+      debounceMs: 0,
+      onError,
+    });
+
+    const result = await persistence.flush();
+    expect(result).toBeNull();
+    expect(onError).toHaveBeenCalledTimes(1);
+
+    // Second flush should still work (chain not broken)
+    const result2 = await persistence.flush();
+    expect(result2).not.toBeNull();
+
+    persistence.unsubscribe();
+  });
+
   it('autoPersistScopeAsync flush persists latest state after debounced change', async () => {
     const count = cell(0, { id: 'async_flush_stale_count' });
     const scope = createStore().fork();
@@ -807,5 +835,121 @@ describe('serializer', () => {
     expect(payload2?.values.async_flush_stale_count).toBe(2);
 
     persistence.unsubscribe();
+  });
+
+  // --- Edge case tests ---
+
+  it('serialize handles emoji (4-byte UTF-8) in maxBytes calculation', () => {
+    const emoji = cell('😀', { id: 'emoji_cell' });
+    const scope = createStore().fork();
+    scope.set(emoji, '😀');
+
+    // emoji is 4 bytes UTF-8, so a tight limit should reject
+    expect(() => serialize(scope, { maxBytes: 10 })).toThrowError(/NS_SER_PAYLOAD_TOO_LARGE/);
+
+    // generous limit should pass
+    const payload = serialize(scope, { maxBytes: 500 });
+    expect(payload.values.emoji_cell).toBe('😀');
+  });
+
+  it('isJsonValue rejects NaN and Infinity', () => {
+    const nanCell = cell<number>(0, { id: 'nan_serialize_cell' });
+    const scope = createStore().fork();
+    scope.set(nanCell, NaN);
+
+    expect(() => serialize(scope)).toThrowError(/NS_SER_NON_JSON_VALUE/);
+
+    scope.set(nanCell, Infinity);
+    expect(() => serialize(scope)).toThrowError(/NS_SER_NON_JSON_VALUE/);
+  });
+
+  it('isJsonValue accepts nested arrays and objects', () => {
+    const nested = cell<unknown>(null, { id: 'nested_json_cell' });
+    const scope = createStore().fork();
+    scope.set(nested, { a: [1, { b: [true, null, 'x'] }] });
+
+    const payload = serialize(scope);
+    expect(payload.values.nested_json_cell).toEqual({ a: [1, { b: [true, null, 'x'] }] });
+  });
+
+  it('hydrateFromStorage returns null for empty string in storage', () => {
+    const count = cell(0, { id: 'empty_string_storage_count' });
+    const scope = createStore().fork();
+    scope.registerCell(count);
+    const storage = createMemoryStorage({ 'scope:empty': '' });
+
+    const result = hydrateFromStorage(scope, 'scope:empty', { storage });
+    expect(result).toBeNull();
+  });
+
+  it('hydrateFromStorage returns null when key is absent', () => {
+    const count = cell(0, { id: 'missing_key_storage_count' });
+    const scope = createStore().fork();
+    scope.registerCell(count);
+    const storage = createMemoryStorage();
+
+    const result = hydrateFromStorage(scope, 'scope:missing', { storage });
+    expect(result).toBeNull();
+  });
+
+  it('createMemoryStorage handles empty string key', () => {
+    const storage = createMemoryStorage();
+    storage.setItem('', 'value');
+    expect(storage.getItem('')).toBe('value');
+  });
+
+  it('escapeJsonForHtml is safe for double-escaping', () => {
+    const first = escapeJsonForHtml('{"x":"<script>"}');
+    const second = escapeJsonForHtml(first);
+    // Each pass escapes independently; no crash
+    expect(second).toBeTruthy();
+    expect(second.includes('<')).toBe(false);
+  });
+
+  it('persistToStorage throws when storage.setItem throws', () => {
+    const count = cell(0, { id: 'storage_setitem_throw_count' });
+    const scope = createStore().fork();
+    scope.set(count, 1);
+    const storage = {
+      getItem: () => null,
+      setItem: () => { throw new Error('storage_full'); },
+    };
+
+    expect(() => persistToStorage(scope, 'scope:fail', { storage })).toThrowError('storage_full');
+  });
+
+  it('autoPersistScope unsubscribe stops listening to scope changes', () => {
+    vi.useFakeTimers();
+    try {
+      const count = cell(0, { id: 'auto_persist_unsub_stop_count' });
+      const scope = createStore().fork();
+      const storage = createMemoryStorage();
+      const { unsubscribe, flush } = autoPersistScope(scope, 'scope:unsub', {
+        storage,
+        debounceMs: 10,
+      });
+
+      scope.set(count, 1);
+      flush();
+      const first = storage.getItem('scope:unsub');
+
+      unsubscribe();
+      scope.set(count, 2);
+      vi.advanceTimersByTime(100);
+
+      // Storage should not have been updated after unsubscribe
+      expect(storage.getItem('scope:unsub')).toBe(first);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hydrate with migrate that produces invalid schema throws', () => {
+    const scope = createStore().fork();
+    const payload = { version: 2, scopeId: 'x', values: { a: 1 } };
+
+    expect(() => hydrate(scope, payload, {
+      migrate: () => ({ version: 'bad' as any, scopeId: 'x', values: {} }),
+    })).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
 });

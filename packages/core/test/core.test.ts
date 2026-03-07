@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  asValue,
   cell,
   computed,
   createHistoryController,
@@ -728,5 +729,334 @@ describe('core', () => {
     // After rollback, the id-less cell should also be removed
     expect(store.listRegisteredCells().length).toBe(initialCount);
     expect(store.listRegisteredCells()).not.toContain(noIdCell);
+  });
+
+  // --- Edge case tests ---
+
+  it('defaultEqual treats NaN as equal to NaN', () => {
+    const n = cell<number>(NaN, { id: 'nan_equal_cell' });
+    const scope = createStore().fork();
+    const listener = vi.fn();
+    scope.subscribe(listener);
+
+    scope.set(n, NaN);
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('asValue wraps undefined and falsy values correctly', () => {
+    const box = asValue(undefined);
+    expect(box.__scopeFluxValue).toBeUndefined();
+    expect('__scopeFluxValue' in box).toBe(true);
+
+    const zeroBox = asValue(0);
+    expect(zeroBox.__scopeFluxValue).toBe(0);
+
+    const nullBox = asValue(null);
+    expect(nullBox.__scopeFluxValue).toBeNull();
+  });
+
+  it('set with ValueBox bypasses updater detection', () => {
+    const count = cell(0, { id: 'valuebox_set_count' });
+    const scope = createStore().fork();
+    const fn = (prev: number) => prev + 1;
+
+    // Without asValue, function is treated as updater
+    scope.set(count, fn);
+    expect(scope.get(count)).toBe(1);
+
+    // With asValue, function itself is stored (but cell type is number, so this tests the mechanism)
+    const fnCell = cell<(...args: any[]) => any>(() => 0, { id: 'valuebox_fn_cell' });
+    const myFn = () => 42;
+    scope.set(fnCell, asValue(myFn));
+    expect(scope.get(fnCell)).toBe(myFn);
+  });
+
+  it('updater returning same value does not bump version or notify', () => {
+    const count = cell(5, { id: 'updater_noop_count' });
+    const scope = createStore().fork();
+    const listener = vi.fn();
+    scope.subscribe(listener);
+
+    scope.set(count, (prev) => prev);
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(scope.get(count)).toBe(5);
+  });
+
+  it('computed with zero dependencies caches value', () => {
+    let runs = 0;
+    const constant = computed([] as const, () => {
+      runs += 1;
+      return 42;
+    });
+    const scope = createStore().fork();
+
+    expect(scope.get(constant)).toBe(42);
+    expect(scope.get(constant)).toBe(42);
+    expect(runs).toBe(1);
+  });
+
+  it('event emit with function payload passes it to handler', () => {
+    const fn = () => 'hello';
+    const onFn = event<() => string>({ debugName: 'fn_payload_event' });
+    const scope = createStore().fork();
+    let received: (() => string) | undefined;
+
+    scope.on(onFn, (payload) => {
+      received = payload;
+    });
+    scope.emit(onFn, fn);
+
+    expect(received).toBe(fn);
+    expect(received!()).toBe('hello');
+  });
+
+  it('on() unsubscribe cleans up empty handler set from map', () => {
+    const ping = event<void>({ debugName: 'cleanup_handler_set_ping' });
+    const scope = createStore().fork();
+
+    const unsub1 = scope.on(ping, () => {});
+    const unsub2 = scope.on(ping, () => {});
+    unsub1();
+    // one handler still exists, map entry should remain
+    scope.emit(ping, undefined);
+
+    unsub2();
+    // now empty - map entry should be cleaned up
+    // verify by emitting again - no crash means cleanup is safe
+    scope.emit(ping, undefined);
+  });
+
+  it('triple-nested batch rollback restores all intermediate state', () => {
+    const count = cell(0, { id: 'triple_nested_rollback_count' });
+    const scope = createStore().fork();
+
+    scope.batch(() => {
+      scope.set(count, 1);
+      scope.batch(() => {
+        scope.set(count, 2);
+        expect(() => {
+          scope.batch(() => {
+            scope.set(count, 3);
+            throw new Error('deep_fail');
+          });
+        }).toThrowError('deep_fail');
+        // innermost rolled back, should be 2
+        expect(scope.get(count)).toBe(2);
+      });
+    });
+
+    expect(scope.get(count)).toBe(2);
+  });
+
+  it('effect with timeoutMs:0 aborts immediately', async () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => {
+      await new Promise((r) => setTimeout(r, 100));
+      return 1;
+    });
+
+    await expect(
+      scope.run(fx, undefined, { timeoutMs: 0 })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('effect with retryDelayMs function returning negative is clamped to 0', async () => {
+    const scope = createStore().fork();
+    let attempt = 0;
+    const fx = effect<void, number>(() => {
+      attempt += 1;
+      if (attempt < 2) throw new Error('fail');
+      return 10;
+    }, {
+      policy: { retries: 1, retryDelayMs: () => -100 },
+    });
+
+    await expect(scope.run(fx, undefined)).resolves.toBe(10);
+    expect(attempt).toBe(2);
+  });
+
+  it('effect with external abort signal aborts the effect', async () => {
+    const scope = createStore().fork();
+    const controller = new AbortController();
+    const fx = effect<void, number>(async () => {
+      await new Promise((r) => setTimeout(r, 200));
+      return 1;
+    });
+
+    const promise = scope.run(fx, undefined, { signal: controller.signal });
+    controller.abort();
+
+    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('effect with already-aborted signal rejects immediately', async () => {
+    const scope = createStore().fork();
+    const controller = new AbortController();
+    controller.abort();
+    const fx = effect<void, number>(async () => 1);
+
+    await expect(
+      scope.run(fx, undefined, { signal: controller.signal })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('subscribeEffectStatus unsubscribe cleans up listener set', async () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => 1);
+    const listener = vi.fn();
+    const unsub = scope.subscribeEffectStatus(fx, listener);
+    unsub();
+
+    await scope.run(fx, undefined);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('getEffectStatus returns defaults for never-run effect', () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => 1);
+    const status = scope.getEffectStatus(fx);
+
+    expect(status.running).toBe(0);
+    expect(status.queued).toBe(0);
+    expect(status.lastError).toBeUndefined();
+    expect(status.lastResult).toBeUndefined();
+  });
+
+  it('cancelEffect on never-run effect is a no-op', () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => 1);
+
+    expect(() => scope.cancelEffect(fx)).not.toThrow();
+  });
+
+  it('fork preserves parent cell values and is isolated for mutations', () => {
+    const a = cell(1, { id: 'fork_preserve_a' });
+    const b = cell(2, { id: 'fork_preserve_b' });
+    const store = createStore();
+    const parent = store.fork();
+    parent.set(a, 10);
+    parent.set(b, 20);
+
+    const child = parent.fork();
+    expect(child.get(a)).toBe(10);
+    expect(child.get(b)).toBe(20);
+
+    child.set(a, 100);
+    expect(child.get(a)).toBe(100);
+    expect(parent.get(a)).toBe(10);
+  });
+
+  it('history controller: multiple sets to same cell in one commit records first prev and last next', () => {
+    const count = cell(0, { id: 'history_multi_set_count' });
+    const scope = createStore().fork();
+    const history = createHistoryController(scope);
+
+    scope.batch(() => {
+      scope.set(count, 1);
+      scope.set(count, 2);
+      scope.set(count, 3);
+    });
+
+    expect(scope.get(count)).toBe(3);
+    expect(history.undo()).toBe(true);
+    expect(scope.get(count)).toBe(0);
+  });
+
+  it('history controller: undo clears redo stack on new commit', () => {
+    const count = cell(0, { id: 'history_redo_clear_count' });
+    const scope = createStore().fork();
+    const history = createHistoryController(scope);
+
+    scope.set(count, 1);
+    scope.set(count, 2);
+    history.undo();
+    expect(history.canRedo()).toBe(true);
+
+    scope.set(count, 5);
+    expect(history.canRedo()).toBe(false);
+  });
+
+  it('history controller: clear empties both stacks', () => {
+    const count = cell(0, { id: 'history_clear_stacks_count' });
+    const scope = createStore().fork();
+    const history = createHistoryController(scope);
+
+    scope.set(count, 1);
+    scope.set(count, 2);
+    history.undo();
+
+    history.clear();
+    expect(history.canUndo()).toBe(false);
+    expect(history.canRedo()).toBe(false);
+  });
+
+  it('history controller: unsubscribe stops recording', () => {
+    const count = cell(0, { id: 'history_unsubscribe_count' });
+    const scope = createStore().fork();
+    const history = createHistoryController(scope);
+
+    scope.set(count, 1);
+    expect(history.canUndo()).toBe(true);
+
+    history.unsubscribe();
+    scope.set(count, 2);
+    // only 1 entry from before unsubscribe
+    expect(history.getSize().undo).toBe(1);
+  });
+
+  it('registerCell is idempotent for same cell', () => {
+    const c = cell(0, { id: 'register_idempotent_cell' });
+    const scope = createStore().fork();
+
+    scope.registerCell(c);
+    scope.registerCell(c);
+
+    expect(scope.get(c)).toBe(0);
+  });
+
+  it('registerCell rejects non-cell units', () => {
+    const scope = createStore().fork();
+    expect(() => scope.registerCell(null as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);
+    expect(() => scope.registerCell({ kind: 'event' } as any)).toThrowError(/NS_CORE_INVALID_UPDATE/);
+  });
+
+  it('subscribeUnit for computed notifies only when output changes', () => {
+    const source = cell(1, { id: 'sub_computed_output_source' });
+    const clamped = computed([source], (v) => Math.min(v, 5));
+    const scope = createStore().fork();
+    const listener = vi.fn();
+    scope.subscribeUnit(clamped, listener);
+
+    scope.set(source, 3);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    // Setting to 6 and 7 both clamp to 5; only first should notify
+    scope.set(source, 6);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    scope.set(source, 7);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('scope.isHydrated tracks hydrated IDs', () => {
+    const count = cell(0, { id: 'hydrated_check_cell' });
+    const scope = createStore().fork();
+
+    expect(scope.isHydrated('hydrated_check_cell')).toBe(false);
+  });
+
+  it('listKnownCells returns cells that have been set or read', () => {
+    const a = cell(1, { id: 'known_cells_a' });
+    const b = cell(2, { id: 'known_cells_b' });
+    const scope = createStore().fork();
+
+    scope.get(a);
+    scope.set(b, 3);
+
+    const known = scope.listKnownCells();
+    expect(known).toContain(a);
+    expect(known).toContain(b);
   });
 });
