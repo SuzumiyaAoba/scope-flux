@@ -155,15 +155,6 @@ function toAbortError(message: string): Error {
   return error;
 }
 
-function waitMs(ms: number): Promise<void> {
-  if (ms <= 0) {
-    return Promise.resolve();
-  }
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
 function isAbortError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -342,6 +333,14 @@ class StoreRegistry {
     this.cellsById.delete(id);
     this.cells.delete(cellUnit);
     return true;
+  }
+
+  public unregisterCell(cellUnit: AnyCell): void {
+    this.cells.delete(cellUnit);
+    const id = cellUnit.meta.id;
+    if (id && this.cellsById.get(id) === cellUnit) {
+      this.cellsById.delete(id);
+    }
   }
 
   public clear(): void {
@@ -637,10 +636,7 @@ export class Scope {
       this._pendingPriority = prevPriority;
       for (const cellUnit of this._knownCells) {
         if (!prevKnownCells.has(cellUnit)) {
-          const id = cellUnit.meta.id;
-          if (id) {
-            this._registry.unregisterById(id);
-          }
+          this._registry.unregisterCell(cellUnit);
         }
       }
       this._cellValues.clear();

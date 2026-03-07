@@ -707,4 +707,26 @@ describe('core', () => {
     // After rollback, the cell should no longer be in the registry
     expect(store.getRegisteredCellById('batch_rollback_registry_cell')).toBeUndefined();
   });
+
+  it('batch rollback removes id-less cells from the registry', () => {
+    const store = createStore();
+    const scope = store.root;
+
+    const noIdCell = cell(0);
+    const initialCount = store.listRegisteredCells().length;
+
+    expect(() => {
+      scope.batch(() => {
+        scope.set(noIdCell, 1);
+        // The cell is now in the registry's cells set
+        expect(store.listRegisteredCells().length).toBe(initialCount + 1);
+        expect(store.listRegisteredCells()).toContain(noIdCell);
+        throw new Error('rollback');
+      });
+    }).toThrowError('rollback');
+
+    // After rollback, the id-less cell should also be removed
+    expect(store.listRegisteredCells().length).toBe(initialCount);
+    expect(store.listRegisteredCells()).not.toContain(noIdCell);
+  });
 });
