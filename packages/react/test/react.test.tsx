@@ -3,7 +3,7 @@ import React, { act } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cell, computed, createStore, effect, event, type EffectStatus } from '@suzumiyaaoba/scope-flux-core';
+import { cell, computed, createStore, effect, event, type Cell, type EffectStatus } from '@suzumiyaaoba/scope-flux-core';
 import {
   useCell,
   StoreProvider,
@@ -381,6 +381,39 @@ describe('react bridge', () => {
       </StoreProvider>
     );
     expect(scope.get(count)).toBe(2);
+  });
+
+  it('useHydrateUnits does not break when seed toggles between empty and non-empty', () => {
+    const count = cell(0);
+    const scope = createStore().fork();
+
+    function App({ items }: { items: Array<readonly [Cell<any>, unknown]> }): React.JSX.Element {
+      useHydrateUnits(items);
+      const value = useUnit(count);
+      return <span data-testid="value">{value}</span>;
+    }
+
+    const { rerender } = render(
+      <StoreProvider scope={scope}>
+        <App items={[[count, 10]]} />
+      </StoreProvider>
+    );
+    expect(scope.get(count)).toBe(10);
+
+    // Switching to empty seed must not throw a hooks violation error
+    rerender(
+      <StoreProvider scope={scope}>
+        <App items={[]} />
+      </StoreProvider>
+    );
+    expect(scope.get(count)).toBe(10);
+
+    // Switching back to non-empty seed must not throw either
+    rerender(
+      <StoreProvider scope={scope}>
+        <App items={[[count, 20]]} />
+      </StoreProvider>
+    );
   });
 
   it('useHydrateUnits treats function values as plain values', () => {

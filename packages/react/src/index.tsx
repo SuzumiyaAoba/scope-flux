@@ -368,9 +368,6 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
   const force = options?.force ?? false;
 
   const entries = seedToEntries(seed);
-  if (entries.length === 0) {
-    return;
-  }
 
   let seenUnits = hydratedRef.current.get(scope);
   if (!seenUnits) {
@@ -379,6 +376,9 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
   }
 
   const hydrateUnits = (forceApply: boolean) => {
+    if (entries.length === 0) {
+      return;
+    }
     scope.batch(() => {
       for (const [unit, value] of entries) {
         if (!unit || unit.kind !== 'cell') {
