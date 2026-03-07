@@ -149,7 +149,11 @@ function utf8ByteLength(value: string): number {
     const code = value.charCodeAt(i);
     if (code <= 0x7f) bytes += 1;
     else if (code <= 0x7ff) bytes += 2;
-    else if (code >= 0xd800 && code <= 0xdbff) { bytes += 4; i++; }
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = i + 1 < value.length ? value.charCodeAt(i + 1) : 0;
+      if (next >= 0xdc00 && next <= 0xdfff) { bytes += 4; i++; }
+      else { bytes += 3; }
+    }
     else bytes += 3;
   }
   return bytes;

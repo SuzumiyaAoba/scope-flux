@@ -278,18 +278,27 @@ export function useEffectAction<P, R>(
   );
 }
 
+function effectStatusEquality<R>(a: EffectStatus<R>, b: EffectStatus<R>): boolean {
+  return (
+    a.running === b.running &&
+    a.queued === b.queued &&
+    Object.is(a.lastError, b.lastError) &&
+    Object.is(a.lastResult, b.lastResult) &&
+    a.lastStartedAt === b.lastStartedAt &&
+    a.lastFinishedAt === b.lastFinishedAt
+  );
+}
+
 export function useEffectStatus<P, R>(unitEffect: Effect<P, R>): EffectStatus<R> {
   const scope = useScope();
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => scope.subscribeEffectStatus(unitEffect, onStoreChange),
+    [scope, unitEffect]
+  );
   return useExternalSelected({
     getValue: () => scope.getEffectStatus(unitEffect),
-    subscribe: (onStoreChange) => scope.subscribeEffectStatus(unitEffect, onStoreChange),
-    equality: (a, b) =>
-      a.running === b.running &&
-      a.queued === b.queued &&
-      Object.is(a.lastError, b.lastError) &&
-      Object.is(a.lastResult, b.lastResult) &&
-      a.lastStartedAt === b.lastStartedAt &&
-      a.lastFinishedAt === b.lastFinishedAt,
+    subscribe,
+    equality: effectStatusEquality,
   });
 }
 

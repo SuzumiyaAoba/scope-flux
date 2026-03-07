@@ -1059,4 +1059,71 @@ describe('core', () => {
     expect(known).toContain(a);
     expect(known).toContain(b);
   });
+
+  it('_flush calls all scope listeners even when one throws', () => {
+    const count = cell(0, { id: 'flush_listener_throw_count' });
+    const scope = createStore().fork();
+    const listenerA = vi.fn();
+    const listenerB = vi.fn(() => { throw new Error('listener_boom'); });
+    const listenerC = vi.fn();
+
+    scope.subscribe(listenerA);
+    scope.subscribe(listenerB);
+    scope.subscribe(listenerC);
+
+    expect(() => scope.set(count, 1)).toThrowError('listener_boom');
+    expect(listenerA).toHaveBeenCalledTimes(1);
+    expect(listenerB).toHaveBeenCalledTimes(1);
+    expect(listenerC).toHaveBeenCalledTimes(1);
+  });
+
+  it('_notifyUnitSubscribers calls all unit listeners even when one throws', () => {
+    const a = cell(0, { id: 'unit_listener_throw_a' });
+    const b = cell(0, { id: 'unit_listener_throw_b' });
+    const scope = createStore().fork();
+    const listenerA = vi.fn(() => { throw new Error('unit_boom'); });
+    const listenerB = vi.fn();
+
+    scope.subscribeUnit(a, listenerA);
+    scope.subscribeUnit(b, listenerB);
+
+    expect(() => {
+      scope.batch(() => {
+        scope.set(a, 1);
+        scope.set(b, 1);
+      });
+    }).toThrowError('unit_boom');
+    expect(listenerA).toHaveBeenCalledTimes(1);
+    expect(listenerB).toHaveBeenCalledTimes(1);
+  });
+
+  it('_notifyEffectSubscribers calls all effect listeners even when one throws', async () => {
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => 1);
+    const listenerA = vi.fn(() => { throw new Error('effect_boom'); });
+    const listenerB = vi.fn();
+
+    scope.subscribeEffectStatus(fx, listenerA);
+    scope.subscribeEffectStatus(fx, listenerB);
+
+    await expect(scope.run(fx, undefined)).rejects.toThrowError('effect_boom');
+    expect(listenerA).toHaveBeenCalled();
+    expect(listenerB).toHaveBeenCalled();
+  });
+
+  it('fork copies hydratedIds from parent', () => {
+    const count = cell(0, { id: 'fork_hydrated_count' });
+    const store = createStore();
+    const parent = store.fork();
+
+    const { hydrate } = require('@suzumiyaaoba/scope-flux-serializer');
+    parent.registerCell(count);
+    hydrate(parent, { version: 1, scopeId: 's', values: { fork_hydrated_count: 5 } });
+
+    expect(parent.isHydrated('fork_hydrated_count')).toBe(true);
+
+    const child = parent.fork();
+    expect(child.isHydrated('fork_hydrated_count')).toBe(true);
+    expect(child.get(count)).toBe(5);
+  });
 });

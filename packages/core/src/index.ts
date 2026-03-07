@@ -442,11 +442,23 @@ export class Scope {
     this._pendingChanges = [];
     this._pendingPriority = undefined;
 
+    let firstError: unknown;
     const listeners = Array.from(this._subscribers);
     for (const listener of listeners) {
-      listener(payload);
+      try {
+        listener(payload);
+      } catch (e) {
+        firstError ??= e;
+      }
     }
-    this._notifyUnitSubscribers(payload.changes);
+    try {
+      this._notifyUnitSubscribers(payload.changes);
+    } catch (e) {
+      firstError ??= e;
+    }
+    if (firstError !== undefined) {
+      throw firstError;
+    }
   }
 
   private _notifyUnitSubscribers(changes: Change[]): void {
@@ -454,6 +466,7 @@ export class Scope {
       return;
     }
 
+    let firstError: unknown;
     const notified = new Set<() => void>();
     for (const change of changes) {
       if (change.kind !== 'set') {
@@ -468,8 +481,15 @@ export class Scope {
           continue;
         }
         notified.add(listener);
-        listener();
+        try {
+          listener();
+        } catch (e) {
+          firstError ??= e;
+        }
       }
+    }
+    if (firstError !== undefined) {
+      throw firstError;
     }
   }
 
@@ -492,8 +512,16 @@ export class Scope {
     if (!listeners || listeners.size === 0) {
       return;
     }
+    let firstError: unknown;
     for (const listener of Array.from(listeners)) {
-      listener();
+      try {
+        listener();
+      } catch (e) {
+        firstError ??= e;
+      }
+    }
+    if (firstError !== undefined) {
+      throw firstError;
     }
   }
 
@@ -987,6 +1015,9 @@ export class Scope {
       child._knownCells.add(cellUnit);
       child._cellValues.set(cellUnit, value);
       child._cellVersions.set(cellUnit, this._cellVersions.get(cellUnit) ?? 0);
+    }
+    for (const id of this._hydratedIds) {
+      child._hydratedIds.add(id);
     }
     if (seed) {
       child._applySeed(seed);
