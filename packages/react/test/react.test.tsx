@@ -3,7 +3,7 @@ import React, { act } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cell, computed, createStore, effect, event } from '@suzumiyaaoba/scope-flux-core';
+import { cell, computed, createStore, effect, event, type EffectStatus } from '@suzumiyaaoba/scope-flux-core';
 import {
   useCell,
   StoreProvider,
@@ -401,6 +401,49 @@ describe('react bridge', () => {
 
     expect(scope.get(fnCell)()).toBe(123);
     expect(screen.getByText('123')).toBeTruthy();
+  });
+
+  it('useEffectStatus getSnapshot updates snapshotRef on value change', async () => {
+    // Verifies that useExternalSelected's getSnapshot updates its internal
+    // snapshot reference when the value changes, satisfying the
+    // useSyncExternalStore contract: consecutive getSnapshot calls without
+    // store changes must return the same reference.
+    const scope = createStore().fork();
+    const fx = effect<void, number>(async () => 42);
+    const counter = cell(0, { id: 'react_status_snapshot_stability' });
+    const statusRefs: Array<EffectStatus<number>> = [];
+
+    function App(): React.JSX.Element {
+      const status = useEffectStatus(fx);
+      useUnit(counter); // subscribe so counter changes trigger re-render
+      statusRefs.push(status);
+      return <span>{status.running}</span>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <App />
+      </StoreProvider>
+    );
+
+    // Run and complete the effect — status transitions from
+    // {running:0} → {running:1} → {running:0, lastResult:42}
+    await act(async () => {
+      await scope.run(fx, undefined);
+    });
+
+    const postEffectIdx = statusRefs.length - 1;
+    const postEffectStatus = statusRefs[postEffectIdx];
+
+    // Force a re-render via an unrelated cell change.
+    // getSnapshot must return the SAME reference because the effect status
+    // has not changed since the last render.
+    act(() => {
+      scope.set(counter, 1);
+    });
+
+    expect(statusRefs.length).toBeGreaterThan(postEffectIdx + 1);
+    expect(statusRefs[statusRefs.length - 1]).toBe(postEffectStatus);
   });
 
   it('useEffectStatus reflects effect lifecycle', async () => {

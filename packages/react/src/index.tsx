@@ -70,11 +70,17 @@ function useExternalSelected<T>(options: {
   const equalityRef = useRef(equality);
   equalityRef.current = equality;
 
+  // useSyncExternalStore requires getSnapshot to return a cached value
+  // when called multiple times without store changes.  Without updating
+  // snapshotRef here, getValue functions that create new objects each
+  // call (e.g. scope.getEffectStatus) would return different references
+  // on consecutive calls, violating the contract.
   const getSnapshot = useCallback(() => {
     const next = getValueRef.current();
     if (equalityRef.current(snapshotRef.current, next)) {
       return snapshotRef.current;
     }
+    snapshotRef.current = next;
     return next;
   }, []);
 
