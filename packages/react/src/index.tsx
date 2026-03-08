@@ -1,5 +1,5 @@
 import { asValue } from '@suzumiyaaoba/scope-flux-core';
-import type { Cell, Computed, Effect, EffectStatus, Event, Priority, Scope, SeedInput } from '@suzumiyaaoba/scope-flux-core';
+import type { AsyncComputed, AsyncComputedResult, Cell, Computed, Effect, EffectStatus, Event, Priority, Scope, SeedInput } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler, type Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 import type React from 'react';
 import {
@@ -438,6 +438,41 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
     }
     hydrateUnits(true);
   });
+}
+
+const suspensePromiseCache = new WeakMap<AsyncComputed<unknown>, Promise<unknown>>();
+
+export function useSuspenseUnit<T>(unit: AsyncComputed<T>): T {
+  const scope = useScope();
+
+  // Trigger evaluation
+  const result = scope.get(unit);
+
+  if (result.status === 'fulfilled') {
+    suspensePromiseCache.delete(unit as AsyncComputed<unknown>);
+    return result.value;
+  }
+
+  if (result.status === 'rejected') {
+    suspensePromiseCache.delete(unit as AsyncComputed<unknown>);
+    throw result.error;
+  }
+
+  // status === 'pending' — throw a promise to suspend
+  let promise = suspensePromiseCache.get(unit as AsyncComputed<unknown>);
+  if (!promise) {
+    promise = new Promise<void>((resolve) => {
+      const unsub = scope.subscribe(() => {
+        const r = scope.get(unit);
+        if (r.status !== 'pending') {
+          unsub();
+          resolve();
+        }
+      });
+    });
+    suspensePromiseCache.set(unit as AsyncComputed<unknown>, promise);
+  }
+  throw promise;
 }
 
 export function useAutoCleanupEffect<P, R>(

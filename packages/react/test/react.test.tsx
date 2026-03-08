@@ -3,7 +3,7 @@ import React, { act } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { cell, computed, createStore, effect, event, type Cell, type EffectStatus } from '@suzumiyaaoba/scope-flux-core';
+import { cell, computed, createStore, effect, event, asyncComputed, type Cell, type EffectStatus } from '@suzumiyaaoba/scope-flux-core';
 import {
   useCell,
   StoreProvider,
@@ -17,6 +17,7 @@ import {
   useHydrateUnits,
   useSetCell,
   useSuspenseEffectAction,
+  useSuspenseUnit,
   useUnit,
   shallowEqual,
   useAutoCleanupEffect,
@@ -813,6 +814,94 @@ describe('react bridge', () => {
       );
 
       expect(screen.getByTestId('running').textContent).toBe('0');
+    });
+  });
+
+  describe('useSuspenseUnit', () => {
+    it('suspends while async computed is pending then shows resolved value', async () => {
+      let resolvePromise: (v: string) => void;
+      const id = cell(1, { id: 'suspense_unit_id_1' });
+      const user = asyncComputed(
+        [id],
+        async (userId) => {
+          return new Promise<string>((resolve) => {
+            resolvePromise = resolve;
+          });
+        },
+        { id: 'suspense_unit_user_1' },
+      );
+
+      function Inner() {
+        const value = useSuspenseUnit(user);
+        return <div data-testid="value">{value}</div>;
+      }
+
+      const scope = createStore().fork();
+
+      render(
+        <StoreProvider scope={scope}>
+          <React.Suspense fallback={<div data-testid="loading">Loading</div>}>
+            <Inner />
+          </React.Suspense>
+        </StoreProvider>,
+      );
+
+      // Should show loading fallback
+      expect(screen.getByTestId('loading').textContent).toBe('Loading');
+
+      // Resolve the async computed
+      await act(async () => {
+        resolvePromise!('Alice');
+        // Wait for microtask
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
+      // Should now show resolved value
+      expect(screen.getByTestId('value').textContent).toBe('Alice');
+    });
+
+    it('throws error when async computed is rejected', async () => {
+      const id = cell(1, { id: 'suspense_unit_id_2' });
+      const failing = asyncComputed(
+        [id],
+        async () => { throw new Error('load failed'); },
+        { id: 'suspense_unit_fail_1' },
+      );
+
+      function Inner() {
+        const value = useSuspenseUnit(failing);
+        return <div>{value}</div>;
+      }
+
+      class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string | null }> {
+        state = { error: null as string | null };
+        static getDerivedStateFromError(error: Error) {
+          return { error: error.message };
+        }
+        render() {
+          if (this.state.error) return <div data-testid="error">{this.state.error}</div>;
+          return this.props.children;
+        }
+      }
+
+      const scope = createStore().fork();
+
+      render(
+        <StoreProvider scope={scope}>
+          <ErrorBoundary>
+            <React.Suspense fallback={<div>Loading</div>}>
+              <Inner />
+            </React.Suspense>
+          </ErrorBoundary>
+        </StoreProvider>,
+      );
+
+      // Wait for the rejection to propagate
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
+      expect(screen.getByTestId('error').textContent).toBe('load failed');
     });
   });
 });
