@@ -439,3 +439,23 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
     hydrateUnits(true);
   });
 }
+
+export function useAutoCleanupEffect<P, R>(
+  unitEffect: Effect<P, R>,
+  options?: { priority?: Priority; reason?: string },
+): {
+  run: (payload: P) => Promise<R>;
+  cancel: () => void;
+  status: EffectStatus<R>;
+} {
+  const scope = useScope();
+  const { run, cancel, status } = useAsyncEffectAction(unitEffect, options);
+
+  useEffect(() => {
+    return () => {
+      scope.cancelEffect(unitEffect);
+    };
+  }, [scope, unitEffect]);
+
+  return { run, cancel, status };
+}

@@ -19,6 +19,7 @@ import {
   useSuspenseEffectAction,
   useUnit,
   shallowEqual,
+  useAutoCleanupEffect,
 } from '../src/index.js';
 
 afterEach(() => {
@@ -741,5 +742,77 @@ describe('react bridge', () => {
     });
     expect(renderCount).toBe(2);
     expect(screen.getByTestId('name').textContent).toBe('Jane');
+  });
+
+  describe('useAutoCleanupEffect', () => {
+    it('cancels effect on unmount', async () => {
+      let started = 0;
+      let completed = 0;
+      const fx = effect(async (_: void, { signal }) => {
+        started++;
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, 100);
+          signal.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new Error('AbortError'));
+          });
+        });
+        completed++;
+        return 'done';
+      });
+
+      const store = createStore();
+      const scope = store.root;
+
+      function TestComp() {
+        const { run } = useAutoCleanupEffect(fx);
+        React.useEffect(() => {
+          // Catch the abort error to prevent unhandled rejection
+          run(undefined).catch(() => {});
+        }, [run]);
+        return <div>test</div>;
+      }
+
+      const { unmount } = render(
+        <StoreProvider scope={scope}>
+          <TestComp />
+        </StoreProvider>
+      );
+
+      expect(started).toBe(1);
+      unmount();
+
+      // Wait a tick to let cancellation propagate
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 150));
+      });
+
+      expect(completed).toBe(0); // effect was cancelled
+    });
+
+    it('returns run and cancel functions', () => {
+      const fx = effect(async (_: string) => 'result');
+      const store = createStore();
+      const scope = store.root;
+
+      function TestComp() {
+        const { run, cancel, status } = useAutoCleanupEffect(fx);
+        return (
+          <div>
+            <span data-testid="running">{status.running}</span>
+            <button data-testid="run" onClick={() => run('test')}>Run</button>
+            <button data-testid="cancel" onClick={() => cancel()}>Cancel</button>
+          </div>
+        );
+      }
+
+      render(
+        <StoreProvider scope={scope}>
+          <TestComp />
+        </StoreProvider>
+      );
+
+      expect(screen.getByTestId('running').textContent).toBe('0');
+    });
   });
 });
