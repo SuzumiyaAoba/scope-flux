@@ -18,6 +18,7 @@ import {
   useSetCell,
   useSuspenseEffectAction,
   useUnit,
+  shallowEqual,
 } from '../src/index.js';
 
 afterEach(() => {
@@ -669,5 +670,76 @@ describe('react bridge', () => {
       scope.set(b, 3);
     });
     expect(screen.getByTestId('value').textContent).toBe('3');
+  });
+
+  describe('shallowEqual', () => {
+    it('returns true for identical references', () => {
+      const obj = { a: 1 };
+      expect(shallowEqual(obj, obj)).toBe(true);
+    });
+
+    it('returns true for objects with same keys and values', () => {
+      expect(shallowEqual({ a: 1, b: 'x' }, { a: 1, b: 'x' })).toBe(true);
+    });
+
+    it('returns false for different values', () => {
+      expect(shallowEqual({ a: 1 }, { a: 2 })).toBe(false);
+    });
+
+    it('returns false for different number of keys', () => {
+      expect(shallowEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+    });
+
+    it('returns true for equal arrays', () => {
+      expect(shallowEqual([1, 2, 3], [1, 2, 3])).toBe(true);
+    });
+
+    it('returns false for different arrays', () => {
+      expect(shallowEqual([1, 2], [1, 3])).toBe(false);
+    });
+
+    it('returns true for primitives', () => {
+      expect(shallowEqual(42, 42)).toBe(true);
+      expect(shallowEqual('a', 'a')).toBe(true);
+    });
+
+    it('handles null and undefined', () => {
+      expect(shallowEqual(null, null)).toBe(true);
+      expect(shallowEqual(null, undefined)).toBe(false);
+    });
+  });
+
+  it('useUnit with selector and shallowEqual prevents re-renders for equivalent objects', () => {
+    const user = cell({ name: 'John', age: 30, extra: 'x' }, { id: 'shallow_user' });
+    const store = createStore();
+    const scope = store.root;
+    let renderCount = 0;
+
+    function NameDisplay() {
+      renderCount++;
+      const coords = useUnit(user, (u) => ({ name: u.name }), { equality: shallowEqual });
+      return <div data-testid="name">{coords.name}</div>;
+    }
+
+    render(
+      <StoreProvider scope={scope}>
+        <NameDisplay />
+      </StoreProvider>
+    );
+    expect(renderCount).toBe(1);
+    expect(screen.getByTestId('name').textContent).toBe('John');
+
+    // Change a non-selected field — should NOT re-render
+    act(() => {
+      scope.set(user, { name: 'John', age: 31, extra: 'y' });
+    });
+    expect(renderCount).toBe(1);
+
+    // Change the selected field — should re-render
+    act(() => {
+      scope.set(user, { name: 'Jane', age: 31, extra: 'y' });
+    });
+    expect(renderCount).toBe(2);
+    expect(screen.getByTestId('name').textContent).toBe('Jane');
   });
 });
