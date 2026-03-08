@@ -2,6 +2,7 @@ import {
   type Cell,
   type Change,
   type CommitEvent,
+  type Computed,
   type Priority,
   type Scope,
   type Unsubscribe,
@@ -427,6 +428,170 @@ export function mountInspectPanel(options: InspectPanelOptions): InspectPanelCon
       root.remove();
     },
     getRecords: () => [...records],
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Dependency graph export
+// ---------------------------------------------------------------------------
+
+export interface GraphNode {
+  id: string;
+  kind: 'cell' | 'computed';
+  name: string;
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  type: 'dependency';
+}
+
+export interface DependencyGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface ExportGraphOptions {
+  format?: 'json' | 'dot' | 'mermaid';
+}
+
+function getUnitName(unit: { meta?: { id?: string; debugName?: string } }, index: number): string {
+  return unit.meta?.debugName ?? unit.meta?.id ?? `unit_${index}`;
+}
+
+export function exportDependencyGraph(
+  _scope: Scope,
+  cells: Cell<any>[],
+  computeds: Computed<any>[],
+  options: { format: 'dot' | 'mermaid' },
+): string;
+export function exportDependencyGraph(
+  _scope: Scope,
+  cells: Cell<any>[],
+  computeds: Computed<any>[],
+  options?: ExportGraphOptions,
+): DependencyGraph;
+export function exportDependencyGraph(
+  _scope: Scope,
+  cells: Cell<any>[],
+  computeds: Computed<any>[],
+  options?: ExportGraphOptions,
+): DependencyGraph | string {
+  const format = options?.format ?? 'json';
+
+  const nodes: GraphNode[] = [];
+  const edges: GraphEdge[] = [];
+  const unitNames = new Map<unknown, string>();
+
+  // Register cell nodes
+  for (let i = 0; i < cells.length; i++) {
+    const c = cells[i];
+    const name = getUnitName(c, i);
+    unitNames.set(c, name);
+    nodes.push({ id: c.meta?.id ?? name, kind: 'cell', name });
+  }
+
+  // Register computed nodes and edges
+  for (let i = 0; i < computeds.length; i++) {
+    const comp = computeds[i];
+    const name = getUnitName(comp, cells.length + i);
+    unitNames.set(comp, name);
+    nodes.push({ id: comp.meta?.id ?? name, kind: 'computed', name });
+
+    // Add edges from deps to this computed
+    for (const dep of comp.deps) {
+      const depName = unitNames.get(dep) ?? getUnitName(dep as Cell<any>, 0);
+      edges.push({ from: depName, to: name, type: 'dependency' });
+    }
+  }
+
+  const graph: DependencyGraph = { nodes, edges };
+
+  if (format === 'dot') {
+    const lines = ['digraph {'];
+    for (const node of nodes) {
+      const shape = node.kind === 'cell' ? 'box' : 'ellipse';
+      lines.push(`  "${node.name}" [shape=${shape}];`);
+    }
+    for (const edge of edges) {
+      lines.push(`  "${edge.from}" -> "${edge.to}";`);
+    }
+    lines.push('}');
+    return lines.join('\n');
+  }
+
+  if (format === 'mermaid') {
+    const lines = ['graph TD'];
+    for (const edge of edges) {
+      lines.push(`  ${edge.from} --> ${edge.to}`);
+    }
+    return lines.join('\n');
+  }
+
+  return graph;
+}
+
+// ---------------------------------------------------------------------------
+// Performance profiling
+// ---------------------------------------------------------------------------
+
+export interface SetReport {
+  unitId?: string;
+  unitName?: string;
+  count: number;
+  totalMs: number;
+  avgMs: number;
+  maxMs: number;
+}
+
+export interface ProfileReport {
+  sets: SetReport[];
+}
+
+export interface Profiler {
+  getReport(): ProfileReport;
+  stop(): void;
+}
+
+export function profileScope(scope: Scope): Profiler {
+  const setStats = new Map<string, { unitId?: string; unitName?: string; count: number; totalMs: number; maxMs: number }>();
+
+  const unsub = scope.subscribe((commit) => {
+    const ts = performance.now();
+    for (const change of commit.changes) {
+      if (change.kind === 'set') {
+        const key = change.unit.meta?.id ?? change.unit.meta?.debugName ?? 'unknown';
+        let stats = setStats.get(key);
+        if (!stats) {
+          stats = { unitId: change.unit.meta?.id, unitName: change.unit.meta?.debugName, count: 0, totalMs: 0, maxMs: 0 };
+          setStats.set(key, stats);
+        }
+        stats.count++;
+        // Approximate timing per change (batch granularity)
+        const elapsed = performance.now() - ts;
+        stats.totalMs += elapsed;
+        if (elapsed > stats.maxMs) stats.maxMs = elapsed;
+      }
+    }
+  });
+
+  return {
+    getReport(): ProfileReport {
+      const sets: SetReport[] = [];
+      for (const stats of setStats.values()) {
+        sets.push({
+          unitId: stats.unitId,
+          unitName: stats.unitName,
+          count: stats.count,
+          totalMs: stats.totalMs,
+          avgMs: stats.count > 0 ? stats.totalMs / stats.count : 0,
+          maxMs: stats.maxMs,
+        });
+      }
+      return { sets };
+    },
+    stop: unsub,
   };
 }
 

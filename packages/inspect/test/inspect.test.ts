@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { cell, createStore, event } from '@suzumiyaaoba/scope-flux-core';
-import { connectDevtools, createReduxDevtoolsAdapter, inspect, mountInspectPanel } from '../src/index.js';
+import { cell, computed, createStore, event } from '@suzumiyaaoba/scope-flux-core';
+import { connectDevtools, createReduxDevtoolsAdapter, exportDependencyGraph, inspect, mountInspectPanel, profileScope } from '../src/index.js';
 
 describe('inspect', () => {
   it('captures set diffs as inspect records', () => {
@@ -691,5 +691,113 @@ describe('inspect', () => {
     } finally {
       (globalThis as { document?: unknown }).document = originalDocument;
     }
+  });
+
+  describe('exportDependencyGraph', () => {
+    it('exports nodes and edges for cells and computed', () => {
+      const a = cell(1, { id: 'graph_a', debugName: 'a' });
+      const b = cell(2, { id: 'graph_b', debugName: 'b' });
+      const sum = computed([a, b], (x, y) => x + y, { debugName: 'sum' });
+
+      const scope = createStore().fork();
+      // Access computed to register it
+      scope.get(sum);
+
+      const graph = exportDependencyGraph(scope, [a, b], [sum]);
+
+      expect(graph.nodes).toHaveLength(3);
+      expect(graph.edges).toHaveLength(2);
+
+      const nodeIds = graph.nodes.map((n) => n.name);
+      expect(nodeIds).toContain('a');
+      expect(nodeIds).toContain('b');
+      expect(nodeIds).toContain('sum');
+
+      // Edges from a -> sum and b -> sum
+      for (const edge of graph.edges) {
+        expect(edge.to).toBe('sum');
+        expect(['a', 'b']).toContain(edge.from);
+      }
+    });
+
+    it('exports in DOT format', () => {
+      const a = cell(1, { id: 'graph_dot_a', debugName: 'a' });
+      const doubled = computed([a], (v) => v * 2, { debugName: 'doubled' });
+
+      const scope = createStore().fork();
+      scope.get(doubled);
+
+      const dot = exportDependencyGraph(scope, [a], [doubled], { format: 'dot' });
+
+      expect(typeof dot).toBe('string');
+      expect(dot).toContain('digraph');
+      expect(dot).toContain('a');
+      expect(dot).toContain('doubled');
+    });
+
+    it('exports in mermaid format', () => {
+      const a = cell(1, { id: 'graph_mermaid_a', debugName: 'a' });
+      const doubled = computed([a], (v) => v * 2, { debugName: 'doubled' });
+
+      const scope = createStore().fork();
+      scope.get(doubled);
+
+      const mermaid = exportDependencyGraph(scope, [a], [doubled], { format: 'mermaid' });
+
+      expect(typeof mermaid).toBe('string');
+      expect(mermaid).toContain('graph TD');
+    });
+  });
+
+  describe('profileScope', () => {
+    it('tracks set operations', () => {
+      const a = cell(0, { id: 'prof_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const profiler = profileScope(scope);
+
+      scope.set(a, 1);
+      scope.set(a, 2);
+      scope.set(a, 3);
+
+      const report = profiler.getReport();
+      profiler.stop();
+
+      expect(report.sets.length).toBeGreaterThan(0);
+      const aReport = report.sets.find((s) => s.unitName === 'a');
+      expect(aReport).toBeDefined();
+      expect(aReport!.count).toBe(3);
+    });
+
+    it('tracks computed evaluation timing', () => {
+      const a = cell(1, { id: 'prof_comp_a', debugName: 'a' });
+      const doubled = computed([a], (v) => v * 2, { debugName: 'doubled' });
+
+      const scope = createStore().fork();
+      const profiler = profileScope(scope);
+
+      scope.get(doubled);
+      scope.set(a, 2);
+      scope.get(doubled);
+
+      const report = profiler.getReport();
+      profiler.stop();
+
+      expect(report.sets.length).toBeGreaterThan(0);
+    });
+
+    it('stops tracking after stop()', () => {
+      const a = cell(0, { id: 'prof_stop_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const profiler = profileScope(scope);
+      scope.set(a, 1);
+      profiler.stop();
+      scope.set(a, 2);
+
+      const report = profiler.getReport();
+      const aReport = report.sets.find((s) => s.unitName === 'a');
+      expect(aReport!.count).toBe(1);
+    });
   });
 });
