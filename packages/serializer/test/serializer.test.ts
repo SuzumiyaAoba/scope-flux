@@ -952,4 +952,110 @@ describe('serializer', () => {
       migrate: () => ({ version: 'bad' as any, scopeId: 'x', values: {} }),
     })).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
+
+  describe('per-cell custom serializer', () => {
+    it('serialize uses cell serializer to convert value', () => {
+      const dateCell = cell(new Date('2024-01-01T00:00:00Z'), {
+        id: 'custom_ser_date',
+        serializer: {
+          serialize: (d: Date) => d.toISOString(),
+          deserialize: (s: unknown) => new Date(s as string),
+        },
+      });
+
+      const store = createStore();
+      const scope = store.root;
+      scope.registerCell(dateCell);
+
+      const payload = serialize(scope);
+      expect(payload.values['custom_ser_date']).toBe('2024-01-01T00:00:00.000Z');
+    });
+
+    it('hydrate uses cell serializer to restore value', () => {
+      const dateCell = cell(new Date('2000-01-01'), {
+        id: 'custom_deser_date',
+        serializer: {
+          serialize: (d: Date) => d.toISOString(),
+          deserialize: (s: unknown) => new Date(s as string),
+        },
+      });
+
+      const store = createStore();
+      const scope = store.root;
+      scope.registerCell(dateCell);
+
+      const payload = {
+        version: 1,
+        scopeId: scope.id,
+        values: { 'custom_deser_date': '2024-06-15T12:00:00.000Z' },
+      };
+
+      hydrate(scope, payload);
+      const result = scope.get(dateCell);
+      expect(result).toBeInstanceOf(Date);
+      expect(result.toISOString()).toBe('2024-06-15T12:00:00.000Z');
+    });
+
+    it('validate rejects invalid values during hydrate', () => {
+      const dateCell = cell(new Date(), {
+        id: 'custom_validate_date',
+        serializer: {
+          serialize: (d: Date) => d.toISOString(),
+          deserialize: (s: unknown) => new Date(s as string),
+          validate: (v: unknown) => typeof v === 'string' && !isNaN(Date.parse(v as string)),
+        },
+      });
+
+      const store = createStore();
+      const scope = store.root;
+      scope.registerCell(dateCell);
+
+      const payload = {
+        version: 1,
+        scopeId: scope.id,
+        values: { 'custom_validate_date': 'not-a-date' },
+      };
+
+      // Should skip the invalid cell without throwing
+      hydrate(scope, payload);
+      // Value should remain the initial value
+      expect(scope.get(dateCell)).toBeInstanceOf(Date);
+    });
+
+    it('cells without custom serializer work as before', () => {
+      const name = cell('hello', { id: 'custom_ser_normal' });
+      const store = createStore();
+      const scope = store.root;
+      scope.registerCell(name);
+      scope.set(name, 'world');
+
+      const payload = serialize(scope);
+      expect(payload.values['custom_ser_normal']).toBe('world');
+    });
+
+    it('serialize with Map/Set via custom serializer', () => {
+      const tags = cell(new Set(['a', 'b']), {
+        id: 'custom_ser_set',
+        serializer: {
+          serialize: (s: Set<string>) => [...s],
+          deserialize: (raw: unknown) => new Set(raw as string[]),
+        },
+      });
+
+      const store = createStore();
+      const scope = store.root;
+      scope.registerCell(tags);
+
+      const payload = serialize(scope);
+      expect(payload.values['custom_ser_set']).toEqual(['a', 'b']);
+
+      // Round-trip
+      const scope2 = store.fork();
+      scope2.registerCell(tags);
+      hydrate(scope2, payload);
+      const restored = scope2.get(tags);
+      expect(restored).toBeInstanceOf(Set);
+      expect([...restored]).toEqual(['a', 'b']);
+    });
+  });
 });

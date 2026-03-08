@@ -182,7 +182,8 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
       continue;
     }
 
-    const value = scope.get(unit);
+    const raw = scope.get(unit);
+    const value = unit.serializer ? unit.serializer.serialize(raw) : raw;
     if (!isJsonValue(value)) {
       throw new Error(`NS_SER_NON_JSON_VALUE:${id}`);
     }
@@ -261,7 +262,14 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
         continue;
       }
 
-      scope.set(cellUnit, value, { reason: 'hydrate', priority: 'urgent' });
+      if (cellUnit.serializer) {
+        if (cellUnit.serializer.validate && !cellUnit.serializer.validate(value)) {
+          continue; // skip invalid values
+        }
+        scope.set(cellUnit, cellUnit.serializer.deserialize(value), { reason: 'hydrate', priority: 'urgent' });
+      } else {
+        scope.set(cellUnit, value, { reason: 'hydrate', priority: 'urgent' });
+      }
       scope.markHydrated(id);
     }
   });

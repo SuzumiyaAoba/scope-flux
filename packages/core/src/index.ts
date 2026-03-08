@@ -54,11 +54,18 @@ export interface WatchOptions {
   once?: boolean;
 }
 
+export interface CellSerializer<T> {
+  serialize: (value: T) => unknown;
+  deserialize: (raw: unknown) => T;
+  validate?: (raw: unknown) => boolean;
+}
+
 export interface Cell<T> {
   kind: 'cell';
   init: T;
   meta: UnitMeta;
   equal?: (a: T, b: T) => boolean;
+  serializer?: CellSerializer<T>;
   readonly __type?: T;
 }
 
@@ -282,7 +289,7 @@ function computeRetryDelay(config: RetryConfig, attempt: number, error: unknown)
   return Math.max(0, delay);
 }
 
-export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => boolean } = {}): Cell<T> {
+export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => boolean; serializer?: CellSerializer<T> } = {}): Cell<T> {
   const unit: Cell<T> = {
     kind: 'cell',
     init,
@@ -292,6 +299,7 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
       serializable: options.serializable ?? true,
     },
     equal: options.equal,
+    serializer: options.serializer,
   };
 
   return unit;
