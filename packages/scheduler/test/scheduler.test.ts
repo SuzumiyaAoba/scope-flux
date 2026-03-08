@@ -377,4 +377,107 @@ describe('scheduler', () => {
       vi.useRealTimers();
     }
   });
+
+  describe('escalate', () => {
+    it('escalates priority of a pending buffered update', () => {
+      const count = cell(0, { id: 'escalate_count' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      scheduler.set<number>(count, 5, { priority: 'idle' });
+      const before = scheduler.getPendingBufferedUpdates();
+      expect(before[0].priority).toBe('idle');
+
+      scheduler.escalate(count, 'transition');
+      const after = scheduler.getPendingBufferedUpdates();
+      expect(after[0].priority).toBe('transition');
+    });
+
+    it('is a no-op when cell has no pending update', () => {
+      const count = cell(0, { id: 'escalate_noop' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      // Should not throw
+      scheduler.escalate(count, 'transition');
+      expect(scheduler.getPendingBufferedUpdates()).toHaveLength(0);
+    });
+
+    it('does not downgrade priority', () => {
+      const count = cell(0, { id: 'escalate_no_downgrade' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      scheduler.set<number>(count, 5, { priority: 'transition' });
+      scheduler.escalate(count, 'idle'); // try to downgrade
+      const updates = scheduler.getPendingBufferedUpdates();
+      expect(updates[0].priority).toBe('transition'); // stays transition
+    });
+  });
+
+  describe('selective flush', () => {
+    it('flushes only specified cells', () => {
+      const a = cell(0, { id: 'selective_a' });
+      const b = cell(0, { id: 'selective_b' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      scheduler.set<number>(a, 1, { priority: 'transition' });
+      scheduler.set<number>(b, 2, { priority: 'transition' });
+
+      scheduler.flushBuffered({ cells: [a] });
+
+      expect(scope.get(a)).toBe(1);
+      expect(scope.get(b)).toBe(0); // not flushed
+      expect(scheduler.getPendingBufferedUpdates()).toHaveLength(1);
+      expect(scheduler.getPendingBufferedUpdates()[0].cell).toBe(b);
+    });
+
+    it('flushes by priority threshold', () => {
+      const a = cell(0, { id: 'priority_flush_a' });
+      const b = cell(0, { id: 'priority_flush_b' });
+      const c = cell(0, { id: 'priority_flush_c' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      scheduler.set<number>(a, 1, { priority: 'transition' });
+      scheduler.set<number>(b, 2, { priority: 'idle' });
+      scheduler.set<number>(c, 3, { priority: 'transition' });
+
+      scheduler.flushBuffered({ priority: 'transition' });
+
+      expect(scope.get(a)).toBe(1);
+      expect(scope.get(c)).toBe(3);
+      expect(scope.get(b)).toBe(0); // idle not flushed
+      expect(scheduler.getPendingBufferedUpdates()).toHaveLength(1);
+    });
+
+    it('cells + priority can be combined (cells filter takes precedence)', () => {
+      const a = cell(0, { id: 'combined_filter_a' });
+      const b = cell(0, { id: 'combined_filter_b' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      scheduler.set<number>(a, 1, { priority: 'transition' });
+      scheduler.set<number>(b, 2, { priority: 'transition' });
+
+      // Only flush cell a
+      scheduler.flushBuffered({ cells: [a] });
+      expect(scope.get(a)).toBe(1);
+      expect(scope.get(b)).toBe(0);
+    });
+
+    it('no-op when specified cells have no pending updates', () => {
+      const a = cell(0, { id: 'selective_noop_a' });
+      const b = cell(0, { id: 'selective_noop_b' });
+      const scope = createStore().fork();
+      const scheduler = createScheduler({ scope });
+
+      scheduler.set<number>(b, 2, { priority: 'transition' });
+
+      scheduler.flushBuffered({ cells: [a] }); // a has no pending
+      expect(scope.get(b)).toBe(0); // b untouched
+      expect(scheduler.getPendingBufferedUpdates()).toHaveLength(1);
+    });
+  });
 });

@@ -90,13 +90,61 @@ export class Scheduler {
     return [...this.pendingByCell.values()];
   }
 
-  public flushBuffered(options: { reason?: string } = {}): void {
+  private static readonly _priorityRank: Record<Priority, number> = {
+    urgent: 2,
+    transition: 1,
+    idle: 0,
+  };
+
+  public escalate<T>(cell: Cell<T>, newPriority: Exclude<Priority, 'urgent'>): void {
+    const anyCell = cell as AnyCell;
+    const pending = this.pendingByCell.get(anyCell);
+    if (!pending) return;
+    if (Scheduler._priorityRank[newPriority] > Scheduler._priorityRank[pending.priority]) {
+      pending.priority = newPriority;
+      this._notifyBuffered();
+    }
+  }
+
+  public flushBuffered(options: { reason?: string; cells?: Cell<any>[]; priority?: Exclude<Priority, 'urgent'> } = {}): void {
     this._clearScheduledAutoFlush();
     if (this.pendingByCell.size === 0) {
       return;
     }
-    const updates = [...this.pendingByCell.values()];
-    this.pendingByCell.clear();
+
+    let updates: PendingBufferedUpdate[];
+    let partial = false;
+
+    if (options.cells) {
+      partial = true;
+      const cellSet = new Set<AnyCell>(options.cells as AnyCell[]);
+      updates = [];
+      for (const [c, update] of this.pendingByCell) {
+        if (cellSet.has(c)) {
+          updates.push(update);
+        }
+      }
+    } else if (options.priority) {
+      partial = true;
+      const minRank = Scheduler._priorityRank[options.priority];
+      updates = [];
+      for (const update of this.pendingByCell.values()) {
+        if (Scheduler._priorityRank[update.priority] >= minRank) {
+          updates.push(update);
+        }
+      }
+    } else {
+      updates = [...this.pendingByCell.values()];
+    }
+
+    if (updates.length === 0) {
+      return;
+    }
+
+    // Remove flushed entries from pending
+    for (const update of updates) {
+      this.pendingByCell.delete(update.cell);
+    }
 
     try {
       this.scope.batch(() => {
