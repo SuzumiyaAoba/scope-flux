@@ -9,6 +9,10 @@ import {
   createStore,
   effect,
   event,
+  guard,
+  merge,
+  sample,
+  split,
 } from '../src/index.js';
 import type { Computed } from '../src/index.js';
 
@@ -1746,6 +1750,226 @@ describe('core', () => {
       expect(attempts).toBe(3);
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('operators', () => {
+    describe('merge', () => {
+      it('merges multiple events into one', () => {
+        const a = event<string>();
+        const b = event<string>();
+        const c = event<string>();
+        const scope = createStore().fork();
+        const { event: merged } = merge([a, b, c], scope);
+        const handler = vi.fn();
+
+        scope.on(merged, handler);
+        scope.emit(a, 'from-a');
+        scope.emit(b, 'from-b');
+        scope.emit(c, 'from-c');
+
+        expect(handler).toHaveBeenCalledTimes(3);
+        expect(handler.mock.calls[0][0]).toBe('from-a');
+        expect(handler.mock.calls[1][0]).toBe('from-b');
+        expect(handler.mock.calls[2][0]).toBe('from-c');
+      });
+
+      it('returns unsubscribe that stops forwarding', () => {
+        const a = event<number>();
+        const b = event<number>();
+        const scope = createStore().fork();
+        const { event: merged, unsubscribe } = merge([a, b], scope);
+        const handler = vi.fn();
+
+        scope.on(merged, handler);
+        scope.emit(a, 1);
+        expect(handler).toHaveBeenCalledTimes(1);
+
+        unsubscribe();
+        scope.emit(a, 2);
+        expect(handler).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('split', () => {
+      it('routes event payload to matching targets', () => {
+        const source = event<{ status: number; data: string }>();
+        const scope = createStore().fork();
+        const successHandler = vi.fn();
+        const errorHandler = vi.fn();
+        const fallbackHandler = vi.fn();
+
+        const targets = split(source, scope, {
+          success: (p) => p.status === 200,
+          error: (p) => p.status >= 500,
+        });
+
+        scope.on(targets.success, successHandler);
+        scope.on(targets.error, errorHandler);
+
+        scope.emit(source, { status: 200, data: 'ok' });
+        scope.emit(source, { status: 500, data: 'err' });
+        scope.emit(source, { status: 404, data: 'not found' }); // no match
+
+        expect(successHandler).toHaveBeenCalledTimes(1);
+        expect(successHandler.mock.calls[0][0]).toEqual({ status: 200, data: 'ok' });
+        expect(errorHandler).toHaveBeenCalledTimes(1);
+        expect(errorHandler.mock.calls[0][0]).toEqual({ status: 500, data: 'err' });
+      });
+
+      it('returns unsubscribe function', () => {
+        const source = event<number>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        const targets = split(source, scope, {
+          even: (n) => n % 2 === 0,
+        });
+
+        scope.on(targets.even, handler);
+        scope.emit(source, 2);
+        expect(handler).toHaveBeenCalledTimes(1);
+
+        targets.unsubscribe();
+        scope.emit(source, 4);
+        expect(handler).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('guard', () => {
+      it('forwards event when filter passes', () => {
+        const source = event<number>();
+        const target = event<number>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(target, handler);
+        guard(source, scope, {
+          filter: (n) => n > 0,
+          target,
+        });
+
+        scope.emit(source, 5);
+        scope.emit(source, -1);
+        scope.emit(source, 3);
+
+        expect(handler).toHaveBeenCalledTimes(2);
+        expect(handler.mock.calls[0][0]).toBe(5);
+        expect(handler.mock.calls[1][0]).toBe(3);
+      });
+
+      it('returns unsubscribe function', () => {
+        const source = event<number>();
+        const target = event<number>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(target, handler);
+        const unsub = guard(source, scope, {
+          filter: (n) => n > 0,
+          target,
+        });
+
+        scope.emit(source, 1);
+        expect(handler).toHaveBeenCalledTimes(1);
+
+        unsub();
+        scope.emit(source, 2);
+        expect(handler).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('sample', () => {
+      it('samples source value when clock fires', () => {
+        const form = cell({ name: 'John', valid: true }, { id: 'sample_form' });
+        const submit = event<void>();
+        const target = event<{ name: string; valid: boolean }>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(target, handler);
+        sample({
+          clock: submit,
+          source: form,
+          target,
+          scope,
+        });
+
+        scope.set(form, { name: 'Jane', valid: true });
+        scope.emit(submit, undefined);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler.mock.calls[0][0]).toEqual({ name: 'Jane', valid: true });
+      });
+
+      it('applies filter predicate', () => {
+        const form = cell({ name: 'John', valid: false }, { id: 'sample_form_filter' });
+        const submit = event<void>();
+        const target = event<{ name: string; valid: boolean }>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(target, handler);
+        sample({
+          clock: submit,
+          source: form,
+          target,
+          scope,
+          filter: (formData) => formData.valid,
+        });
+
+        scope.emit(submit, undefined); // filter blocks (valid: false)
+        expect(handler).not.toHaveBeenCalled();
+
+        scope.set(form, { name: 'Jane', valid: true });
+        scope.emit(submit, undefined); // filter passes
+        expect(handler).toHaveBeenCalledTimes(1);
+      });
+
+      it('applies fn transform', () => {
+        const name = cell('John', { id: 'sample_name_fn' });
+        const submit = event<void>();
+        const target = event<string>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(target, handler);
+        sample({
+          clock: submit,
+          source: name,
+          target,
+          scope,
+          fn: (n) => n.toUpperCase(),
+        });
+
+        scope.emit(submit, undefined);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler.mock.calls[0][0]).toBe('JOHN');
+      });
+
+      it('returns unsubscribe function', () => {
+        const counter = cell(0, { id: 'sample_counter_unsub' });
+        const tick = event<void>();
+        const target = event<number>();
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(target, handler);
+        const unsub = sample({
+          clock: tick,
+          source: counter,
+          target,
+          scope,
+        });
+
+        scope.emit(tick, undefined);
+        expect(handler).toHaveBeenCalledTimes(1);
+
+        unsub();
+        scope.emit(tick, undefined);
+        expect(handler).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

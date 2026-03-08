@@ -1496,3 +1496,84 @@ export function createHistoryController(
     },
   };
 }
+
+// --- Operators ---
+
+export function merge<P>(
+  events: Event<P>[],
+  scope: Scope,
+): { event: Event<P>; unsubscribe: Unsubscribe } {
+  const merged = event<P>({ debugName: `merge(${events.length})` });
+  const unsubscribers: Unsubscribe[] = [];
+
+  for (const source of events) {
+    unsubscribers.push(
+      scope.on(source, (payload, s, opts) => {
+        s.emit(merged, payload, opts);
+      })
+    );
+  }
+
+  return {
+    event: merged,
+    unsubscribe: () => {
+      for (const unsub of unsubscribers) unsub();
+    },
+  };
+}
+
+export function split<P, K extends string>(
+  source: Event<P>,
+  scope: Scope,
+  cases: Record<K, (payload: P) => boolean>,
+): { [key in K]: Event<P> } & { unsubscribe: Unsubscribe } {
+  const targets = {} as Record<K, Event<P>>;
+  const keys = Object.keys(cases) as K[];
+
+  for (const key of keys) {
+    targets[key] = event<P>({ debugName: `split.${key}` });
+  }
+
+  const unsub = scope.on(source, (payload, s, opts) => {
+    for (const key of keys) {
+      if (cases[key](payload)) {
+        s.emit(targets[key], payload, opts);
+        return;
+      }
+    }
+  });
+
+  return Object.assign(targets, { unsubscribe: unsub });
+}
+
+export function guard<P>(
+  source: Event<P>,
+  scope: Scope,
+  config: { filter: (payload: P) => boolean; target: Event<P> },
+): Unsubscribe {
+  return scope.on(source, (payload, s, opts) => {
+    if (config.filter(payload)) {
+      s.emit(config.target, payload, opts);
+    }
+  });
+}
+
+export interface SampleConfig<S, T> {
+  clock: Event<any>;
+  source: Cell<S> | Computed<S>;
+  target: Event<T>;
+  scope: Scope;
+  filter?: (sourceValue: S) => boolean;
+  fn?: (sourceValue: S) => T;
+}
+
+export function sample<S, T = S>(config: SampleConfig<S, T>): Unsubscribe {
+  return config.scope.on(config.clock, (_payload, s, opts) => {
+    const value = s.get(config.source);
+    if (config.filter && !config.filter(value)) {
+      return;
+    }
+    const output = config.fn ? config.fn(value) : value;
+    s.emit(config.target, output as T, opts);
+  });
+}
