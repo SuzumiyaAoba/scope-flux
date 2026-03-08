@@ -2480,4 +2480,68 @@ describe('core', () => {
       expect(history.restoreCheckpoint('nonexistent')).toBe(false);
     });
   });
+
+  describe('computed cache strategies', () => {
+    it('ttl cache expires after specified time', () => {
+      const base = cell(1, { id: 'cache_ttl_base' });
+      let evalCount = 0;
+      const derived = computed([base], (v) => {
+        evalCount++;
+        return v * 2;
+      }, { cache: { strategy: 'ttl', ttlMs: 100 } });
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      expect(scope.get(derived)).toBe(2);
+      expect(evalCount).toBe(1);
+
+      // Within TTL, should use cache even though we read again
+      scope.get(derived);
+      expect(evalCount).toBe(1);
+
+      // Advance past TTL
+      vi.advanceTimersByTime(101);
+      scope.get(derived);
+      expect(evalCount).toBe(2); // re-evaluated
+
+      vi.useRealTimers();
+    });
+
+    it('scope cache (default) does not expire by time', () => {
+      const base = cell(1, { id: 'cache_scope_base' });
+      let evalCount = 0;
+      const derived = computed([base], (v) => {
+        evalCount++;
+        return v * 2;
+      }); // default cache: 'scope'
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      scope.get(derived);
+      expect(evalCount).toBe(1);
+
+      vi.advanceTimersByTime(10000);
+      scope.get(derived);
+      expect(evalCount).toBe(1); // still cached
+
+      vi.useRealTimers();
+    });
+
+    it('none cache always re-evaluates', () => {
+      const base = cell(1, { id: 'cache_none_base' });
+      let evalCount = 0;
+      const derived = computed([base], (v) => {
+        evalCount++;
+        return v * 2;
+      }, { cache: 'none' });
+
+      const scope = createStore().fork();
+
+      scope.get(derived);
+      scope.get(derived);
+      expect(evalCount).toBe(2);
+    });
+  });
 });

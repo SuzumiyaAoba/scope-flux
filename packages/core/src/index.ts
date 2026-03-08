@@ -80,11 +80,18 @@ export type ComputedArgs<D extends ComputedDeps> = {
   [K in keyof D]: UnitValue<D[K]>;
 };
 
+export interface ComputedCacheConfig {
+  strategy: 'ttl';
+  ttlMs: number;
+}
+
+export type ComputedCacheOption = 'scope' | 'none' | ComputedCacheConfig;
+
 export interface Computed<T, D extends ComputedDeps = ComputedDeps> {
   kind: 'computed';
   deps: D;
   read: (...args: ComputedArgs<D>) => T;
-  cache: 'scope' | 'none';
+  cache: ComputedCacheOption;
   meta: UnitMeta;
   readonly __type?: T;
 }
@@ -119,6 +126,7 @@ interface ComputedCacheEntry {
   evaluating: boolean;
   deps: Map<AnyUnit, number>;
   value: unknown;
+  cachedAt?: number;
 }
 
 export interface MiddlewareContext {
@@ -317,7 +325,7 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
 export function computed<const D extends ComputedDeps, T>(
   deps: D,
   read: (...args: ComputedArgs<D>) => T,
-  options: { debugName?: string; cache?: 'scope' | 'none' } = {}
+  options: { debugName?: string; cache?: ComputedCacheOption } = {}
 ): Computed<T, D> {
   return {
     kind: 'computed',
@@ -825,15 +833,25 @@ export class Scope {
     }
 
     if (cached && unit.cache !== 'none') {
-      let valid = true;
-      for (const [dep, ver] of cached.deps.entries()) {
-        if (this._getUnitVersion(dep) !== ver) {
-          valid = false;
-          break;
+      // Check TTL expiration
+      if (
+        typeof unit.cache === 'object' &&
+        unit.cache.strategy === 'ttl' &&
+        cached.cachedAt !== undefined &&
+        Date.now() - cached.cachedAt >= unit.cache.ttlMs
+      ) {
+        // TTL expired — fall through to recompute
+      } else {
+        let valid = true;
+        for (const [dep, ver] of cached.deps.entries()) {
+          if (this._getUnitVersion(dep) !== ver) {
+            valid = false;
+            break;
+          }
         }
-      }
-      if (valid) {
-        return cached.value as T;
+        if (valid) {
+          return cached.value as T;
+        }
       }
     }
 
@@ -855,6 +873,7 @@ export class Scope {
         evaluating: false,
         deps,
         value: nextValue,
+        cachedAt: Date.now(),
       });
 
       if (!defaultEqual(prevValue, nextValue)) {
