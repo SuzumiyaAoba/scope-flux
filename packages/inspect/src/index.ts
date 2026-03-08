@@ -595,6 +595,107 @@ export function profileScope(scope: Scope): Profiler {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Time-travel debugging
+// ---------------------------------------------------------------------------
+
+export interface StateSnapshot {
+  id: number;
+  timestamp: number;
+  state: Record<string, unknown>;
+}
+
+export interface TimeTravelerOptions {
+  maxSnapshots?: number;
+}
+
+export interface TimeTraveler {
+  getSnapshots(): StateSnapshot[];
+  getCurrentIndex(): number;
+  stepBack(): void;
+  stepForward(): void;
+  jumpTo(index: number): void;
+  stop(): void;
+}
+
+export function createTimeTraveler(scope: Scope, options?: TimeTravelerOptions): TimeTraveler {
+  const maxSnapshots = options?.maxSnapshots ?? 100;
+  const snapshots: StateSnapshot[] = [];
+  let currentIndex = -1;
+  let seq = 0;
+  let traveling = false;
+
+  const captureSnapshot = (): StateSnapshot => ({
+    id: seq++,
+    timestamp: Date.now(),
+    state: snapshotScope(scope),
+  });
+
+  const restoreSnapshot = (snapshot: StateSnapshot) => {
+    traveling = true;
+    try {
+      applySnapshot(scope, snapshot.state, 'time-travel');
+    } finally {
+      traveling = false;
+    }
+  };
+
+  const unsub = scope.subscribe(() => {
+    if (traveling) return;
+
+    // If we stepped back, discard future snapshots
+    if (currentIndex < snapshots.length - 1) {
+      snapshots.length = currentIndex + 1;
+    }
+
+    const snapshot = captureSnapshot();
+    snapshots.push(snapshot);
+    if (snapshots.length > maxSnapshots) {
+      snapshots.shift();
+    }
+    currentIndex = snapshots.length - 1;
+  });
+
+  return {
+    getSnapshots: () => [...snapshots],
+    getCurrentIndex: () => currentIndex,
+    stepBack() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        restoreSnapshot(snapshots[currentIndex]);
+      } else if (currentIndex === 0) {
+        // Restore to initial state (before any tracked changes)
+        currentIndex = -1;
+        // Restore defaults by using empty snapshot with initial values
+        const cells = scope.listKnownCells();
+        traveling = true;
+        try {
+          scope.batch(() => {
+            for (const c of cells) {
+              scope.set(c, c.init);
+            }
+          });
+        } finally {
+          traveling = false;
+        }
+      }
+    },
+    stepForward() {
+      if (currentIndex < snapshots.length - 1) {
+        currentIndex++;
+        restoreSnapshot(snapshots[currentIndex]);
+      }
+    },
+    jumpTo(index: number) {
+      if (index >= 0 && index < snapshots.length) {
+        currentIndex = index;
+        restoreSnapshot(snapshots[index]);
+      }
+    },
+    stop: unsub,
+  };
+}
+
 export { createReduxDevtoolsAdapter } from './redux-devtools.js';
 export type {
   ReduxDevtoolsAdapter,

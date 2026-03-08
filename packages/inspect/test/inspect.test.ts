@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { cell, computed, createStore, event } from '@suzumiyaaoba/scope-flux-core';
-import { connectDevtools, createReduxDevtoolsAdapter, exportDependencyGraph, inspect, mountInspectPanel, profileScope } from '../src/index.js';
+import { connectDevtools, createReduxDevtoolsAdapter, createTimeTraveler, exportDependencyGraph, inspect, mountInspectPanel, profileScope } from '../src/index.js';
 
 describe('inspect', () => {
   it('captures set diffs as inspect records', () => {
@@ -798,6 +798,116 @@ describe('inspect', () => {
       const report = profiler.getReport();
       const aReport = report.sets.find((s) => s.unitName === 'a');
       expect(aReport!.count).toBe(1);
+    });
+  });
+
+  describe('createTimeTraveler', () => {
+    it('captures snapshots on each commit', () => {
+      const a = cell(0, { id: 'tt_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const traveler = createTimeTraveler(scope);
+
+      scope.set(a, 1);
+      scope.set(a, 2);
+      scope.set(a, 3);
+
+      const snapshots = traveler.getSnapshots();
+      expect(snapshots.length).toBe(3);
+      traveler.stop();
+    });
+
+    it('stepBack restores previous state', () => {
+      const a = cell(0, { id: 'tt_step_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const traveler = createTimeTraveler(scope);
+
+      scope.set(a, 10);
+      scope.set(a, 20);
+
+      traveler.stepBack();
+      expect(scope.get(a)).toBe(10);
+
+      traveler.stepBack();
+      expect(scope.get(a)).toBe(0);
+
+      traveler.stop();
+    });
+
+    it('stepForward restores next state', () => {
+      const a = cell(0, { id: 'tt_fwd_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const traveler = createTimeTraveler(scope);
+
+      scope.set(a, 10);
+      scope.set(a, 20);
+
+      traveler.stepBack();
+      traveler.stepBack();
+      expect(scope.get(a)).toBe(0);
+
+      traveler.stepForward();
+      expect(scope.get(a)).toBe(10);
+
+      traveler.stepForward();
+      expect(scope.get(a)).toBe(20);
+
+      traveler.stop();
+    });
+
+    it('jumpTo restores specific snapshot', () => {
+      const a = cell(0, { id: 'tt_jump_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const traveler = createTimeTraveler(scope);
+
+      scope.set(a, 100);
+      scope.set(a, 200);
+      scope.set(a, 300);
+
+      traveler.jumpTo(0);
+      expect(scope.get(a)).toBe(100);
+
+      traveler.jumpTo(2);
+      expect(scope.get(a)).toBe(300);
+
+      traveler.stop();
+    });
+
+    it('respects maxSnapshots limit', () => {
+      const a = cell(0, { id: 'tt_max_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const traveler = createTimeTraveler(scope, { maxSnapshots: 3 });
+
+      scope.set(a, 1);
+      scope.set(a, 2);
+      scope.set(a, 3);
+      scope.set(a, 4);
+      scope.set(a, 5);
+
+      const snapshots = traveler.getSnapshots();
+      expect(snapshots.length).toBe(3);
+      traveler.stop();
+    });
+
+    it('getCurrentIndex returns current position', () => {
+      const a = cell(0, { id: 'tt_idx_a', debugName: 'a' });
+      const scope = createStore().fork();
+
+      const traveler = createTimeTraveler(scope);
+
+      scope.set(a, 1);
+      scope.set(a, 2);
+
+      expect(traveler.getCurrentIndex()).toBe(1);
+
+      traveler.stepBack();
+      expect(traveler.getCurrentIndex()).toBe(0);
+
+      traveler.stop();
     });
   });
 });
