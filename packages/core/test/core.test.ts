@@ -1252,4 +1252,227 @@ describe('core', () => {
     expect(child.isHydrated('fork_hydrated_count')).toBe(true);
     expect(child.get(count)).toBe(5);
   });
+
+  describe('watch', () => {
+    it('calls handler with value and prev when cell changes', () => {
+      const counter = cell(0, { id: 'watch_counter_1' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(counter, handler);
+      scope.set(counter, 1);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(1, 0);
+    });
+
+    it('calls handler on each change', () => {
+      const counter = cell(0, { id: 'watch_counter_2' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(counter, handler);
+      scope.set(counter, 1);
+      scope.set(counter, 2);
+      scope.set(counter, 3);
+
+      expect(handler).toHaveBeenCalledTimes(3);
+      expect(handler.mock.calls).toEqual([
+        [1, 0],
+        [2, 1],
+        [3, 2],
+      ]);
+    });
+
+    it('does not call handler when value is unchanged', () => {
+      const counter = cell(0, { id: 'watch_counter_3' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(counter, handler);
+      scope.set(counter, 0); // same value
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('returns unsubscribe function', () => {
+      const counter = cell(0, { id: 'watch_counter_4' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      const unwatch = scope.watch(counter, handler);
+      scope.set(counter, 1);
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      unwatch();
+      scope.set(counter, 2);
+      expect(handler).toHaveBeenCalledTimes(1); // not called again
+    });
+
+    it('supports immediate option', () => {
+      const counter = cell(42, { id: 'watch_counter_5' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(counter, handler, { immediate: true });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(42, undefined);
+    });
+
+    it('supports once option', () => {
+      const counter = cell(0, { id: 'watch_counter_6' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(counter, handler, { once: true });
+      scope.set(counter, 1);
+      scope.set(counter, 2);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(1, 0);
+    });
+
+    it('immediate + once calls handler once with current value only', () => {
+      const counter = cell(10, { id: 'watch_counter_7' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(counter, handler, { immediate: true, once: true });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(10, undefined);
+
+      scope.set(counter, 20);
+      expect(handler).toHaveBeenCalledTimes(1); // not called again
+    });
+
+    it('watches computed units', () => {
+      const base = cell(2, { id: 'watch_base_1' });
+      const doubled = computed([base], (v) => v * 2);
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(doubled, handler);
+      scope.set(base, 3);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(6, 4);
+    });
+
+    it('watches computed with immediate', () => {
+      const base = cell(5, { id: 'watch_base_2' });
+      const doubled = computed([base], (v) => v * 2);
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(doubled, handler, { immediate: true });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(10, undefined);
+    });
+
+    it('does not fire for computed when result is unchanged', () => {
+      const base = cell(2, { id: 'watch_base_3' });
+      const isPositive = computed([base], (v) => v > 0);
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch(isPositive, handler);
+      scope.set(base, 3); // isPositive remains true
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('works with batch - fires after commit', () => {
+      const a = cell(0, { id: 'watch_batch_a' });
+      const b = cell(0, { id: 'watch_batch_b' });
+      const scope = createStore().fork();
+      const handlerA = vi.fn();
+      const handlerB = vi.fn();
+
+      scope.watch(a, handlerA);
+      scope.watch(b, handlerB);
+
+      scope.batch(() => {
+        scope.set(a, 1);
+        scope.set(b, 2);
+        // handlers should not be called yet inside batch
+        expect(handlerA).not.toHaveBeenCalled();
+        expect(handlerB).not.toHaveBeenCalled();
+      });
+
+      expect(handlerA).toHaveBeenCalledWith(1, 0);
+      expect(handlerB).toHaveBeenCalledWith(2, 0);
+    });
+
+    it('watches multiple units', () => {
+      const firstName = cell('John', { id: 'watch_multi_first' });
+      const lastName = cell('Doe', { id: 'watch_multi_last' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch([firstName, lastName], handler);
+      scope.set(firstName, 'Jane');
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(['Jane', 'Doe'], ['John', 'Doe']);
+    });
+
+    it('watches multiple units with batch', () => {
+      const firstName = cell('John', { id: 'watch_multi_batch_first' });
+      const lastName = cell('Doe', { id: 'watch_multi_batch_last' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch([firstName, lastName], handler);
+
+      scope.batch(() => {
+        scope.set(firstName, 'Jane');
+        scope.set(lastName, 'Smith');
+      });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(['Jane', 'Smith'], ['John', 'Doe']);
+    });
+
+    it('watches multiple units with immediate', () => {
+      const firstName = cell('John', { id: 'watch_multi_imm_first' });
+      const lastName = cell('Doe', { id: 'watch_multi_imm_last' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch([firstName, lastName], handler, { immediate: true });
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith(['John', 'Doe'], undefined);
+    });
+
+    it('multiple units: does not fire when no watched unit changed', () => {
+      const firstName = cell('John', { id: 'watch_multi_nochange_first' });
+      const lastName = cell('Doe', { id: 'watch_multi_nochange_last' });
+      const other = cell(0, { id: 'watch_multi_nochange_other' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch([firstName, lastName], handler);
+      scope.set(other, 1);
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('multiple units with once fires only once', () => {
+      const a = cell(0, { id: 'watch_multi_once_a' });
+      const b = cell(0, { id: 'watch_multi_once_b' });
+      const scope = createStore().fork();
+      const handler = vi.fn();
+
+      scope.watch([a, b], handler, { once: true });
+      scope.set(a, 1);
+      scope.set(b, 1);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledWith([1, 0], [0, 0]);
+    });
+  });
 });

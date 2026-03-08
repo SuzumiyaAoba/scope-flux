@@ -34,6 +34,11 @@ export type ScopeListener = (evt: CommitEvent) => void;
 export type EffectStatusListener = () => void;
 export type Unsubscribe = () => void;
 
+export interface WatchOptions {
+  immediate?: boolean;
+  once?: boolean;
+}
+
 export interface Cell<T> {
   kind: 'cell';
   init: T;
@@ -958,6 +963,142 @@ export class Scope {
       if (listeners && listeners.size === 0) {
         this._unitSubscribers.delete(key);
       }
+    };
+  }
+
+  public watch<T>(
+    unit: Cell<T> | Computed<T>,
+    handler: (value: T, prev: T | undefined) => void,
+    options?: WatchOptions,
+  ): Unsubscribe;
+  public watch<U extends readonly (Cell<any> | Computed<any>)[]>(
+    units: U,
+    handler: (
+      values: { [K in keyof U]: UnitValue<U[K]> },
+      prev: { [K in keyof U]: UnitValue<U[K]> } | undefined,
+    ) => void,
+    options?: WatchOptions,
+  ): Unsubscribe;
+  public watch(
+    unitOrUnits: Cell<any> | Computed<any> | readonly (Cell<any> | Computed<any>)[],
+    handler: (value: any, prev: any) => void,
+    options: WatchOptions = {},
+  ): Unsubscribe {
+    if (Array.isArray(unitOrUnits)) {
+      return this._watchMultiple(unitOrUnits as (Cell<any> | Computed<any>)[], handler, options);
+    }
+    return this._watchSingle(unitOrUnits as Cell<any> | Computed<any>, handler, options);
+  }
+
+  private _watchSingle<T>(
+    unit: Cell<T> | Computed<T>,
+    handler: (value: T, prev: T | undefined) => void,
+    options: WatchOptions,
+  ): Unsubscribe {
+    let prev: T | undefined = undefined;
+    let active = true;
+
+    if (options.immediate) {
+      const current = this.get(unit);
+      handler(current, undefined);
+      prev = current;
+      if (options.once) {
+        return () => {};
+      }
+    } else {
+      prev = this.get(unit);
+    }
+
+    const unsub = this.subscribeUnit(unit, () => {
+      if (!active) return;
+      const next = this.get(unit);
+      const p = prev;
+      prev = next;
+      handler(next, p);
+      if (options.once) {
+        active = false;
+        unsub();
+      }
+    });
+
+    return () => {
+      active = false;
+      unsub();
+    };
+  }
+
+  private _watchMultiple(
+    units: (Cell<any> | Computed<any>)[],
+    handler: (values: any[], prev: any[] | undefined) => void,
+    options: WatchOptions,
+  ): Unsubscribe {
+    let prev: any[] | undefined = undefined;
+    let active = true;
+    const getValues = () => units.map((u) => this.get(u));
+
+    if (options.immediate) {
+      const current = getValues();
+      handler(current, undefined);
+      prev = current;
+      if (options.once) {
+        return () => {};
+      }
+    } else {
+      prev = getValues();
+    }
+
+    const unsubscribers: Unsubscribe[] = [];
+    const notified = { flag: false };
+
+    const notify = () => {
+      if (!active || notified.flag) return;
+      notified.flag = true;
+
+      // Use microtask-like scheduling: defer to after all unit subscribers fire
+      // But since subscribeUnit fires after commit, we can just fire inline
+      // and use the flag to deduplicate within the same commit.
+      const next = getValues();
+      const p = prev;
+
+      // Check if any value actually changed
+      let changed = false;
+      for (let i = 0; i < units.length; i++) {
+        if (!Object.is(next[i], p?.[i])) {
+          changed = true;
+          break;
+        }
+      }
+
+      if (!changed) {
+        notified.flag = false;
+        return;
+      }
+
+      prev = next;
+      handler(next, p);
+
+      if (options.once) {
+        active = false;
+        for (const unsub of unsubscribers) unsub();
+      }
+    };
+
+    for (const unit of units) {
+      unsubscribers.push(
+        this.subscribeUnit(unit, () => {
+          notify();
+        })
+      );
+    }
+
+    // Reset flag after all unit subscribers fire for one commit
+    unsubscribers.push(this.subscribe(() => {
+      notified.flag = false;
+    }));
+
+    return () => {
+      active = false;
+      for (const unsub of unsubscribers) unsub();
     };
   }
 
