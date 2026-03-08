@@ -2427,4 +2427,57 @@ describe('core', () => {
       expect(scope.get(todos)).toEqual(['buy milk']);
     });
   });
+
+  describe('history checkpoints', () => {
+    it('checkpoint saves and restores state', () => {
+      const a = cell(0, { id: 'cp_a' });
+      const b = cell(0, { id: 'cp_b' });
+      const scope = createStore().fork();
+      const history = createHistoryController(scope, { track: [a, b] });
+
+      scope.set(a, 1);
+      scope.set(b, 2);
+      history.checkpoint('saved');
+
+      scope.set(a, 100);
+      scope.set(b, 200);
+      expect(scope.get(a)).toBe(100);
+
+      history.restoreCheckpoint('saved');
+      expect(scope.get(a)).toBe(1);
+      expect(scope.get(b)).toBe(2);
+    });
+
+    it('listCheckpoints returns all saved checkpoints', () => {
+      const a = cell(0, { id: 'cp_list_a' });
+      const scope = createStore().fork();
+      const history = createHistoryController(scope, { track: [a] });
+
+      scope.set(a, 1);
+      history.checkpoint('first');
+      scope.set(a, 2);
+      history.checkpoint('second');
+
+      expect(history.listCheckpoints()).toEqual(['first', 'second']);
+    });
+
+    it('deleteCheckpoint removes a checkpoint', () => {
+      const a = cell(0, { id: 'cp_del_a' });
+      const scope = createStore().fork();
+      const history = createHistoryController(scope, { track: [a] });
+
+      scope.set(a, 1);
+      history.checkpoint('temp');
+      history.deleteCheckpoint('temp');
+
+      expect(history.listCheckpoints()).toEqual([]);
+    });
+
+    it('restoreCheckpoint returns false for unknown checkpoint', () => {
+      const scope = createStore().fork();
+      const history = createHistoryController(scope);
+
+      expect(history.restoreCheckpoint('nonexistent')).toBe(false);
+    });
+  });
 });

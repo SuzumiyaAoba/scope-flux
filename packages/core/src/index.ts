@@ -1428,6 +1428,10 @@ export interface HistoryController {
   canRedo(): boolean;
   getSize(): { undo: number; redo: number };
   unsubscribe(): void;
+  checkpoint(name: string): void;
+  restoreCheckpoint(name: string): boolean;
+  deleteCheckpoint(name: string): boolean;
+  listCheckpoints(): string[];
 }
 
 export interface HistoryOptions {
@@ -1492,6 +1496,7 @@ export function createHistoryController(
   const reasonPrefix = options.reasonPrefix ?? 'history';
   const undoStack: HistoryEntry[] = [];
   const redoStack: HistoryEntry[] = [];
+  const checkpoints = new Map<string, Map<AnyCell, unknown>>();
   let applying = false;
 
   const pushUndo = (entry: HistoryEntry) => {
@@ -1600,6 +1605,35 @@ export function createHistoryController(
     },
     unsubscribe(): void {
       unsub();
+    },
+    checkpoint(name: string): void {
+      const cells = trackedCells ? Array.from(trackedCells) : scope.listKnownCells();
+      const snapshot = new Map<AnyCell, unknown>();
+      for (const c of cells) {
+        snapshot.set(c, scope.get(c));
+      }
+      checkpoints.set(name, snapshot);
+    },
+    restoreCheckpoint(name: string): boolean {
+      const snapshot = checkpoints.get(name);
+      if (!snapshot) return false;
+      applying = true;
+      try {
+        scope.batch(() => {
+          for (const [c, value] of snapshot.entries()) {
+            scope.set(c, value, { priority: 'urgent', reason: `${reasonPrefix}.restore` });
+          }
+        });
+      } finally {
+        applying = false;
+      }
+      return true;
+    },
+    deleteCheckpoint(name: string): boolean {
+      return checkpoints.delete(name);
+    },
+    listCheckpoints(): string[] {
+      return Array.from(checkpoints.keys());
     },
   };
 }
