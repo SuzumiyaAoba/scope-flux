@@ -1686,3 +1686,77 @@ export function throttle<P>(
     },
   };
 }
+
+// --- Families ---
+
+interface FamilyOptions<K> {
+  isEqual?: (a: K, b: K) => boolean;
+}
+
+interface Family<K, U> {
+  (key: K): U;
+  remove(key: K): void;
+  clear(): void;
+}
+
+function createFamily<K, U>(
+  factory: (key: K) => U,
+  options: FamilyOptions<K> = {},
+): Family<K, U> {
+  const cache: Array<{ key: K; unit: U }> = [];
+  const isEqual = options.isEqual ?? Object.is;
+
+  const find = (key: K): { key: K; unit: U } | undefined => {
+    for (const entry of cache) {
+      if (isEqual(entry.key, key)) return entry;
+    }
+    return undefined;
+  };
+
+  const family = ((key: K): U => {
+    const existing = find(key);
+    if (existing) return existing.unit;
+    const unit = factory(key);
+    cache.push({ key, unit });
+    return unit;
+  }) as Family<K, U>;
+
+  family.remove = (key: K): void => {
+    const idx = cache.findIndex((e) => isEqual(e.key, key));
+    if (idx >= 0) cache.splice(idx, 1);
+  };
+
+  family.clear = (): void => {
+    cache.length = 0;
+  };
+
+  return family;
+}
+
+export function cellFamily<K, T>(
+  factory: (key: K) => Cell<T>,
+  options?: FamilyOptions<K>,
+): Family<K, Cell<T>> {
+  return createFamily(factory, options);
+}
+
+export function computedFamily<K, T>(
+  factory: (key: K) => Computed<T>,
+  options?: FamilyOptions<K>,
+): Family<K, Computed<T>> {
+  return createFamily(factory, options);
+}
+
+export function eventFamily<K, P>(
+  factory: (key: K) => Event<P>,
+  options?: FamilyOptions<K>,
+): Family<K, Event<P>> {
+  return createFamily(factory, options);
+}
+
+export function effectFamily<K, P, R>(
+  factory: (key: K) => Effect<P, R>,
+  options?: FamilyOptions<K>,
+): Family<K, Effect<P, R>> {
+  return createFamily(factory, options);
+}

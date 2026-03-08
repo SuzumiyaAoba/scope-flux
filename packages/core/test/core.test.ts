@@ -9,7 +9,11 @@ import {
   createStore,
   effect,
   event,
+  cellFamily,
+  computedFamily,
   debounce,
+  effectFamily,
+  eventFamily,
   guard,
   merge,
   sample,
@@ -2127,6 +2131,107 @@ describe('core', () => {
       expect(handler).toHaveBeenCalledTimes(1); // no more emissions
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('families', () => {
+    describe('cellFamily', () => {
+      it('creates cells by parameter', () => {
+        const userCell = cellFamily((id: string) => cell(`user-${id}`, { id: `fam_user_${id}` }));
+        const scope = createStore().fork();
+
+        expect(scope.get(userCell('abc'))).toBe('user-abc');
+        expect(scope.get(userCell('xyz'))).toBe('user-xyz');
+      });
+
+      it('returns same unit for same parameter', () => {
+        const userCell = cellFamily((id: string) => cell(id, { id: `fam_memo_${id}` }));
+
+        expect(userCell('abc')).toBe(userCell('abc'));
+        expect(userCell('abc')).not.toBe(userCell('xyz'));
+      });
+
+      it('supports custom isEqual for parameter comparison', () => {
+        const coordCell = cellFamily(
+          (coord: { x: number; y: number }) => cell(coord, { id: `fam_coord_${coord.x}_${coord.y}` }),
+          { isEqual: (a, b) => a.x === b.x && a.y === b.y }
+        );
+
+        const a = coordCell({ x: 1, y: 2 });
+        const b = coordCell({ x: 1, y: 2 });
+        expect(a).toBe(b);
+      });
+
+      it('remove deletes cached unit', () => {
+        const fam = cellFamily((id: string) => cell(0, { id: `fam_rm_${id}` }));
+        const first = fam('a');
+        fam.remove('a');
+        const second = fam('a');
+        expect(first).not.toBe(second);
+      });
+
+      it('clear removes all cached units', () => {
+        const fam = cellFamily((id: string) => cell(0, { id: `fam_clr_${id}` }));
+        fam('a');
+        fam('b');
+        fam.clear();
+        const newA = fam('a');
+        expect(newA).not.toBe(fam('b'));
+      });
+    });
+
+    describe('computedFamily', () => {
+      it('creates computed by parameter', () => {
+        const base = cell(10, { id: 'fam_comp_base' });
+        const multiplied = computedFamily((factor: number) =>
+          computed([base], (v) => v * factor)
+        );
+        const scope = createStore().fork();
+
+        expect(scope.get(multiplied(2))).toBe(20);
+        expect(scope.get(multiplied(3))).toBe(30);
+      });
+
+      it('memoizes computed instances', () => {
+        const base = cell(0, { id: 'fam_comp_memo_base' });
+        const fam = computedFamily((n: number) => computed([base], (v) => v + n));
+        expect(fam(1)).toBe(fam(1));
+      });
+    });
+
+    describe('eventFamily', () => {
+      it('creates events by parameter', () => {
+        const fam = eventFamily((channel: string) => event<string>({ debugName: channel }));
+        const scope = createStore().fork();
+        const handler = vi.fn();
+
+        scope.on(fam('chat'), handler);
+        scope.emit(fam('chat'), 'hello');
+
+        expect(handler).toHaveBeenCalledWith('hello', expect.anything(), expect.anything());
+      });
+
+      it('memoizes event instances', () => {
+        const fam = eventFamily((_: string) => event<void>());
+        expect(fam('a')).toBe(fam('a'));
+      });
+    });
+
+    describe('effectFamily', () => {
+      it('creates effects by parameter', async () => {
+        const fam = effectFamily((url: string) =>
+          effect(async () => `fetched:${url}`)
+        );
+        const scope = createStore().fork();
+
+        const result = await scope.run(fam('/api/users'), undefined);
+        expect(result).toBe('fetched:/api/users');
+      });
+
+      it('memoizes effect instances', () => {
+        const fam = effectFamily((_: string) => effect(async () => 'ok'));
+        expect(fam('x')).toBe(fam('x'));
+      });
     });
   });
 });
