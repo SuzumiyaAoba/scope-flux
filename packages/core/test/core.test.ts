@@ -1475,4 +1475,277 @@ describe('core', () => {
       expect(handler).toHaveBeenCalledWith([1, 0], [0, 0]);
     });
   });
+
+  describe('retry strategies', () => {
+    it('retries with exponential backoff strategy', async () => {
+      let attempts = 0;
+      const delays: number[] = [];
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 4) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 4,
+              strategy: 'exponential',
+              baseDelay: 100,
+              maxDelay: 10000,
+              jitter: 'none',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+
+      // Mock setTimeout to capture delays
+      const origWaitMs = globalThis.setTimeout;
+      vi.useFakeTimers();
+
+      const resultPromise = scope.run(fx, undefined);
+
+      // Advance through retries: delays should be 100, 200, 400 (exponential)
+      for (let i = 0; i < 3; i++) {
+        await vi.advanceTimersByTimeAsync(1000);
+      }
+
+      const result = await resultPromise;
+      expect(result).toBe('ok');
+      expect(attempts).toBe(4);
+
+      vi.useRealTimers();
+    });
+
+    it('retries with linear backoff strategy', async () => {
+      let attempts = 0;
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 3) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 3,
+              strategy: 'linear',
+              baseDelay: 100,
+              jitter: 'none',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      const resultPromise = scope.run(fx, undefined);
+
+      // Linear delays: 100, 200
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(200);
+
+      const result = await resultPromise;
+      expect(result).toBe('ok');
+      expect(attempts).toBe(3);
+
+      vi.useRealTimers();
+    });
+
+    it('caps delay at maxDelay', async () => {
+      let attempts = 0;
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 5) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 5,
+              strategy: 'exponential',
+              baseDelay: 100,
+              maxDelay: 300,
+              jitter: 'none',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      const resultPromise = scope.run(fx, undefined);
+
+      // Delays: 100, 200, 300 (capped), 300 (capped)
+      for (let i = 0; i < 4; i++) {
+        await vi.advanceTimersByTimeAsync(300);
+      }
+
+      const result = await resultPromise;
+      expect(result).toBe('ok');
+
+      vi.useRealTimers();
+    });
+
+    it('respects retryIf predicate', async () => {
+      let attempts = 0;
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts === 1) throw new Error('retryable');
+          if (attempts === 2) throw new Error('fatal');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 5,
+              strategy: 'fixed',
+              baseDelay: 0,
+              retryIf: (err) => (err as Error).message === 'retryable',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+
+      await expect(scope.run(fx, undefined)).rejects.toThrow('fatal');
+      expect(attempts).toBe(2);
+    });
+
+    it('uses custom strategy function', async () => {
+      let attempts = 0;
+      const customDelays: number[] = [];
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 3) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 3,
+              strategy: (attempt) => {
+                const delay = attempt * 50;
+                customDelays.push(delay);
+                return delay;
+              },
+              jitter: 'none',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      const resultPromise = scope.run(fx, undefined);
+      await vi.advanceTimersByTimeAsync(50);  // attempt 1 → 50ms
+      await vi.advanceTimersByTimeAsync(100); // attempt 2 → 100ms
+
+      const result = await resultPromise;
+      expect(result).toBe('ok');
+      expect(customDelays).toEqual([50, 100]);
+
+      vi.useRealTimers();
+    });
+
+    it('applies full jitter (delay between 0 and computed delay)', async () => {
+      let attempts = 0;
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 3) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 3,
+              strategy: 'exponential',
+              baseDelay: 1000,
+              jitter: 'full',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      // With full jitter, delay is random between 0 and baseDelay * 2^(attempt-1)
+      // We just need to advance enough time for it to complete
+      const resultPromise = scope.run(fx, undefined);
+      await vi.advanceTimersByTimeAsync(5000);
+
+      const result = await resultPromise;
+      expect(result).toBe('ok');
+      expect(attempts).toBe(3);
+
+      vi.useRealTimers();
+    });
+
+    it('backward compatible with retries number shorthand', async () => {
+      let attempts = 0;
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 3) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retries: 2,
+            retryDelayMs: 0,
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+      const result = await scope.run(fx, undefined);
+      expect(result).toBe('ok');
+      expect(attempts).toBe(3);
+    });
+
+    it('fixed strategy uses constant delay', async () => {
+      let attempts = 0;
+      const fx = effect(
+        async () => {
+          attempts++;
+          if (attempts < 3) throw new Error('fail');
+          return 'ok';
+        },
+        {
+          policy: {
+            retry: {
+              maxAttempts: 3,
+              strategy: 'fixed',
+              baseDelay: 50,
+              jitter: 'none',
+            },
+          },
+        }
+      );
+
+      const scope = createStore().fork();
+      vi.useFakeTimers();
+
+      const resultPromise = scope.run(fx, undefined);
+      await vi.advanceTimersByTimeAsync(50); // first retry
+      await vi.advanceTimersByTimeAsync(50); // second retry
+
+      const result = await resultPromise;
+      expect(result).toBe('ok');
+      expect(attempts).toBe(3);
+
+      vi.useRealTimers();
+    });
+  });
 });

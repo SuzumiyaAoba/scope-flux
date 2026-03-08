@@ -18,11 +18,26 @@ export interface RunOptions extends UpdateOptions {
   retries?: number;
 }
 
+export type RetryStrategy = 'fixed' | 'linear' | 'exponential' | ((attempt: number, error: unknown) => number);
+export type JitterMode = 'none' | 'full';
+
+export interface RetryConfig {
+  maxAttempts: number;
+  strategy?: RetryStrategy;
+  baseDelay?: number;
+  maxDelay?: number;
+  jitter?: JitterMode;
+  retryIf?: (error: unknown) => boolean;
+}
+
 export interface EffectPolicy {
   concurrency?: 'parallel' | 'drop' | 'replace' | 'queue';
   retries?: number;
   retryDelayMs?: number | ((attempt: number, error: unknown) => number);
+  retry?: RetryConfig;
 }
+
+type NormalizedEffectPolicy = Required<Pick<EffectPolicy, 'concurrency' | 'retries' | 'retryDelayMs'>> & { retry?: RetryConfig };
 
 export interface EffectContext {
   scope: Scope;
@@ -75,7 +90,7 @@ export interface Event<P> {
 export interface Effect<P, R> {
   kind: 'effect';
   handler: (payload: P, ctx: EffectContext) => Promise<R> | R;
-  policy: Required<EffectPolicy>;
+  policy: NormalizedEffectPolicy;
   meta: UnitMeta;
 }
 
@@ -224,12 +239,47 @@ function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> 
   });
 }
 
-function normalizeEffectPolicy(policy: EffectPolicy | undefined): Required<EffectPolicy> {
+function normalizeEffectPolicy(policy: EffectPolicy | undefined): NormalizedEffectPolicy {
   return {
     concurrency: policy?.concurrency ?? 'parallel',
     retries: policy?.retries ?? 0,
     retryDelayMs: policy?.retryDelayMs ?? 0,
+    retry: policy?.retry,
   };
+}
+
+function computeRetryDelay(config: RetryConfig, attempt: number, error: unknown): number {
+  const baseDelay = config.baseDelay ?? 0;
+  const maxDelay = config.maxDelay ?? Infinity;
+  const strategy = config.strategy ?? 'fixed';
+
+  let delay: number;
+  if (typeof strategy === 'function') {
+    delay = strategy(attempt, error);
+  } else {
+    switch (strategy) {
+      case 'fixed':
+        delay = baseDelay;
+        break;
+      case 'linear':
+        delay = baseDelay * attempt;
+        break;
+      case 'exponential':
+        delay = baseDelay * Math.pow(2, attempt - 1);
+        break;
+      default:
+        delay = baseDelay;
+    }
+  }
+
+  delay = Math.min(delay, maxDelay);
+
+  const jitter = config.jitter ?? 'none';
+  if (jitter === 'full') {
+    delay = Math.random() * delay;
+  }
+
+  return Math.max(0, delay);
 }
 
 export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => boolean } = {}): Cell<T> {
@@ -588,8 +638,9 @@ export class Scope {
     }
 
     try {
+      const retryConfig = unitEffect.policy.retry;
       const retries = options.retries ?? unitEffect.policy.retries;
-      const maxAttempts = Math.max(0, retries) + 1;
+      const maxAttempts = retryConfig ? retryConfig.maxAttempts : Math.max(0, retries) + 1;
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         if (controller.signal.aborted) {
@@ -619,13 +670,27 @@ export class Scope {
             this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
             throw error;
           }
+
+          // Check retryIf predicate (only for retry config)
+          if (retryConfig?.retryIf && !retryConfig.retryIf(error)) {
+            state.lastError = error;
+            this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
+            throw error;
+          }
+
           if (attempt >= maxAttempts) {
             state.lastError = error;
             this._notifyEffectSubscribers(unitEffect as Effect<unknown, unknown>);
             throw error;
           }
-          const rawDelay = unitEffect.policy.retryDelayMs;
-          const delayMs = typeof rawDelay === 'function' ? rawDelay(attempt, error) : rawDelay;
+
+          let delayMs: number;
+          if (retryConfig) {
+            delayMs = computeRetryDelay(retryConfig, attempt, error);
+          } else {
+            const rawDelay = unitEffect.policy.retryDelayMs;
+            delayMs = typeof rawDelay === 'function' ? rawDelay(attempt, error) : rawDelay;
+          }
           await waitMsWithAbort(Math.max(0, delayMs), controller.signal);
         }
       }
