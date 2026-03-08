@@ -9,10 +9,12 @@ import {
   createStore,
   effect,
   event,
+  debounce,
   guard,
   merge,
   sample,
   split,
+  throttle,
 } from '../src/index.js';
 import type { Computed } from '../src/index.js';
 
@@ -1970,6 +1972,161 @@ describe('core', () => {
         scope.emit(tick, undefined);
         expect(handler).toHaveBeenCalledTimes(1);
       });
+    });
+  });
+
+  describe('debounce', () => {
+    it('debounces event emissions (trailing)', () => {
+      const source = event<string>();
+      const scope = createStore().fork();
+      const { event: debounced } = debounce(source, scope, 100);
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(debounced, handler);
+
+      scope.emit(source, 'a');
+      scope.emit(source, 'b');
+      scope.emit(source, 'c');
+
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(100);
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0][0]).toBe('c');
+
+      vi.useRealTimers();
+    });
+
+    it('debounces with leading option', () => {
+      const source = event<string>();
+      const scope = createStore().fork();
+      const { event: debounced } = debounce(source, scope, 100, { leading: true });
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(debounced, handler);
+
+      scope.emit(source, 'a');
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0][0]).toBe('a');
+
+      scope.emit(source, 'b');
+      scope.emit(source, 'c');
+      expect(handler).toHaveBeenCalledTimes(1); // still 1 during debounce window
+
+      vi.advanceTimersByTime(100);
+      // trailing fires after window
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler.mock.calls[1][0]).toBe('c');
+
+      vi.useRealTimers();
+    });
+
+    it('resets timer on each emission', () => {
+      const source = event<number>();
+      const scope = createStore().fork();
+      const { event: debounced } = debounce(source, scope, 100);
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(debounced, handler);
+
+      scope.emit(source, 1);
+      vi.advanceTimersByTime(50);
+      scope.emit(source, 2); // resets timer
+      vi.advanceTimersByTime(50);
+      expect(handler).not.toHaveBeenCalled(); // only 50ms since last emit
+
+      vi.advanceTimersByTime(50);
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0][0]).toBe(2);
+
+      vi.useRealTimers();
+    });
+
+    it('returns unsubscribe that cleans up', () => {
+      const source = event<number>();
+      const scope = createStore().fork();
+      const { event: debounced, unsubscribe } = debounce(source, scope, 100);
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(debounced, handler);
+
+      scope.emit(source, 1);
+      unsubscribe();
+      vi.advanceTimersByTime(100);
+      expect(handler).not.toHaveBeenCalled();
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('throttle', () => {
+    it('throttles event emissions', () => {
+      const source = event<string>();
+      const scope = createStore().fork();
+      const { event: throttled } = throttle(source, scope, 100);
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(throttled, handler);
+
+      scope.emit(source, 'a'); // fires immediately (leading)
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(handler.mock.calls[0][0]).toBe('a');
+
+      scope.emit(source, 'b'); // throttled
+      scope.emit(source, 'c'); // throttled
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(100);
+      // trailing fires with last value
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler.mock.calls[1][0]).toBe('c');
+
+      vi.useRealTimers();
+    });
+
+    it('allows next emission after interval', () => {
+      const source = event<number>();
+      const scope = createStore().fork();
+      const { event: throttled } = throttle(source, scope, 100);
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(throttled, handler);
+
+      scope.emit(source, 1);
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(100);
+      scope.emit(source, 2);
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler.mock.calls[1][0]).toBe(2);
+
+      vi.useRealTimers();
+    });
+
+    it('returns unsubscribe that cleans up', () => {
+      const source = event<number>();
+      const scope = createStore().fork();
+      const { event: throttled, unsubscribe } = throttle(source, scope, 100);
+      const handler = vi.fn();
+
+      vi.useFakeTimers();
+      scope.on(throttled, handler);
+
+      scope.emit(source, 1);
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+      vi.advanceTimersByTime(200);
+      scope.emit(source, 2);
+      expect(handler).toHaveBeenCalledTimes(1); // no more emissions
+
+      vi.useRealTimers();
     });
   });
 });

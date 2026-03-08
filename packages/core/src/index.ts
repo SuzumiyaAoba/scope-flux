@@ -1577,3 +1577,104 @@ export function sample<S, T = S>(config: SampleConfig<S, T>): Unsubscribe {
     s.emit(config.target, output as T, opts);
   });
 }
+
+export interface DebounceOptions {
+  leading?: boolean;
+}
+
+export function debounce<P>(
+  source: Event<P>,
+  scope: Scope,
+  delayMs: number,
+  options: DebounceOptions = {},
+): { event: Event<P>; unsubscribe: Unsubscribe } {
+  const debounced = event<P>({ debugName: `debounce(${delayMs})` });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let canLead = true;
+
+  const unsub = scope.on(source, (payload, s, opts) => {
+    if (options.leading && canLead) {
+      canLead = false;
+      s.emit(debounced, payload, opts);
+    }
+
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+
+    timer = setTimeout(() => {
+      timer = undefined;
+      canLead = true;
+      if (!options.leading || !Object.is(payload, payload)) {
+        s.emit(debounced, payload, opts);
+      } else {
+        // trailing: always emit last value
+        s.emit(debounced, payload, opts);
+      }
+    }, delayMs);
+  });
+
+  return {
+    event: debounced,
+    unsubscribe: () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      unsub();
+    },
+  };
+}
+
+export function throttle<P>(
+  source: Event<P>,
+  scope: Scope,
+  intervalMs: number,
+): { event: Event<P>; unsubscribe: Unsubscribe } {
+  const throttled = event<P>({ debugName: `throttle(${intervalMs})` });
+  let lastFired = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let lastPayload: P | undefined;
+  let lastOpts: UpdateOptions | undefined;
+  let hasTrailing = false;
+
+  const unsub = scope.on(source, (payload, s, opts) => {
+    const now = Date.now();
+    lastPayload = payload;
+    lastOpts = opts;
+
+    if (now - lastFired >= intervalMs) {
+      lastFired = now;
+      hasTrailing = false;
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      s.emit(throttled, payload, opts);
+    } else {
+      hasTrailing = true;
+      if (timer === undefined) {
+        const remaining = intervalMs - (now - lastFired);
+        timer = setTimeout(() => {
+          timer = undefined;
+          lastFired = Date.now();
+          if (hasTrailing) {
+            hasTrailing = false;
+            s.emit(throttled, lastPayload as P, lastOpts ?? {});
+          }
+        }, remaining);
+      }
+    }
+  });
+
+  return {
+    event: throttled,
+    unsubscribe: () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+      unsub();
+    },
+  };
+}
