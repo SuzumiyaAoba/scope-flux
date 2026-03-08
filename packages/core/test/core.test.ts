@@ -2234,4 +2234,118 @@ describe('core', () => {
       });
     });
   });
+
+  describe('middleware', () => {
+    it('intercepts set calls with ctx and next', () => {
+      const counter = cell(0, { id: 'mw_counter' });
+      const log: string[] = [];
+
+      const store = createStore({
+        middleware: [
+          (ctx, next) => {
+            log.push(`before:${ctx.unit.meta.id}:${ctx.nextValue}`);
+            next();
+            log.push(`after:${ctx.unit.meta.id}:${ctx.nextValue}`);
+          },
+        ],
+      });
+      const scope = store.root;
+
+      scope.set(counter, 5);
+      expect(log).toEqual(['before:mw_counter:5', 'after:mw_counter:5']);
+      expect(scope.get(counter)).toBe(5);
+    });
+
+    it('middleware can reject updates by not calling next', () => {
+      const age = cell(25, { id: 'mw_age' });
+
+      const store = createStore({
+        middleware: [
+          (ctx, next) => {
+            if (ctx.unit.meta.id === 'mw_age' && (ctx.nextValue as number) < 0) {
+              return; // reject
+            }
+            next();
+          },
+        ],
+      });
+      const scope = store.root;
+
+      scope.set(age, -1);
+      expect(scope.get(age)).toBe(25); // unchanged
+
+      scope.set(age, 30);
+      expect(scope.get(age)).toBe(30); // accepted
+    });
+
+    it('middleware can transform values', () => {
+      const name = cell('', { id: 'mw_name' });
+
+      const store = createStore({
+        middleware: [
+          (ctx, next) => {
+            if (ctx.unit.meta.id === 'mw_name') {
+              ctx.nextValue = (ctx.nextValue as string).trim().toUpperCase();
+            }
+            next();
+          },
+        ],
+      });
+      const scope = store.root;
+
+      scope.set(name, '  hello  ');
+      expect(scope.get(name)).toBe('HELLO');
+    });
+
+    it('multiple middleware run in order (FIFO)', () => {
+      const counter = cell(0, { id: 'mw_order' });
+      const order: number[] = [];
+
+      const store = createStore({
+        middleware: [
+          (_ctx, next) => { order.push(1); next(); },
+          (_ctx, next) => { order.push(2); next(); },
+          (_ctx, next) => { order.push(3); next(); },
+        ],
+      });
+      const scope = store.root;
+
+      scope.set(counter, 1);
+      expect(order).toEqual([1, 2, 3]);
+    });
+
+    it('scope.use adds middleware dynamically', () => {
+      const counter = cell(0, { id: 'mw_dynamic' });
+      const log: string[] = [];
+
+      const store = createStore();
+      const scope = store.root;
+
+      scope.use((ctx, next) => {
+        log.push(`intercepted:${ctx.nextValue}`);
+        next();
+      });
+
+      scope.set(counter, 10);
+      expect(log).toEqual(['intercepted:10']);
+    });
+
+    it('middleware receives previousValue', () => {
+      const counter = cell(5, { id: 'mw_prev' });
+      let captured: unknown;
+
+      const store = createStore({
+        middleware: [
+          (ctx, next) => {
+            captured = ctx.previousValue;
+            next();
+          },
+        ],
+      });
+      const scope = store.root;
+
+      scope.set(counter, 10);
+      expect(captured).toBe(5);
+    });
+  });
 });

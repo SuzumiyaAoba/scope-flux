@@ -121,6 +121,15 @@ interface ComputedCacheEntry {
   value: unknown;
 }
 
+export interface MiddlewareContext {
+  unit: AnyCell;
+  previousValue: unknown;
+  nextValue: unknown;
+  scope: Scope;
+}
+
+export type Middleware = (ctx: MiddlewareContext, next: () => void) => void;
+
 export interface SetChange {
   kind: 'set';
   unit: AnyCell;
@@ -428,17 +437,25 @@ export class Scope {
   private readonly _knownCells = new Set<AnyCell>();
   private readonly _hydratedIds = new Set<string>();
   private readonly _registry: StoreRegistry;
+  private readonly _middleware: Middleware[] = [];
 
   private _batchDepth = 0;
   private _pendingChanges: Change[] = [];
   private _pendingPriority: Priority | undefined;
 
-  constructor(registry: StoreRegistry, seed?: SeedInput) {
+  constructor(registry: StoreRegistry, seed?: SeedInput, middleware?: Middleware[]) {
     this._registry = registry;
     this.id = `scope_${Scope._nextId++}`;
+    if (middleware) {
+      this._middleware.push(...middleware);
+    }
     if (seed) {
       this._applySeed(seed);
     }
+  }
+
+  public use(mw: Middleware): void {
+    this._middleware.push(mw);
   }
 
   private _registerCell(cellUnit: AnyCell): void {
@@ -902,9 +919,31 @@ export class Scope {
           : (next as (prev: T) => T)(this.get(unit))
         : next;
 
-    this._withBatch(() => {
-      this._setCellValue(unit, resolved, options);
-    });
+    if (this._middleware.length > 0) {
+      const ctx: MiddlewareContext = {
+        unit: unit as AnyCell,
+        previousValue: this.get(unit),
+        nextValue: resolved,
+        scope: this,
+      };
+
+      let idx = 0;
+      const runNext = () => {
+        if (idx < this._middleware.length) {
+          const mw = this._middleware[idx++];
+          mw(ctx, runNext);
+        } else {
+          this._withBatch(() => {
+            this._setCellValue(unit, ctx.nextValue as T, options);
+          });
+        }
+      };
+      runNext();
+    } else {
+      this._withBatch(() => {
+        this._setCellValue(unit, resolved, options);
+      });
+    }
   }
 
   public batch<T>(fn: () => T): T {
@@ -1257,7 +1296,7 @@ export class Scope {
   }
 
   public fork(seed?: SeedInput): Scope {
-    const child = new Scope(this._registry);
+    const child = new Scope(this._registry, undefined, [...this._middleware]);
     for (const [cellUnit, value] of this._cellValues.entries()) {
       child._knownCells.add(cellUnit);
       child._cellValues.set(cellUnit, value);
@@ -1337,9 +1376,9 @@ export interface HistoryOptions {
   reasonPrefix?: string;
 }
 
-export function createStore(options: { seed?: SeedInput } = {}): Store {
+export function createStore(options: { seed?: SeedInput; middleware?: Middleware[] } = {}): Store {
   const registry = new StoreRegistry();
-  const root = new Scope(registry, options.seed);
+  const root = new Scope(registry, options.seed, options.middleware);
 
   return {
     root,
