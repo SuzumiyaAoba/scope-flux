@@ -5,6 +5,7 @@ node_modules/
 packages/*/dist/
 *.tsbuildinfo
 doc_build/
+docs/
 docs-site/doc_build/
 samples/dist/
 
