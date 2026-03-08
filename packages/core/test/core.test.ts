@@ -19,6 +19,8 @@ import {
   sample,
   split,
   throttle,
+  fromObservable,
+  toObservable,
 } from '../src/index.js';
 import type { Computed } from '../src/index.js';
 
@@ -2542,6 +2544,103 @@ describe('core', () => {
       scope.get(derived);
       scope.get(derived);
       expect(evalCount).toBe(2);
+    });
+  });
+
+  describe('fromObservable / toObservable', () => {
+    it('fromObservable creates a cell that tracks observable values', () => {
+      let subscriber: { next: (v: number) => void; complete: () => void } | null = null;
+      const observable = {
+        subscribe(obs: { next: (v: number) => void; error?: (e: unknown) => void; complete: () => void }) {
+          subscriber = obs;
+          return { unsubscribe: () => { subscriber = null; } };
+        },
+      };
+
+      const scope = createStore().fork();
+      const { unit: observed, unsubscribe } = fromObservable(observable, 0, scope, { id: 'from_obs_1' });
+
+      expect(scope.get(observed)).toBe(0);
+
+      subscriber!.next(42);
+      expect(scope.get(observed)).toBe(42);
+
+      subscriber!.next(99);
+      expect(scope.get(observed)).toBe(99);
+
+      unsubscribe();
+    });
+
+    it('fromObservable unsubscribe stops tracking', () => {
+      let subscriber: { next: (v: number) => void; complete: () => void } | null = null;
+      const observable = {
+        subscribe(obs: { next: (v: number) => void; error?: (e: unknown) => void; complete: () => void }) {
+          subscriber = obs;
+          return { unsubscribe: () => { subscriber = null; } };
+        },
+      };
+
+      const scope = createStore().fork();
+      const { unit: observed, unsubscribe } = fromObservable(observable, 0, scope, { id: 'from_obs_2' });
+
+      subscriber!.next(10);
+      expect(scope.get(observed)).toBe(10);
+
+      unsubscribe();
+
+      // After unsubscribe, observable should have been unsubscribed
+      expect(subscriber).toBeNull();
+    });
+
+    it('toObservable emits cell value changes', () => {
+      const c = cell(1, { id: 'to_obs_1' });
+      const scope = createStore().fork();
+
+      const obs = toObservable(c, scope);
+      const values: number[] = [];
+
+      const sub = obs.subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+        complete: () => {},
+      });
+
+      // Should emit current value immediately
+      expect(values).toEqual([1]);
+
+      scope.set(c, 2);
+      expect(values).toEqual([1, 2]);
+
+      scope.set(c, 3);
+      expect(values).toEqual([1, 2, 3]);
+
+      sub.unsubscribe();
+
+      // After unsubscribe, no more emissions
+      scope.set(c, 4);
+      expect(values).toEqual([1, 2, 3]);
+    });
+
+    it('toObservable works with computed units', () => {
+      const c = cell(5, { id: 'to_obs_comp_c' });
+      const doubled = computed([c], (v) => v * 2, { debugName: 'to_obs_comp_d' });
+      const scope = createStore().fork();
+
+      const obs = toObservable(doubled, scope);
+      const values: number[] = [];
+
+      const sub = obs.subscribe({
+        next: (v) => values.push(v),
+        error: () => {},
+        complete: () => {},
+      });
+
+      expect(values).toEqual([10]);
+
+      scope.set(c, 10);
+      expect(values).toEqual([10, 20]);
+
+      sub.unsubscribe();
     });
   });
 });

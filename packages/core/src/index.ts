@@ -1912,3 +1912,66 @@ export function effectFamily<K, P, R>(
 ): Family<K, Effect<P, R>> {
   return createFamily(factory, options);
 }
+
+// ---------------------------------------------------------------------------
+// Observable interop
+// ---------------------------------------------------------------------------
+
+export interface Observable<T> {
+  subscribe(observer: {
+    next: (value: T) => void;
+    error?: (err: unknown) => void;
+    complete: () => void;
+  }): { unsubscribe: () => void };
+}
+
+export function fromObservable<T>(
+  observable: Observable<T>,
+  initialValue: T,
+  scope: Scope,
+  meta?: UnitMeta,
+): { unit: Cell<T>; unsubscribe: Unsubscribe } {
+  const c = cell(initialValue, meta);
+  const sub = observable.subscribe({
+    next: (value) => scope.set(c, value),
+    complete: () => {},
+  });
+  return {
+    unit: c,
+    unsubscribe: () => sub.unsubscribe(),
+  };
+}
+
+export function toObservable<T>(
+  unit: Cell<T> | Computed<T>,
+  scope: Scope,
+): Observable<T> {
+  return {
+    subscribe(observer) {
+      // Emit current value immediately
+      observer.next(scope.get(unit));
+
+      let lastValue = scope.get(unit);
+      const unsub = scope.subscribe((evt) => {
+        if (unit.kind === 'cell') {
+          for (const change of evt.changes) {
+            if (change.kind === 'set' && change.unit === unit) {
+              lastValue = change.next as T;
+              observer.next(lastValue);
+              return;
+            }
+          }
+        } else {
+          // For computed units, re-evaluate after dependency changes
+          const nextValue = scope.get(unit);
+          if (nextValue !== lastValue) {
+            lastValue = nextValue;
+            observer.next(nextValue);
+          }
+        }
+      });
+
+      return { unsubscribe: unsub };
+    },
+  };
+}
