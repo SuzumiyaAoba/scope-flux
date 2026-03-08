@@ -1,4 +1,4 @@
-import { asValue } from '@suzumiyaaoba/scope-flux-core';
+import { asValue, getCellById } from '@suzumiyaaoba/scope-flux-core';
 import type { AsyncComputed, AsyncComputedResult, Cell, Computed, Effect, EffectStatus, Event, Priority, Scope, SeedInput } from '@suzumiyaaoba/scope-flux-core';
 import { createScheduler, type Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
 import type React from 'react';
@@ -493,4 +493,33 @@ export function useAutoCleanupEffect<P, R>(
   }, [scope, unitEffect]);
 
   return { run, cancel, status };
+}
+
+// ---------------------------------------------------------------------------
+// SSR streaming utilities
+// ---------------------------------------------------------------------------
+
+export interface StreamChunk {
+  id: string;
+  value: unknown;
+}
+
+export function collectStreamState(scope: Scope, cells: Cell<any>[]): StreamChunk[] {
+  const chunks: StreamChunk[] = [];
+  for (const c of cells) {
+    const id = c.meta?.id;
+    if (!id) continue;
+    chunks.push({ id, value: scope.get(c) });
+  }
+  return chunks;
+}
+
+export function applyStreamChunk(scope: Scope, chunks: StreamChunk[]): void {
+  scope.batch(() => {
+    for (const chunk of chunks) {
+      const c = scope.getRegisteredCellById(chunk.id) ?? getCellById(chunk.id);
+      if (!c) continue;
+      scope.set(c, chunk.value, { priority: 'urgent', reason: 'stream-hydrate' });
+    }
+  });
 }

@@ -21,6 +21,8 @@ import {
   useUnit,
   shallowEqual,
   useAutoCleanupEffect,
+  collectStreamState,
+  applyStreamChunk,
 } from '../src/index.js';
 
 afterEach(() => {
@@ -902,6 +904,66 @@ describe('react bridge', () => {
       });
 
       expect(screen.getByTestId('error').textContent).toBe('load failed');
+    });
+  });
+
+  describe('SSR streaming utilities', () => {
+    it('collectStreamState captures cell state as serializable chunks', () => {
+      const a = cell(1, { id: 'stream_a' });
+      const b = cell('hello', { id: 'stream_b' });
+
+      const scope = createStore().fork();
+      scope.set(a, 42);
+      scope.set(b, 'world');
+
+      const chunks = collectStreamState(scope, [a, b]);
+
+      expect(chunks).toEqual([
+        { id: 'stream_a', value: 42 },
+        { id: 'stream_b', value: 'world' },
+      ]);
+    });
+
+    it('collectStreamState skips cells without id', () => {
+      const a = cell(1, { id: 'stream_with_id' });
+      const noId = cell(2);
+
+      const scope = createStore().fork();
+
+      const chunks = collectStreamState(scope, [a, noId]);
+
+      expect(chunks).toEqual([
+        { id: 'stream_with_id', value: 1 },
+      ]);
+    });
+
+    it('applyStreamChunk restores cell state by id', () => {
+      const a = cell(0, { id: 'stream_apply_a' });
+      const b = cell('', { id: 'stream_apply_b' });
+
+      const scope = createStore().fork();
+
+      applyStreamChunk(scope, [
+        { id: 'stream_apply_a', value: 100 },
+        { id: 'stream_apply_b', value: 'restored' },
+      ]);
+
+      expect(scope.get(a)).toBe(100);
+      expect(scope.get(b)).toBe('restored');
+    });
+
+    it('applyStreamChunk skips unknown cell ids gracefully', () => {
+      const a = cell(0, { id: 'stream_skip_a' });
+
+      const scope = createStore().fork();
+
+      // Should not throw
+      applyStreamChunk(scope, [
+        { id: 'stream_skip_a', value: 55 },
+        { id: 'nonexistent_cell', value: 'ignored' },
+      ]);
+
+      expect(scope.get(a)).toBe(55);
     });
   });
 });
