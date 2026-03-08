@@ -322,6 +322,54 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
   return unit;
 }
 
+// ---------------------------------------------------------------------------
+// Async computed
+// ---------------------------------------------------------------------------
+
+export type AsyncComputedResult<T> =
+  | { status: 'pending' }
+  | { status: 'fulfilled'; value: T }
+  | { status: 'rejected'; error: unknown };
+
+export interface AsyncComputedContext {
+  signal: AbortSignal;
+}
+
+type AsyncComputedRead<D extends ComputedDeps, T> =
+  (...args: [...{ [K in keyof ComputedArgs<D>]: ComputedArgs<D>[K] }, AsyncComputedContext]) => Promise<T>;
+
+export interface AsyncComputed<T, D extends ComputedDeps = ComputedDeps> {
+  kind: 'asyncComputed';
+  deps: D;
+  resultCell: Cell<AsyncComputedResult<T>>;
+  versionCell: Cell<number>;
+  read: (...args: any[]) => Promise<T>;
+  meta: UnitMeta;
+  readonly __type?: AsyncComputedResult<T>;
+}
+
+export function asyncComputed<const D extends ComputedDeps, T>(
+  deps: D,
+  read: AsyncComputedRead<D, T>,
+  options: UnitMeta = {},
+): AsyncComputed<T, D> {
+  const resultCell = cell<AsyncComputedResult<T>>(
+    { status: 'pending' },
+    { id: options.id ? `${options.id}__result` : undefined },
+  );
+  const versionCell = cell(0, {
+    id: options.id ? `${options.id}__version` : undefined,
+  });
+  return {
+    kind: 'asyncComputed',
+    deps,
+    resultCell,
+    versionCell,
+    read: read as (...args: any[]) => Promise<T>,
+    meta: options,
+  };
+}
+
 export function computed<const D extends ComputedDeps, T>(
   deps: D,
   read: (...args: ComputedArgs<D>) => T,
@@ -446,6 +494,8 @@ export class Scope {
   private readonly _hydratedIds = new Set<string>();
   private readonly _registry: StoreRegistry;
   private readonly _middleware: Middleware[] = [];
+  private readonly _asyncComputedAborts = new Map<AsyncComputed<unknown>, AbortController>();
+  private readonly _asyncComputedVersions = new Map<AsyncComputed<unknown>, number>();
 
   private _batchDepth = 0;
   private _pendingChanges: Change[] = [];
@@ -897,7 +947,58 @@ export class Scope {
     }
   }
 
-  public get<T>(unit: Cell<T> | Computed<T>): T {
+  private _getAsyncComputed<T>(unit: AsyncComputed<T>): AsyncComputedResult<T> {
+    // Gather dependency values and check if they changed
+    const args: unknown[] = [];
+    let depsVersion = 0;
+    for (const dep of unit.deps as ComputedDeps) {
+      args.push(this.get(dep));
+      depsVersion += this._getUnitVersion(dep as AnyUnit);
+    }
+
+    const prevVersion = this._asyncComputedVersions.get(unit as AsyncComputed<unknown>);
+    if (prevVersion !== undefined && prevVersion === depsVersion) {
+      // Dependencies haven't changed, return current result
+      return this.get(unit.resultCell);
+    }
+
+    // Dependencies changed or first evaluation — abort previous and start new
+    const prevAbort = this._asyncComputedAborts.get(unit as AsyncComputed<unknown>);
+    if (prevAbort) {
+      prevAbort.abort();
+    }
+
+    const abortController = new AbortController();
+    this._asyncComputedAborts.set(unit as AsyncComputed<unknown>, abortController);
+    this._asyncComputedVersions.set(unit as AsyncComputed<unknown>, depsVersion);
+
+    // Set to pending
+    this.set(unit.resultCell, { status: 'pending' });
+
+    // Start async evaluation
+    const ctx: AsyncComputedContext = { signal: abortController.signal };
+    const promise = unit.read(...(args as any[]), ctx);
+    const scope = this;
+
+    promise.then(
+      (value) => {
+        if (!abortController.signal.aborted) {
+          scope.set(unit.resultCell, { status: 'fulfilled', value } as AsyncComputedResult<T>);
+        }
+      },
+      (error) => {
+        if (!abortController.signal.aborted) {
+          scope.set(unit.resultCell, { status: 'rejected', error } as AsyncComputedResult<T>);
+        }
+      },
+    );
+
+    return this.get(unit.resultCell);
+  }
+
+  public get<T>(unit: AsyncComputed<T>): AsyncComputedResult<T>;
+  public get<T>(unit: Cell<T> | Computed<T>): T;
+  public get<T>(unit: Cell<T> | Computed<T> | AsyncComputed<T>): T | AsyncComputedResult<T> {
     if (!unit || !isObject(unit)) {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
@@ -912,7 +1013,11 @@ export class Scope {
     }
 
     if (unit.kind === 'computed') {
-      return this._getComputed(unit);
+      return this._getComputed(unit as Computed<T>);
+    }
+
+    if (unit.kind === 'asyncComputed') {
+      return this._getAsyncComputed(unit as unknown as AsyncComputed<unknown>) as T;
     }
 
     throw new Error(ErrorCodes.INVALID_UPDATE);

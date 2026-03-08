@@ -21,8 +21,9 @@ import {
   throttle,
   fromObservable,
   toObservable,
+  asyncComputed,
 } from '../src/index.js';
-import type { Computed } from '../src/index.js';
+import type { Computed, AsyncComputedResult } from '../src/index.js';
 
 describe('core', () => {
   it('computed caches until dependency changes', () => {
@@ -2641,6 +2642,119 @@ describe('core', () => {
       expect(values).toEqual([10, 20]);
 
       sub.unsubscribe();
+    });
+  });
+
+  describe('asyncComputed', () => {
+    it('starts in pending state', () => {
+      const id = cell(1, { id: 'async_comp_id_1' });
+      const user = asyncComputed(
+        [id],
+        async (userId) => ({ name: `User ${userId}` }),
+        { id: 'async_comp_user_1' },
+      );
+
+      const scope = createStore().fork();
+      const result = scope.get(user);
+      expect(result.status).toBe('pending');
+    });
+
+    it('resolves to fulfilled state', async () => {
+      const id = cell(1, { id: 'async_comp_id_2' });
+      const user = asyncComputed(
+        [id],
+        async (userId) => ({ name: `User ${userId}` }),
+        { id: 'async_comp_user_2' },
+      );
+
+      const scope = createStore().fork();
+      scope.get(user); // trigger evaluation
+
+      // Wait for async resolution
+      await vi.waitFor(() => {
+        const result = scope.get(user);
+        expect(result.status).toBe('fulfilled');
+        if (result.status === 'fulfilled') {
+          expect(result.value).toEqual({ name: 'User 1' });
+        }
+      });
+    });
+
+    it('transitions to rejected on error', async () => {
+      const id = cell(1, { id: 'async_comp_id_3' });
+      const failing = asyncComputed(
+        [id],
+        async () => { throw new Error('fetch failed'); },
+        { id: 'async_comp_fail_1' },
+      );
+
+      const scope = createStore().fork();
+      scope.get(failing);
+
+      await vi.waitFor(() => {
+        const result = scope.get(failing);
+        expect(result.status).toBe('rejected');
+        if (result.status === 'rejected') {
+          expect((result.error as Error).message).toBe('fetch failed');
+        }
+      });
+    });
+
+    it('re-evaluates when dependencies change', async () => {
+      const id = cell(1, { id: 'async_comp_id_4' });
+      const user = asyncComputed(
+        [id],
+        async (userId) => `User ${userId}`,
+        { id: 'async_comp_user_4' },
+      );
+
+      const scope = createStore().fork();
+      scope.get(user);
+
+      await vi.waitFor(() => {
+        const r = scope.get(user);
+        expect(r.status).toBe('fulfilled');
+      });
+
+      // Change dependency
+      scope.set(id, 2);
+      scope.get(user); // trigger re-evaluation
+
+      // Should go back to pending or directly to fulfilled
+      await vi.waitFor(() => {
+        const r = scope.get(user);
+        expect(r.status).toBe('fulfilled');
+        if (r.status === 'fulfilled') {
+          expect(r.value).toBe('User 2');
+        }
+      });
+    });
+
+    it('cancels previous async operation when deps change', async () => {
+      const id = cell(1, { id: 'async_comp_id_5' });
+      const signals: AbortSignal[] = [];
+
+      const user = asyncComputed(
+        [id],
+        async (userId, { signal }) => {
+          signals.push(signal);
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          return `User ${userId}`;
+        },
+        { id: 'async_comp_user_5' },
+      );
+
+      const scope = createStore().fork();
+      scope.get(user); // start first evaluation
+
+      // Change dep before first resolves
+      scope.set(id, 2);
+      scope.get(user); // start second evaluation
+
+      // First signal should be aborted
+      expect(signals.length).toBe(2);
+      expect(signals[0].aborted).toBe(true);
+      expect(signals[1].aborted).toBe(false);
     });
   });
 });
