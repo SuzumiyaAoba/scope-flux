@@ -2348,4 +2348,83 @@ describe('core', () => {
       expect(captured).toBe(5);
     });
   });
+
+  describe('transaction', () => {
+    it('commits changes on success', async () => {
+      const counter = cell(0, { id: 'tx_commit' });
+      const scope = createStore().fork();
+
+      await scope.transaction(async (tx) => {
+        tx.set(counter, 10);
+      });
+
+      expect(scope.get(counter)).toBe(10);
+    });
+
+    it('rolls back changes on error', async () => {
+      const counter = cell(5, { id: 'tx_rollback' });
+      const scope = createStore().fork();
+
+      await expect(
+        scope.transaction(async (tx) => {
+          tx.set(counter, 99);
+          throw new Error('server error');
+        })
+      ).rejects.toThrow('server error');
+
+      expect(scope.get(counter)).toBe(5); // rolled back
+    });
+
+    it('rolls back multiple cell changes on error', async () => {
+      const a = cell(1, { id: 'tx_multi_a' });
+      const b = cell(2, { id: 'tx_multi_b' });
+      const scope = createStore().fork();
+
+      await expect(
+        scope.transaction(async (tx) => {
+          tx.set(a, 100);
+          tx.set(b, 200);
+          throw new Error('fail');
+        })
+      ).rejects.toThrow('fail');
+
+      expect(scope.get(a)).toBe(1);
+      expect(scope.get(b)).toBe(2);
+    });
+
+    it('supports nested reads within transaction', async () => {
+      const counter = cell(10, { id: 'tx_read' });
+      const scope = createStore().fork();
+
+      await scope.transaction(async (tx) => {
+        const val = tx.get(counter);
+        tx.set(counter, val + 5);
+      });
+
+      expect(scope.get(counter)).toBe(15);
+    });
+
+    it('optimistic: applies immediately and rolls back on error', async () => {
+      const todos = cell<string[]>(['buy milk'], { id: 'tx_optimistic' });
+      const scope = createStore().fork();
+      const changes: string[][] = [];
+
+      scope.watch(todos, (val) => { changes.push([...val]); });
+
+      const promise = scope.transaction(async (tx) => {
+        tx.set(todos, ['buy milk', 'new todo']);
+        // Simulate async failure
+        await new Promise((r) => setTimeout(r, 10));
+        throw new Error('server rejected');
+      });
+
+      // Optimistically applied
+      expect(scope.get(todos)).toEqual(['buy milk', 'new todo']);
+
+      await expect(promise).rejects.toThrow('server rejected');
+
+      // Rolled back
+      expect(scope.get(todos)).toEqual(['buy milk']);
+    });
+  });
 });

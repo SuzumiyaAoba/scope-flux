@@ -1295,6 +1295,66 @@ export class Scope {
     this._pendingPriority = undefined;
   }
 
+  public async transaction<T>(fn: (scope: Scope) => Promise<T>): Promise<T> {
+    // Snapshot current cell values for rollback
+    const snapshot = new Map<AnyCell, unknown>();
+    for (const [c, v] of this._cellValues.entries()) {
+      snapshot.set(c, v);
+    }
+    const snapshotVersions = new Map<AnyCell, number>();
+    for (const [c, v] of this._cellVersions.entries()) {
+      snapshotVersions.set(c, v);
+    }
+
+    try {
+      const result = await fn(this);
+      return result;
+    } catch (error) {
+      // Rollback: restore all cells to snapshot state
+      const changedCells: AnyCell[] = [];
+      for (const [c, prevValue] of snapshot.entries()) {
+        const currentValue = this._cellValues.get(c);
+        if (!Object.is(currentValue, prevValue)) {
+          changedCells.push(c);
+          this._cellValues.set(c, prevValue);
+        }
+      }
+      // Restore versions
+      for (const [c, ver] of snapshotVersions.entries()) {
+        this._cellVersions.set(c, ver);
+      }
+      // Remove any cells added during transaction
+      for (const c of this._cellValues.keys()) {
+        if (!snapshot.has(c) && !snapshotVersions.has(c)) {
+          this._cellValues.delete(c);
+          this._cellVersions.delete(c);
+        }
+      }
+
+      // Notify subscribers about rollback
+      if (changedCells.length > 0) {
+        const changes: Change[] = changedCells.map((c) => ({
+          kind: 'set' as const,
+          unit: c,
+          prev: this._cellValues.get(c),
+          next: snapshot.get(c)!,
+          reason: 'transaction.rollback',
+        }));
+        const payload: CommitEvent = {
+          type: 'commit',
+          priority: 'urgent',
+          changes,
+        };
+        for (const listener of Array.from(this._subscribers)) {
+          try { listener(payload); } catch {}
+        }
+        this._notifyUnitSubscribers(changes);
+      }
+
+      throw error;
+    }
+  }
+
   public fork(seed?: SeedInput): Scope {
     const child = new Scope(this._registry, undefined, [...this._middleware]);
     for (const [cellUnit, value] of this._cellValues.entries()) {
