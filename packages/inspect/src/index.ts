@@ -3,6 +3,7 @@ import {
   type Change,
   type CommitEvent,
   type Computed,
+  getCellById,
   type Priority,
   type Scope,
   type Unsubscribe,
@@ -694,6 +695,63 @@ export function createTimeTraveler(scope: Scope, options?: TimeTravelerOptions):
     },
     stop: unsub,
   };
+}
+
+// ---------------------------------------------------------------------------
+// HMR state preservation
+// ---------------------------------------------------------------------------
+
+export interface HotModule {
+  data: Record<string, unknown>;
+  dispose(callback: (data: Record<string, unknown>) => void): void;
+  accept(): void;
+}
+
+export interface EnableHMROptions {
+  exclude?: Cell<any>[];
+  onMigrate?: (oldState: Record<string, unknown>, newState: Record<string, unknown>) => Record<string, unknown>;
+}
+
+const HMR_KEY = '__scopeFluxHMR';
+
+export function enableHMR(scope: Scope, hot: HotModule, options?: EnableHMROptions): void {
+  const excludeSet = new Set(options?.exclude ?? []);
+
+  // Restore state if previous data exists
+  if (hot.data && hot.data[HMR_KEY]) {
+    let savedState = hot.data[HMR_KEY] as Record<string, unknown>;
+
+    if (options?.onMigrate) {
+      const currentState = snapshotScope(scope);
+      savedState = options.onMigrate(savedState, currentState);
+    }
+
+    // Restore by looking up each saved key in global + store registry
+    scope.batch(() => {
+      for (const [key, value] of Object.entries(savedState)) {
+        const c = scope.getRegisteredCellById(key) ?? getCellById(key);
+        if (!c || excludeSet.has(c)) continue;
+        scope.set(c, value);
+      }
+    });
+  }
+
+  // Register dispose handler to save state
+  hot.dispose((data) => {
+    const snapshot = snapshotScope(scope);
+
+    // Remove excluded cells from snapshot
+    for (const c of excludeSet) {
+      const key = c.meta?.id ?? c.meta?.debugName;
+      if (key) {
+        delete snapshot[key];
+      }
+    }
+
+    data[HMR_KEY] = snapshot;
+  });
+
+  hot.accept();
 }
 
 export { createReduxDevtoolsAdapter } from './redux-devtools.js';

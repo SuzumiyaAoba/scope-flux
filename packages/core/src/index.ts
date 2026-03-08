@@ -306,6 +306,12 @@ function computeRetryDelay(config: RetryConfig, attempt: number, error: unknown)
   return Math.max(0, delay);
 }
 
+const globalCellRegistry = new Map<string, AnyCell>();
+
+export function getCellById(id: string): Cell<any> | undefined {
+  return globalCellRegistry.get(id);
+}
+
 export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => boolean; serializer?: CellSerializer<T> } = {}): Cell<T> {
   const unit: Cell<T> = {
     kind: 'cell',
@@ -318,6 +324,10 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
     equal: options.equal,
     serializer: options.serializer,
   };
+
+  if (options.id) {
+    globalCellRegistry.set(options.id, unit as AnyCell);
+  }
 
   return unit;
 }

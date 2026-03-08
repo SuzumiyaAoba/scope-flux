@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { cell, computed, createStore, event } from '@suzumiyaaoba/scope-flux-core';
-import { connectDevtools, createReduxDevtoolsAdapter, createTimeTraveler, exportDependencyGraph, inspect, mountInspectPanel, profileScope } from '../src/index.js';
+import { connectDevtools, createReduxDevtoolsAdapter, createTimeTraveler, enableHMR, exportDependencyGraph, inspect, mountInspectPanel, profileScope } from '../src/index.js';
 
 describe('inspect', () => {
   it('captures set diffs as inspect records', () => {
@@ -908,6 +908,90 @@ describe('inspect', () => {
       expect(traveler.getCurrentIndex()).toBe(0);
 
       traveler.stop();
+    });
+  });
+
+  describe('enableHMR', () => {
+    it('preserves state across simulated HMR dispose/accept cycle', () => {
+      const a = cell(10, { id: 'hmr_a' });
+      const b = cell(20, { id: 'hmr_b' });
+
+      const scope = createStore().fork();
+      scope.set(a, 42);
+      scope.set(b, 99);
+
+      // Simulate HMR hot module interface
+      let disposeCallback: ((data: Record<string, unknown>) => void) | null = null;
+      const hotData: Record<string, unknown> = {};
+
+      const hot = {
+        data: hotData,
+        dispose(cb: (data: Record<string, unknown>) => void) {
+          disposeCallback = cb;
+        },
+        accept() {},
+      };
+
+      enableHMR(scope, hot);
+
+      // Simulate module dispose (HMR teardown)
+      disposeCallback!(hotData);
+
+      // hotData should now contain serialized state
+      expect(hotData.__scopeFluxHMR).toBeDefined();
+
+      // Simulate new module load — create new scope with same cells
+      const newScope = createStore().fork();
+      // New scope has defaults
+      expect(newScope.get(a)).toBe(10);
+      expect(newScope.get(b)).toBe(20);
+
+      // Re-enable HMR with the preserved data
+      const hotAfter = {
+        data: hotData,
+        dispose(_cb: (data: Record<string, unknown>) => void) {},
+        accept() {},
+      };
+
+      enableHMR(newScope, hotAfter);
+
+      // State should be restored
+      expect(newScope.get(a)).toBe(42);
+      expect(newScope.get(b)).toBe(99);
+    });
+
+    it('respects exclude option', () => {
+      const a = cell(10, { id: 'hmr_exc_a' });
+      const ephemeral = cell('temp', { id: 'hmr_exc_eph' });
+
+      const scope = createStore().fork();
+      scope.set(a, 42);
+      scope.set(ephemeral, 'modified');
+
+      let disposeCallback: ((data: Record<string, unknown>) => void) | null = null;
+      const hotData: Record<string, unknown> = {};
+
+      const hot = {
+        data: hotData,
+        dispose(cb: (data: Record<string, unknown>) => void) { disposeCallback = cb; },
+        accept() {},
+      };
+
+      enableHMR(scope, hot, { exclude: [ephemeral] });
+      disposeCallback!(hotData);
+
+      // Restore into new scope
+      const newScope = createStore().fork();
+      const hotAfter = {
+        data: hotData,
+        dispose(_cb: (data: Record<string, unknown>) => void) {},
+        accept() {},
+      };
+
+      enableHMR(newScope, hotAfter, { exclude: [ephemeral] });
+
+      expect(newScope.get(a)).toBe(42);
+      expect(newScope.get(ephemeral)).toBe('temp'); // Not restored — kept default
     });
   });
 });
