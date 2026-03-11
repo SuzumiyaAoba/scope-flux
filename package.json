@@ -50,7 +50,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^3.2.4",
     "jsdom": "^26.1.0",
-    "react": "^19.0.0",
+    "react": "^19.2.4",
     "react-dom": "^19.0.0",
     "rspress": "^1.47.1",
     "tsup": "^8.3.6",
