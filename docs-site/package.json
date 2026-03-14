@@ -9,11 +9,11 @@
     "preview": "rspress preview --port 3000"
   },
   "devDependencies": {
-    "@rspress/core": "^2.0.4",
-    "@rspress/plugin-twoslash": "^2.0.4",
-    "mermaid": "^10.9.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "rspress-plugin-devkit": "^0.3.0"
+    "@rspress/core": "^2.0.5",
+    "@rspress/plugin-twoslash": "^2.0.5",
+    "mermaid": "^11.13.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "rspress-plugin-devkit": "^1.0.0"
   }
 }

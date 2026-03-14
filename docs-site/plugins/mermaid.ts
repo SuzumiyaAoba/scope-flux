@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { PresetConfigMutator, RemarkCodeBlockToGlobalComponentPluginFactory, type RspressPlugin } from 'rspress-plugin-devkit';
+import { RemarkCodeBlockToGlobalComponentPluginFactory, type RspressPlugin } from 'rspress-plugin-devkit';
 
 type MermaidPluginOptions = {
   mermaidConfig?: Record<string, unknown>;
@@ -29,7 +29,13 @@ export default function mermaidPlugin(options: MermaidPluginOptions = {}): Rspre
   return {
     name: 'scope-flux-local-mermaid-plugin',
     config(config) {
-      return new PresetConfigMutator(config).disableMdxRs().toConfig();
+      return {
+        ...config,
+        markdown: {
+          ...config.markdown,
+          mdxRs: false,
+        },
+      };
     },
     markdown: {
       remarkPlugins: [remarkMermaid.remarkPlugin],
