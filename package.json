@@ -42,7 +42,7 @@
     "samples:all": "npm run samples:build && node samples/dist/pure.js && node samples/dist/react.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.7",
+    "@biomejs/biome": "^2.4.8",
     "@types/node": "^22.19.15",
     "@types/react": "^19.0.12",
     "@playwright/test": "^1.55.0",
