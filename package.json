@@ -55,7 +55,7 @@
     "rspress": "^1.47.1",
     "tsup": "^8.3.6",
     "typedoc": "^0.28.13",
-    "typescript": "^5.8.2",
+    "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^4.1.0"
   }
