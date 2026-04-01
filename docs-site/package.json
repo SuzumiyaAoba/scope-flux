@@ -11,7 +11,7 @@
   "devDependencies": {
     "@rspress/core": "^2.0.7",
     "@rspress/plugin-twoslash": "^2.0.7",
-    "mermaid": "^11.13.0",
+    "mermaid": "^11.14.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "rspress-plugin-devkit": "^1.0.0"
