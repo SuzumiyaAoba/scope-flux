@@ -1,5 +1,5 @@
-import path from 'node:path';
-import { RemarkCodeBlockToGlobalComponentPluginFactory, type RspressPlugin } from 'rspress-plugin-devkit';
+import path from "node:path";
+import { RemarkCodeBlockToGlobalComponentPluginFactory, type RspressPlugin } from "rspress-plugin-devkit";
 
 type MermaidPluginOptions = {
   mermaidConfig?: Record<string, unknown>;
@@ -11,8 +11,8 @@ export default function mermaidPlugin(options: MermaidPluginOptions = {}): Rspre
   const remarkMermaid = new RemarkCodeBlockToGlobalComponentPluginFactory({
     components: [
       {
-        lang: 'mermaid',
-        componentPath: path.join(__dirname, '../components', 'MermaidRender.tsx'),
+        lang: "mermaid",
+        componentPath: path.join(__dirname, "../components", "MermaidRender.tsx"),
         childrenProvider() {
           return [];
         },
@@ -27,7 +27,7 @@ export default function mermaidPlugin(options: MermaidPluginOptions = {}): Rspre
   });
 
   return {
-    name: 'scope-flux-local-mermaid-plugin',
+    name: "scope-flux-local-mermaid-plugin",
     config(config) {
       return {
         ...config,

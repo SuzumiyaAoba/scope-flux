@@ -1,7 +1,7 @@
-import { BrowserRouter as BaseBrowserRouter } from '../node_modules/@rspress/runtime/dist/index.js';
-import type { ComponentProps } from 'react';
+import { BrowserRouter as BaseBrowserRouter } from "../node_modules/@rspress/runtime/dist/index.js";
+import type { ComponentProps } from "react";
 
-export * from '../node_modules/@rspress/runtime/dist/index.js';
+export * from "../node_modules/@rspress/runtime/dist/index.js";
 
 type BaseBrowserRouterProps = ComponentProps<typeof BaseBrowserRouter>;
 

@@ -1,5 +1,5 @@
 export type StableId = string;
-export type Priority = 'urgent' | 'transition' | 'idle';
+export type Priority = "urgent" | "transition" | "idle";
 
 export interface UnitMeta {
   id?: StableId;
@@ -18,8 +18,8 @@ export interface RunOptions extends UpdateOptions {
   retries?: number;
 }
 
-export type RetryStrategy = 'fixed' | 'linear' | 'exponential' | ((attempt: number, error: unknown) => number);
-export type JitterMode = 'none' | 'full';
+export type RetryStrategy = "fixed" | "linear" | "exponential" | ((attempt: number, error: unknown) => number);
+export type JitterMode = "none" | "full";
 
 export interface RetryConfig {
   maxAttempts: number;
@@ -31,13 +31,15 @@ export interface RetryConfig {
 }
 
 export interface EffectPolicy {
-  concurrency?: 'parallel' | 'drop' | 'replace' | 'queue';
+  concurrency?: "parallel" | "drop" | "replace" | "queue";
   retries?: number;
   retryDelayMs?: number | ((attempt: number, error: unknown) => number);
   retry?: RetryConfig;
 }
 
-type NormalizedEffectPolicy = Required<Pick<EffectPolicy, 'concurrency' | 'retries' | 'retryDelayMs'>> & { retry?: RetryConfig };
+type NormalizedEffectPolicy = Required<Pick<EffectPolicy, "concurrency" | "retries" | "retryDelayMs">> & {
+  retry?: RetryConfig;
+};
 
 export interface EffectContext {
   scope: Scope;
@@ -61,7 +63,7 @@ export interface CellSerializer<T> {
 }
 
 export interface Cell<T> {
-  kind: 'cell';
+  kind: "cell";
   init: T;
   meta: UnitMeta;
   equal?: (a: T, b: T) => boolean;
@@ -81,14 +83,14 @@ export type ComputedArgs<D extends ComputedDeps> = {
 };
 
 export interface ComputedCacheConfig {
-  strategy: 'ttl';
+  strategy: "ttl";
   ttlMs: number;
 }
 
-export type ComputedCacheOption = 'scope' | 'none' | ComputedCacheConfig;
+export type ComputedCacheOption = "scope" | "none" | ComputedCacheConfig;
 
 export interface Computed<T, D extends ComputedDeps = ComputedDeps> {
-  kind: 'computed';
+  kind: "computed";
   deps: D;
   read: (...args: ComputedArgs<D>) => T;
   cache: ComputedCacheOption;
@@ -97,12 +99,12 @@ export interface Computed<T, D extends ComputedDeps = ComputedDeps> {
 }
 
 export interface Event<P> {
-  kind: 'event';
+  kind: "event";
   meta: UnitMeta;
 }
 
 export interface Effect<P, R> {
-  kind: 'effect';
+  kind: "effect";
   handler: (payload: P, ctx: EffectContext) => Promise<R> | R;
   policy: NormalizedEffectPolicy;
   meta: UnitMeta;
@@ -139,7 +141,7 @@ export interface MiddlewareContext {
 export type Middleware = (ctx: MiddlewareContext, next: () => void) => void;
 
 export interface SetChange {
-  kind: 'set';
+  kind: "set";
   unit: AnyCell;
   prev: unknown;
   next: unknown;
@@ -147,14 +149,14 @@ export interface SetChange {
 }
 
 export interface EventChange {
-  kind: 'event';
+  kind: "event";
   unit: Event<unknown>;
   payload: unknown;
   reason?: string;
 }
 
 export interface EffectChange {
-  kind: 'effect';
+  kind: "effect";
   unit: Effect<unknown, unknown>;
   payload: unknown;
   reason?: string;
@@ -163,7 +165,7 @@ export interface EffectChange {
 export type Change = SetChange | EventChange | EffectChange;
 
 export interface CommitEvent {
-  type: 'commit';
+  type: "commit";
   priority: Priority;
   changes: Change[];
 }
@@ -171,18 +173,18 @@ export interface CommitEvent {
 export type SeedInput = Map<Cell<any>, unknown> | Array<readonly [Cell<any>, unknown]>;
 
 export const ErrorCodes = {
-  DUPLICATE_STABLE_ID: 'NS_CORE_DUPLICATE_STABLE_ID',
-  INVALID_UPDATE: 'NS_CORE_INVALID_UPDATE',
-  CYCLE_DETECTED: 'NS_CORE_CYCLE_DETECTED',
-  MISSING_HANDLER: 'NS_CORE_MISSING_HANDLER',
-  EFFECT_DROPPED: 'NS_CORE_EFFECT_DROPPED',
-  EFFECT_ABORTED: 'NS_CORE_EFFECT_ABORTED',
-  EFFECT_TIMEOUT: 'NS_CORE_EFFECT_TIMEOUT',
-  EFFECT_REPLACED: 'NS_CORE_EFFECT_REPLACED',
+  DUPLICATE_STABLE_ID: "NS_CORE_DUPLICATE_STABLE_ID",
+  INVALID_UPDATE: "NS_CORE_INVALID_UPDATE",
+  CYCLE_DETECTED: "NS_CORE_CYCLE_DETECTED",
+  MISSING_HANDLER: "NS_CORE_MISSING_HANDLER",
+  EFFECT_DROPPED: "NS_CORE_EFFECT_DROPPED",
+  EFFECT_ABORTED: "NS_CORE_EFFECT_ABORTED",
+  EFFECT_TIMEOUT: "NS_CORE_EFFECT_TIMEOUT",
+  EFFECT_REPLACED: "NS_CORE_EFFECT_REPLACED",
 } as const;
 
 function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function defaultEqual<T>(a: T, b: T): boolean {
@@ -190,21 +192,18 @@ function defaultEqual<T>(a: T, b: T): boolean {
 }
 
 function isValueBox<T>(value: unknown): value is ValueBox<T> {
-  return isObject(value) && '__scopeFluxValue' in value;
+  return isObject(value) && "__scopeFluxValue" in value;
 }
 
 function toAbortError(message: string): Error {
   const error = new Error(message);
-  error.name = 'AbortError';
+  error.name = "AbortError";
   return error;
 }
 
 function isAbortError(error: unknown): boolean {
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    (error as { name?: string }).name === 'AbortError'
+    typeof error === "object" && error !== null && "name" in error && (error as { name?: string }).name === "AbortError"
   );
 }
 
@@ -213,7 +212,7 @@ function abortReasonAsError(signal: AbortSignal, fallbackMessage: string): Error
   if (reason instanceof Error) {
     return reason;
   }
-  if (typeof reason === 'string') {
+  if (typeof reason === "string") {
     return toAbortError(reason);
   }
   return toAbortError(fallbackMessage);
@@ -228,15 +227,15 @@ function waitMsWithAbort(ms: number, signal: AbortSignal): Promise<void> {
   }
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
+      signal.removeEventListener("abort", onAbort);
       resolve();
     }, ms);
     const onAbort = () => {
       clearTimeout(timer);
-      signal.removeEventListener('abort', onAbort);
+      signal.removeEventListener("abort", onAbort);
       reject(abortReasonAsError(signal, ErrorCodes.EFFECT_ABORTED));
     };
-    signal.addEventListener('abort', onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -246,26 +245,26 @@ function raceWithAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> 
   }
   return new Promise<T>((resolve, reject) => {
     const onAbort = () => {
-      signal.removeEventListener('abort', onAbort);
+      signal.removeEventListener("abort", onAbort);
       reject(abortReasonAsError(signal, ErrorCodes.EFFECT_ABORTED));
     };
-    signal.addEventListener('abort', onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
     promise.then(
       (value) => {
-        signal.removeEventListener('abort', onAbort);
+        signal.removeEventListener("abort", onAbort);
         resolve(value);
       },
       (error) => {
-        signal.removeEventListener('abort', onAbort);
+        signal.removeEventListener("abort", onAbort);
         reject(error);
-      }
+      },
     );
   });
 }
 
 function normalizeEffectPolicy(policy: EffectPolicy | undefined): NormalizedEffectPolicy {
   return {
-    concurrency: policy?.concurrency ?? 'parallel',
+    concurrency: policy?.concurrency ?? "parallel",
     retries: policy?.retries ?? 0,
     retryDelayMs: policy?.retryDelayMs ?? 0,
     retry: policy?.retry,
@@ -275,20 +274,20 @@ function normalizeEffectPolicy(policy: EffectPolicy | undefined): NormalizedEffe
 function computeRetryDelay(config: RetryConfig, attempt: number, error: unknown): number {
   const baseDelay = config.baseDelay ?? 0;
   const maxDelay = config.maxDelay ?? Infinity;
-  const strategy = config.strategy ?? 'fixed';
+  const strategy = config.strategy ?? "fixed";
 
   let delay: number;
-  if (typeof strategy === 'function') {
+  if (typeof strategy === "function") {
     delay = strategy(attempt, error);
   } else {
     switch (strategy) {
-      case 'fixed':
+      case "fixed":
         delay = baseDelay;
         break;
-      case 'linear':
+      case "linear":
         delay = baseDelay * attempt;
         break;
-      case 'exponential':
+      case "exponential":
         delay = baseDelay * Math.pow(2, attempt - 1);
         break;
       default:
@@ -298,8 +297,8 @@ function computeRetryDelay(config: RetryConfig, attempt: number, error: unknown)
 
   delay = Math.min(delay, maxDelay);
 
-  const jitter = config.jitter ?? 'none';
-  if (jitter === 'full') {
+  const jitter = config.jitter ?? "none";
+  if (jitter === "full") {
     delay = Math.random() * delay;
   }
 
@@ -312,9 +311,12 @@ export function getCellById(id: string): Cell<any> | undefined {
   return globalCellRegistry.get(id);
 }
 
-export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => boolean; serializer?: CellSerializer<T> } = {}): Cell<T> {
+export function cell<T>(
+  init: T,
+  options: UnitMeta & { equal?: (a: T, b: T) => boolean; serializer?: CellSerializer<T> } = {},
+): Cell<T> {
   const unit: Cell<T> = {
-    kind: 'cell',
+    kind: "cell",
     init,
     meta: {
       id: options.id,
@@ -337,19 +339,20 @@ export function cell<T>(init: T, options: UnitMeta & { equal?: (a: T, b: T) => b
 // ---------------------------------------------------------------------------
 
 export type AsyncComputedResult<T> =
-  | { status: 'pending' }
-  | { status: 'fulfilled'; value: T }
-  | { status: 'rejected'; error: unknown };
+  | { status: "pending" }
+  | { status: "fulfilled"; value: T }
+  | { status: "rejected"; error: unknown };
 
 export interface AsyncComputedContext {
   signal: AbortSignal;
 }
 
-type AsyncComputedRead<D extends ComputedDeps, T> =
-  (...args: [...{ [K in keyof ComputedArgs<D>]: ComputedArgs<D>[K] }, AsyncComputedContext]) => Promise<T>;
+type AsyncComputedRead<D extends ComputedDeps, T> = (
+  ...args: [...{ [K in keyof ComputedArgs<D>]: ComputedArgs<D>[K] }, AsyncComputedContext]
+) => Promise<T>;
 
 export interface AsyncComputed<T, D extends ComputedDeps = ComputedDeps> {
-  kind: 'asyncComputed';
+  kind: "asyncComputed";
   deps: D;
   resultCell: Cell<AsyncComputedResult<T>>;
   versionCell: Cell<number>;
@@ -364,14 +367,14 @@ export function asyncComputed<const D extends ComputedDeps, T>(
   options: UnitMeta = {},
 ): AsyncComputed<T, D> {
   const resultCell = cell<AsyncComputedResult<T>>(
-    { status: 'pending' },
+    { status: "pending" },
     { id: options.id ? `${options.id}__result` : undefined },
   );
   const versionCell = cell(0, {
     id: options.id ? `${options.id}__version` : undefined,
   });
   return {
-    kind: 'asyncComputed',
+    kind: "asyncComputed",
     deps,
     resultCell,
     versionCell,
@@ -383,13 +386,13 @@ export function asyncComputed<const D extends ComputedDeps, T>(
 export function computed<const D extends ComputedDeps, T>(
   deps: D,
   read: (...args: ComputedArgs<D>) => T,
-  options: { debugName?: string; cache?: ComputedCacheOption } = {}
+  options: { debugName?: string; cache?: ComputedCacheOption } = {},
 ): Computed<T, D> {
   return {
-    kind: 'computed',
+    kind: "computed",
     deps,
     read,
-    cache: options.cache ?? 'scope',
+    cache: options.cache ?? "scope",
     meta: {
       debugName: options.debugName,
     },
@@ -398,7 +401,7 @@ export function computed<const D extends ComputedDeps, T>(
 
 export function event<P>(options: { debugName?: string } = {}): Event<P> {
   return {
-    kind: 'event',
+    kind: "event",
     meta: {
       debugName: options.debugName,
     },
@@ -407,14 +410,14 @@ export function event<P>(options: { debugName?: string } = {}): Event<P> {
 
 export function effect<P, R>(
   handler: (payload: P, ctx: EffectContext) => Promise<R> | R,
-  options: { debugName?: string; policy?: EffectPolicy } = {}
+  options: { debugName?: string; policy?: EffectPolicy } = {},
 ): Effect<P, R> {
-  if (typeof handler !== 'function') {
+  if (typeof handler !== "function") {
     throw new Error(ErrorCodes.MISSING_HANDLER);
   }
 
   return {
-    kind: 'effect',
+    kind: "effect",
     handler,
     policy: normalizeEffectPolicy(options.policy),
     meta: {
@@ -497,7 +500,10 @@ export class Scope {
   private readonly _computedCache = new Map<AnyComputed, ComputedCacheEntry>();
   private readonly _subscribers = new Set<ScopeListener>();
   private readonly _unitSubscribers = new Map<AnyUnit, Set<() => void>>();
-  private readonly _eventHandlers = new Map<Event<unknown>, Set<(payload: unknown, scope: Scope, options: UpdateOptions) => void>>();
+  private readonly _eventHandlers = new Map<
+    Event<unknown>,
+    Set<(payload: unknown, scope: Scope, options: UpdateOptions) => void>
+  >();
   private readonly _effectStates = new Map<Effect<unknown, unknown>, EffectRuntimeState>();
   private readonly _effectSubscribers = new Map<Effect<unknown, unknown>, Set<EffectStatusListener>>();
   private readonly _knownCells = new Set<AnyCell>();
@@ -533,7 +539,7 @@ export class Scope {
 
   private _applySeed(seed: SeedInput): void {
     const applyCellValue = (unit: AnyCell, value: unknown) => {
-      if (!unit || unit.kind !== 'cell') {
+      if (!unit || unit.kind !== "cell") {
         throw new Error(ErrorCodes.INVALID_UPDATE);
       }
       this._registerCell(unit);
@@ -570,8 +576,10 @@ export class Scope {
     if (incoming === undefined) {
       return;
     }
-    if (this._pendingPriority === undefined ||
-        Scope._priorityRank[incoming] > Scope._priorityRank[this._pendingPriority]) {
+    if (
+      this._pendingPriority === undefined ||
+      Scope._priorityRank[incoming] > Scope._priorityRank[this._pendingPriority]
+    ) {
       this._pendingPriority = incoming;
     }
   }
@@ -582,8 +590,8 @@ export class Scope {
     }
 
     const payload: CommitEvent = {
-      type: 'commit',
-      priority: this._pendingPriority ?? 'urgent',
+      type: "commit",
+      priority: this._pendingPriority ?? "urgent",
       changes: this._pendingChanges,
     };
 
@@ -617,7 +625,7 @@ export class Scope {
     let firstError: unknown;
     const notified = new Set<() => void>();
     for (const change of changes) {
-      if (change.kind !== 'set') {
+      if (change.kind !== "set") {
         continue;
       }
       const listeners = this._unitSubscribers.get(change.unit as AnyUnit);
@@ -688,7 +696,7 @@ export class Scope {
     unitEffect: Effect<P, R>,
     payload: P,
     options: RunOptions,
-    state: EffectRuntimeState
+    state: EffectRuntimeState,
   ): Promise<R> {
     const controller = new AbortController();
     state.controllers.add(controller);
@@ -712,18 +720,18 @@ export class Scope {
         externalAbortListener = () => {
           controller.abort((options.signal as AbortSignal & { reason?: unknown }).reason);
         };
-        options.signal.addEventListener('abort', externalAbortListener, { once: true });
+        options.signal.addEventListener("abort", externalAbortListener, { once: true });
       }
     }
 
     this._pushChange(
       {
-        kind: 'effect',
+        kind: "effect",
         unit: unitEffect as Effect<unknown, unknown>,
         payload,
         reason: options.reason,
       },
-      options
+      options,
     );
 
     if (this._batchDepth === 0) {
@@ -746,9 +754,9 @@ export class Scope {
                 scope: this,
                 signal: controller.signal,
                 attempt,
-              })
+              }),
             ),
-            controller.signal
+            controller.signal,
           );
           if (controller.signal.aborted) {
             throw toAbortError(ErrorCodes.EFFECT_ABORTED);
@@ -782,19 +790,19 @@ export class Scope {
             delayMs = computeRetryDelay(retryConfig, attempt, error);
           } else {
             const rawDelay = unitEffect.policy.retryDelayMs;
-            delayMs = typeof rawDelay === 'function' ? rawDelay(attempt, error) : rawDelay;
+            delayMs = typeof rawDelay === "function" ? rawDelay(attempt, error) : rawDelay;
           }
           await waitMsWithAbort(Math.max(0, delayMs), controller.signal);
         }
       }
 
-      throw new Error('NS_CORE_UNREACHABLE');
+      throw new Error("NS_CORE_UNREACHABLE");
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
       if (options.signal && externalAbortListener) {
-        options.signal.removeEventListener('abort', externalAbortListener);
+        options.signal.removeEventListener("abort", externalAbortListener);
       }
       state.controllers.delete(controller);
       state.running = Math.max(0, state.running - 1);
@@ -864,20 +872,20 @@ export class Scope {
 
     this._pushChange(
       {
-        kind: 'set',
+        kind: "set",
         unit: unit as AnyCell,
         prev,
         next,
         reason: options?.reason,
       },
-      options
+      options,
     );
 
     return true;
   }
 
   private _getUnitVersion(unit: AnyUnit): number {
-    if (unit.kind === 'cell') {
+    if (unit.kind === "cell") {
       return this._cellVersions.get(unit as AnyCell) ?? 0;
     }
 
@@ -892,11 +900,11 @@ export class Scope {
       throw new Error(ErrorCodes.CYCLE_DETECTED);
     }
 
-    if (cached && unit.cache !== 'none') {
+    if (cached && unit.cache !== "none") {
       // Check TTL expiration
       if (
-        typeof unit.cache === 'object' &&
-        unit.cache.strategy === 'ttl' &&
+        typeof unit.cache === "object" &&
+        unit.cache.strategy === "ttl" &&
         cached.cachedAt !== undefined &&
         Date.now() - cached.cachedAt >= unit.cache.ttlMs
       ) {
@@ -983,7 +991,7 @@ export class Scope {
     this._asyncComputedVersions.set(unit as AsyncComputed<unknown>, depsVersion);
 
     // Set to pending
-    this.set(unit.resultCell, { status: 'pending' });
+    this.set(unit.resultCell, { status: "pending" });
 
     // Start async evaluation
     const ctx: AsyncComputedContext = { signal: abortController.signal };
@@ -993,12 +1001,12 @@ export class Scope {
     promise.then(
       (value) => {
         if (!abortController.signal.aborted) {
-          scope.set(unit.resultCell, { status: 'fulfilled', value } as AsyncComputedResult<T>);
+          scope.set(unit.resultCell, { status: "fulfilled", value } as AsyncComputedResult<T>);
         }
       },
       (error) => {
         if (!abortController.signal.aborted) {
-          scope.set(unit.resultCell, { status: 'rejected', error } as AsyncComputedResult<T>);
+          scope.set(unit.resultCell, { status: "rejected", error } as AsyncComputedResult<T>);
         }
       },
     );
@@ -1013,7 +1021,7 @@ export class Scope {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
-    if (unit.kind === 'cell') {
+    if (unit.kind === "cell") {
       const c = unit as AnyCell;
       this._registerCell(c);
       if (this._cellValues.has(c)) {
@@ -1022,11 +1030,11 @@ export class Scope {
       return unit.init;
     }
 
-    if (unit.kind === 'computed') {
+    if (unit.kind === "computed") {
       return this._getComputed(unit as Computed<T>);
     }
 
-    if (unit.kind === 'asyncComputed') {
+    if (unit.kind === "asyncComputed") {
       return this._getAsyncComputed(unit as unknown as AsyncComputed<unknown>) as T;
     }
 
@@ -1034,22 +1042,22 @@ export class Scope {
   }
 
   public reset<T>(unit: Cell<T>, options: UpdateOptions = {}): void {
-    if (!unit || unit.kind !== 'cell') {
+    if (!unit || unit.kind !== "cell") {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
     this.set(unit, unit.init, options);
   }
 
   public set<T>(unit: Cell<T>, next: T | ((prev: T) => T) | ValueBox<T>, options: UpdateOptions = {}): void {
-    if (!unit || unit.kind !== 'cell') {
+    if (!unit || unit.kind !== "cell") {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
     const resolved = isValueBox<T>(next)
       ? next.__scopeFluxValue
-      : typeof next === 'function'
-        ? typeof unit.init === 'function'
-          ? next as T
+      : typeof next === "function"
+        ? typeof unit.init === "function"
+          ? (next as T)
           : (next as (prev: T) => T)(this.get(unit))
         : next;
 
@@ -1085,7 +1093,7 @@ export class Scope {
   }
 
   public registerCell<T>(unit: Cell<T>): void {
-    if (!unit || unit.kind !== 'cell') {
+    if (!unit || unit.kind !== "cell") {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
     this._registerCell(unit as AnyCell);
@@ -1114,12 +1122,12 @@ export class Scope {
     this._withBatch(() => {
       this._pushChange(
         {
-          kind: 'event',
+          kind: "event",
           unit: unitEvent as Event<unknown>,
           payload,
           reason: options.reason,
         },
-        options
+        options,
       );
 
       const handlers = this._eventHandlers.get(unitEvent as Event<unknown>);
@@ -1135,24 +1143,24 @@ export class Scope {
   }
 
   public async run<P, R>(unitEffect: Effect<P, R>, payload: P, options: RunOptions = {}): Promise<R> {
-    if (!unitEffect || unitEffect.kind !== 'effect') {
+    if (!unitEffect || unitEffect.kind !== "effect") {
       throw new Error(ErrorCodes.INVALID_UPDATE);
     }
 
     const state = this._getEffectState(unitEffect as Effect<unknown, unknown>);
     const policy = unitEffect.policy.concurrency;
 
-    if (policy === 'drop' && state.running > 0) {
+    if (policy === "drop" && state.running > 0) {
       throw new Error(ErrorCodes.EFFECT_DROPPED);
     }
 
-    if (policy === 'replace' && state.running > 0) {
+    if (policy === "replace" && state.running > 0) {
       for (const controller of Array.from(state.controllers)) {
         controller.abort(toAbortError(ErrorCodes.EFFECT_REPLACED));
       }
     }
 
-    if (policy === 'queue' && state.running > 0) {
+    if (policy === "queue" && state.running > 0) {
       return await new Promise<R>((resolve, reject) => {
         const item: EffectQueueItem = {
           start: () => {
@@ -1176,7 +1184,7 @@ export class Scope {
   }
 
   public subscribeUnit<T>(unit: Cell<T> | Computed<T>, listener: () => void): Unsubscribe {
-    if (unit.kind === 'computed') {
+    if (unit.kind === "computed") {
       let prev = this.get(unit);
       const depUnsubscribers: Unsubscribe[] = [];
       for (const dep of unit.deps as ComputedDeps) {
@@ -1188,7 +1196,7 @@ export class Scope {
             }
             prev = next;
             listener();
-          })
+          }),
         );
       }
       return () => {
@@ -1333,14 +1341,16 @@ export class Scope {
       unsubscribers.push(
         this.subscribeUnit(unit, () => {
           notify();
-        })
+        }),
       );
     }
 
     // Reset flag after all unit subscribers fire for one commit
-    unsubscribers.push(this.subscribe(() => {
-      notified.flag = false;
-    }));
+    unsubscribers.push(
+      this.subscribe(() => {
+        notified.flag = false;
+      }),
+    );
 
     return () => {
       active = false;
@@ -1384,10 +1394,7 @@ export class Scope {
     };
   }
 
-  public subscribeEffectStatus<P, R>(
-    unitEffect: Effect<P, R>,
-    listener: EffectStatusListener
-  ): Unsubscribe {
+  public subscribeEffectStatus<P, R>(unitEffect: Effect<P, R>, listener: EffectStatusListener): Unsubscribe {
     const key = unitEffect as Effect<unknown, unknown>;
     let listeners = this._effectSubscribers.get(key);
     if (!listeners) {
@@ -1468,19 +1475,21 @@ export class Scope {
       // Notify subscribers about rollback
       if (changedCells.length > 0) {
         const changes: Change[] = changedCells.map((c) => ({
-          kind: 'set' as const,
+          kind: "set" as const,
           unit: c,
           prev: this._cellValues.get(c),
           next: snapshot.get(c)!,
-          reason: 'transaction.rollback',
+          reason: "transaction.rollback",
         }));
         const payload: CommitEvent = {
-          type: 'commit',
-          priority: 'urgent',
+          type: "commit",
+          priority: "urgent",
           changes,
         };
         for (const listener of Array.from(this._subscribers)) {
-          try { listener(payload); } catch {}
+          try {
+            listener(payload);
+          } catch {}
         }
         this._notifyUnitSubscribers(changes);
       }
@@ -1604,13 +1613,13 @@ export function createStore(options: { seed?: SeedInput; middleware?: Middleware
 
 export function combine<const D extends ComputedDeps>(
   deps: D,
-  options: { debugName?: string; cache?: 'scope' | 'none' } = {}
+  options: { debugName?: string; cache?: "scope" | "none" } = {},
 ): Computed<{ [K in keyof D]: UnitValue<D[K]> }, D> {
   type Result = { [K in keyof D]: UnitValue<D[K]> };
   return computed<D, Result>(
     deps,
     ((...args: ComputedArgs<D>) => args as unknown as Result) as (...args: ComputedArgs<D>) => Result,
-    options
+    options,
   );
 }
 
@@ -1620,14 +1629,10 @@ export function asValue<T>(value: T): ValueBox<T> {
   };
 }
 
-
-export function createHistoryController(
-  scope: Scope,
-  options: HistoryOptions = {}
-): HistoryController {
+export function createHistoryController(scope: Scope, options: HistoryOptions = {}): HistoryController {
   const limit = Math.max(1, options.limit ?? 100);
   const trackedCells = options.track ? new Set(options.track) : undefined;
-  const reasonPrefix = options.reasonPrefix ?? 'history';
+  const reasonPrefix = options.reasonPrefix ?? "history";
   const undoStack: HistoryEntry[] = [];
   const redoStack: HistoryEntry[] = [];
   const checkpoints = new Map<string, Map<AnyCell, unknown>>();
@@ -1645,7 +1650,7 @@ export function createHistoryController(
     const byCell = new Map<AnyCell, HistoryStep>();
 
     for (const change of changes) {
-      if (change.kind !== 'set') {
+      if (change.kind !== "set") {
         continue;
       }
       const cellUnit = change.unit as AnyCell;
@@ -1673,14 +1678,14 @@ export function createHistoryController(
     return { steps: ordered };
   };
 
-  const applyEntry = (entry: HistoryEntry, mode: 'undo' | 'redo') => {
+  const applyEntry = (entry: HistoryEntry, mode: "undo" | "redo") => {
     applying = true;
     try {
       scope.batch(() => {
-        const steps = mode === 'undo' ? [...entry.steps].reverse() : entry.steps;
+        const steps = mode === "undo" ? [...entry.steps].reverse() : entry.steps;
         for (const step of steps) {
-          scope.set(step.cell, mode === 'undo' ? step.prev : step.next, {
-            priority: 'urgent',
+          scope.set(step.cell, mode === "undo" ? step.prev : step.next, {
+            priority: "urgent",
             reason: `${reasonPrefix}.${mode}`,
           });
         }
@@ -1708,7 +1713,7 @@ export function createHistoryController(
       if (!entry) {
         return false;
       }
-      applyEntry(entry, 'undo');
+      applyEntry(entry, "undo");
       redoStack.push(entry);
       return true;
     },
@@ -1717,7 +1722,7 @@ export function createHistoryController(
       if (!entry) {
         return false;
       }
-      applyEntry(entry, 'redo');
+      applyEntry(entry, "redo");
       undoStack.push(entry);
       return true;
     },
@@ -1755,7 +1760,7 @@ export function createHistoryController(
       try {
         scope.batch(() => {
           for (const [c, value] of snapshot.entries()) {
-            scope.set(c, value, { priority: 'urgent', reason: `${reasonPrefix}.restore` });
+            scope.set(c, value, { priority: "urgent", reason: `${reasonPrefix}.restore` });
           }
         });
       } finally {
@@ -1774,10 +1779,7 @@ export function createHistoryController(
 
 // --- Operators ---
 
-export function merge<P>(
-  events: Event<P>[],
-  scope: Scope,
-): { event: Event<P>; unsubscribe: Unsubscribe } {
+export function merge<P>(events: Event<P>[], scope: Scope): { event: Event<P>; unsubscribe: Unsubscribe } {
   const merged = event<P>({ debugName: `merge(${events.length})` });
   const unsubscribers: Unsubscribe[] = [];
 
@@ -1785,7 +1787,7 @@ export function merge<P>(
     unsubscribers.push(
       scope.on(source, (payload, s, opts) => {
         s.emit(merged, payload, opts);
-      })
+      }),
     );
   }
 
@@ -1966,10 +1968,7 @@ interface Family<K, U> {
   clear(): void;
 }
 
-function createFamily<K, U>(
-  factory: (key: K) => U,
-  options: FamilyOptions<K> = {},
-): Family<K, U> {
+function createFamily<K, U>(factory: (key: K) => U, options: FamilyOptions<K> = {}): Family<K, U> {
   const cache: Array<{ key: K; unit: U }> = [];
   const isEqual = options.isEqual ?? Object.is;
 
@@ -2000,10 +1999,7 @@ function createFamily<K, U>(
   return family;
 }
 
-export function cellFamily<K, T>(
-  factory: (key: K) => Cell<T>,
-  options?: FamilyOptions<K>,
-): Family<K, Cell<T>> {
+export function cellFamily<K, T>(factory: (key: K) => Cell<T>, options?: FamilyOptions<K>): Family<K, Cell<T>> {
   return createFamily(factory, options);
 }
 
@@ -2014,10 +2010,7 @@ export function computedFamily<K, T>(
   return createFamily(factory, options);
 }
 
-export function eventFamily<K, P>(
-  factory: (key: K) => Event<P>,
-  options?: FamilyOptions<K>,
-): Family<K, Event<P>> {
+export function eventFamily<K, P>(factory: (key: K) => Event<P>, options?: FamilyOptions<K>): Family<K, Event<P>> {
   return createFamily(factory, options);
 }
 
@@ -2033,11 +2026,9 @@ export function effectFamily<K, P, R>(
 // ---------------------------------------------------------------------------
 
 export interface Observable<T> {
-  subscribe(observer: {
-    next: (value: T) => void;
-    error?: (err: unknown) => void;
-    complete: () => void;
-  }): { unsubscribe: () => void };
+  subscribe(observer: { next: (value: T) => void; error?: (err: unknown) => void; complete: () => void }): {
+    unsubscribe: () => void;
+  };
 }
 
 export function fromObservable<T>(
@@ -2057,10 +2048,7 @@ export function fromObservable<T>(
   };
 }
 
-export function toObservable<T>(
-  unit: Cell<T> | Computed<T>,
-  scope: Scope,
-): Observable<T> {
+export function toObservable<T>(unit: Cell<T> | Computed<T>, scope: Scope): Observable<T> {
   return {
     subscribe(observer) {
       // Emit current value immediately
@@ -2068,9 +2056,9 @@ export function toObservable<T>(
 
       let lastValue = scope.get(unit);
       const unsub = scope.subscribe((evt) => {
-        if (unit.kind === 'cell') {
+        if (unit.kind === "cell") {
           for (const change of evt.changes) {
-            if (change.kind === 'set' && change.unit === unit) {
+            if (change.kind === "set" && change.unit === unit) {
               lastValue = change.next as T;
               observer.next(lastValue);
               return;

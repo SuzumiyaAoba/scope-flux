@@ -1,18 +1,11 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import ts from 'typescript';
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import ts from "typescript";
 
 const ROOT = process.cwd();
-const TARGET_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
-const IGNORE_DIRS = new Set([
-  '.git',
-  'node_modules',
-  'dist',
-  'coverage',
-  'doc_build',
-  'docs-site/doc_build',
-]);
+const TARGET_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts"]);
+const IGNORE_DIRS = new Set([".git", "node_modules", "dist", "coverage", "doc_build", "docs-site/doc_build"]);
 
 function isIgnoredDir(relPath) {
   if (!relPath) return false;
@@ -20,7 +13,7 @@ function isIgnoredDir(relPath) {
   return Array.from(IGNORE_DIRS).some((dir) => relPath.startsWith(`${dir}/`));
 }
 
-function collectSourceFiles(dir, rel = '') {
+function collectSourceFiles(dir, rel = "") {
   if (isIgnoredDir(rel)) {
     return [];
   }
@@ -48,11 +41,11 @@ function collectSourceFiles(dir, rel = '') {
 
 function isCoreModuleSpecifier(raw) {
   return (
-    raw === '@suzumiyaaoba/scope-flux-core' ||
-    raw.startsWith('@suzumiyaaoba/scope-flux-core/') ||
-    raw.includes('/core/src/index') ||
-    raw.includes('/packages/core/') ||
-    raw === '../src/index.js'
+    raw === "@suzumiyaaoba/scope-flux-core" ||
+    raw.startsWith("@suzumiyaaoba/scope-flux-core/") ||
+    raw.includes("/core/src/index") ||
+    raw.includes("/packages/core/") ||
+    raw === "../src/index.js"
   );
 }
 
@@ -85,7 +78,7 @@ function collectCellImportNames(sourceFile) {
     if (ts.isNamedImports(bindings)) {
       for (const specifier of bindings.elements) {
         const imported = specifier.propertyName?.text ?? specifier.name.text;
-        if (imported === 'cell') {
+        if (imported === "cell") {
           names.add(specifier.name.text);
         }
       }
@@ -119,7 +112,7 @@ function extractCellIdFromCall(callExpression) {
       continue;
     }
     const keyText = ts.isIdentifier(key) ? key.text : ts.isStringLiteral(key) ? key.text : undefined;
-    if (keyText !== 'id') {
+    if (keyText !== "id") {
       continue;
     }
     return getStringLiteralText(property.initializer);
@@ -129,7 +122,7 @@ function extractCellIdFromCall(callExpression) {
 }
 
 function scanFileForCellIds(filePath, duplicatesMap) {
-  const sourceText = fs.readFileSync(filePath, 'utf8');
+  const sourceText = fs.readFileSync(filePath, "utf8");
   const sourceFile = ts.createSourceFile(filePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const imports = collectCellImportNames(sourceFile);
 
@@ -147,7 +140,7 @@ function scanFileForCellIds(filePath, duplicatesMap) {
         ts.isPropertyAccessExpression(node.expression) &&
         ts.isIdentifier(node.expression.expression) &&
         imports.namespaces.has(node.expression.expression.text) &&
-        node.expression.name.text === 'cell'
+        node.expression.name.text === "cell"
       ) {
         isCellCall = true;
       }
@@ -183,11 +176,11 @@ function main() {
   const duplicates = Array.from(duplicatesMap.entries()).filter(([, refs]) => refs.length > 1);
 
   if (duplicates.length === 0) {
-    console.log('No duplicate scope-flux cell IDs found.');
+    console.log("No duplicate scope-flux cell IDs found.");
     return;
   }
 
-  console.error('Duplicate scope-flux cell IDs detected:');
+  console.error("Duplicate scope-flux cell IDs detected:");
   for (const [id, refs] of duplicates) {
     console.error(`- "${id}"`);
     for (const ref of refs) {

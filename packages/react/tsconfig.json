@@ -7,8 +7,5 @@
     "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx"],
-  "references": [
-    { "path": "../core" },
-    { "path": "../scheduler" }
-  ]
+  "references": [{ "path": "../core" }, { "path": "../scheduler" }]
 }

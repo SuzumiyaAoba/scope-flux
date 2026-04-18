@@ -1,4 +1,4 @@
-import type { DevtoolsAdapter, DevtoolsMessage } from './index.js';
+import type { DevtoolsAdapter, DevtoolsMessage } from "./index.js";
 
 export interface ReduxDevtoolsLike {
   connect(options?: { name?: string }): {
@@ -19,7 +19,7 @@ export interface ReduxDevtoolsAdapter extends DevtoolsAdapter {
 }
 
 function parseMaybeJsonObject(value: unknown): unknown {
-  if (typeof value !== 'string') {
+  if (typeof value !== "string") {
     return value;
   }
   try {
@@ -37,12 +37,10 @@ function readGlobalReduxDevtools(): ReduxDevtoolsLike | undefined {
   return g.__REDUX_DEVTOOLS_EXTENSION__;
 }
 
-export function createReduxDevtoolsAdapter(
-  options: ReduxDevtoolsAdapterOptions = {}
-): ReduxDevtoolsAdapter {
+export function createReduxDevtoolsAdapter(options: ReduxDevtoolsAdapterOptions = {}): ReduxDevtoolsAdapter {
   const extension = options.extension ?? readGlobalReduxDevtools();
 
-  if (!extension || typeof extension.connect !== 'function') {
+  if (!extension || typeof extension.connect !== "function") {
     return {
       init: () => {
         // no-op when extension is unavailable
@@ -56,7 +54,7 @@ export function createReduxDevtoolsAdapter(
     };
   }
 
-  const connection = extension.connect({ name: options.name ?? 'scope-flux' });
+  const connection = extension.connect({ name: options.name ?? "scope-flux" });
 
   return {
     init(initialState: unknown): void {
@@ -72,7 +70,7 @@ export function createReduxDevtoolsAdapter(
         };
       }
       const unsubscribe = connection.subscribe((message) => {
-        if (!message || typeof message !== 'object') {
+        if (!message || typeof message !== "object") {
           return;
         }
         const incoming = message as {
@@ -82,19 +80,19 @@ export function createReduxDevtoolsAdapter(
           nextLiftedState?: unknown;
         };
 
-        if (incoming.type === 'DISPATCH') {
+        if (incoming.type === "DISPATCH") {
           const dispatchType = incoming.payload?.type;
           if (
-            dispatchType === 'JUMP_TO_STATE' ||
-            dispatchType === 'JUMP_TO_ACTION' ||
-            dispatchType === 'ROLLBACK' ||
-            dispatchType === 'REVERT' ||
-            dispatchType === 'COMMIT' ||
-            dispatchType === 'RESET' ||
-            dispatchType === 'IMPORT_STATE'
+            dispatchType === "JUMP_TO_STATE" ||
+            dispatchType === "JUMP_TO_ACTION" ||
+            dispatchType === "ROLLBACK" ||
+            dispatchType === "REVERT" ||
+            dispatchType === "COMMIT" ||
+            dispatchType === "RESET" ||
+            dispatchType === "IMPORT_STATE"
           ) {
             listener({
-              type: dispatchType.toLowerCase() as DevtoolsMessage['type'],
+              type: dispatchType.toLowerCase() as DevtoolsMessage["type"],
               state: parseMaybeJsonObject(incoming.state),
               nextLiftedState: parseMaybeJsonObject(incoming.payload?.nextLiftedState),
             });
@@ -102,27 +100,27 @@ export function createReduxDevtoolsAdapter(
           return;
         }
 
-        if (incoming.type === 'STATE') {
+        if (incoming.type === "STATE") {
           listener({
-            type: 'jump_to_state',
+            type: "jump_to_state",
             state: parseMaybeJsonObject(incoming.state),
             nextLiftedState: undefined,
           });
           return;
         }
 
-        if (incoming.type === 'ACTION') {
+        if (incoming.type === "ACTION") {
           const actionPayload = parseMaybeJsonObject(incoming.state ?? incoming.payload);
-          if (actionPayload && typeof actionPayload === 'object') {
+          if (actionPayload && typeof actionPayload === "object") {
             const action = actionPayload as { type?: unknown; state?: unknown; nextLiftedState?: unknown };
             if (
-              action.type === 'jump_to_state' ||
-              action.type === 'jump_to_action' ||
-              action.type === 'rollback' ||
-              action.type === 'revert' ||
-              action.type === 'commit' ||
-              action.type === 'reset' ||
-              action.type === 'import_state'
+              action.type === "jump_to_state" ||
+              action.type === "jump_to_action" ||
+              action.type === "rollback" ||
+              action.type === "revert" ||
+              action.type === "commit" ||
+              action.type === "reset" ||
+              action.type === "import_state"
             ) {
               listener({
                 type: action.type,
@@ -135,13 +133,13 @@ export function createReduxDevtoolsAdapter(
         }
 
         if (
-          incoming.type === 'jump_to_state' ||
-          incoming.type === 'jump_to_action' ||
-          incoming.type === 'rollback' ||
-          incoming.type === 'revert' ||
-          incoming.type === 'commit' ||
-          incoming.type === 'reset' ||
-          incoming.type === 'import_state'
+          incoming.type === "jump_to_state" ||
+          incoming.type === "jump_to_action" ||
+          incoming.type === "rollback" ||
+          incoming.type === "revert" ||
+          incoming.type === "commit" ||
+          incoming.type === "reset" ||
+          incoming.type === "import_state"
         ) {
           listener({
             type: incoming.type,
@@ -150,7 +148,7 @@ export function createReduxDevtoolsAdapter(
           });
         }
       });
-      return typeof unsubscribe === 'function'
+      return typeof unsubscribe === "function"
         ? unsubscribe
         : () => {
             // no-op when extension does not provide explicit unsubscribe

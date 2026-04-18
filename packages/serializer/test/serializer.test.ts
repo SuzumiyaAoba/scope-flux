@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from "vitest";
 
-import { cell, createStore } from '@suzumiyaaoba/scope-flux-core';
+import { cell, createStore } from "@suzumiyaaoba/scope-flux-core";
 import {
   autoPersistScope,
   autoPersistScopeAsync,
@@ -12,15 +12,15 @@ import {
   persistToStorageAsync,
   persistToStorage,
   serialize,
-} from '../src/index.js';
+} from "../src/index.js";
 
-describe('serializer', () => {
-  it('serialize/hydrate roundtrip', () => {
-    const name = cell('alice', { id: 'name' });
-    const age = cell(20, { id: 'age' });
+describe("serializer", () => {
+  it("serialize/hydrate roundtrip", () => {
+    const name = cell("alice", { id: "name" });
+    const age = cell(20, { id: "age" });
 
     const s1 = createStore().fork();
-    s1.set(name, 'bob');
+    s1.set(name, "bob");
     s1.set(age, 42);
 
     const payload = serialize(s1);
@@ -30,32 +30,32 @@ describe('serializer', () => {
     s2.registerCell(age);
     hydrate(s2, payload);
 
-    expect(s2.get(name)).toBe('bob');
+    expect(s2.get(name)).toBe("bob");
     expect(s2.get(age)).toBe(42);
   });
 
-  it('serialize rejects non-json values', () => {
-    const bad = cell<unknown>(() => {}, { id: 'bad' });
+  it("serialize rejects non-json values", () => {
+    const bad = cell<unknown>(() => {}, { id: "bad" });
     const scope = createStore().fork();
     scope.set(bad, () => {});
 
     expect(() => serialize(scope)).toThrowError(/NS_SER_NON_JSON_VALUE/);
   });
 
-  it('serialize skips non-serializable cells', () => {
-    const publicValue = cell('ok', { id: 'public_value', serializable: true });
-    const privateValue = cell('secret', { id: 'private_value', serializable: false });
+  it("serialize skips non-serializable cells", () => {
+    const publicValue = cell("ok", { id: "public_value", serializable: true });
+    const privateValue = cell("secret", { id: "private_value", serializable: false });
     const scope = createStore().fork();
-    scope.set(publicValue, 'visible');
-    scope.set(privateValue, 'hidden');
+    scope.set(publicValue, "visible");
+    scope.set(privateValue, "hidden");
 
     const payload = serialize(scope);
-    expect(payload.values.public_value).toBe('visible');
-    expect('private_value' in payload.values).toBe(false);
+    expect(payload.values.public_value).toBe("visible");
+    expect("private_value" in payload.values).toBe(false);
   });
 
-  it('safe hydrate is idempotent', () => {
-    const count = cell(1, { id: 'safe_count' });
+  it("safe hydrate is idempotent", () => {
+    const count = cell(1, { id: "safe_count" });
 
     const source = createStore().fork();
     source.set(count, 2);
@@ -67,12 +67,12 @@ describe('serializer', () => {
     expect(target.get(count)).toBe(2);
 
     target.set(count, 50);
-    hydrate(target, payload, { mode: 'safe' });
+    hydrate(target, payload, { mode: "safe" });
     expect(target.get(count)).toBe(50);
   });
 
-  it('force hydrate overwrites existing value', () => {
-    const count = cell(1, { id: 'force_count' });
+  it("force hydrate overwrites existing value", () => {
+    const count = cell(1, { id: "force_count" });
 
     const source = createStore().fork();
     source.set(count, 9);
@@ -81,19 +81,19 @@ describe('serializer', () => {
     const target = createStore().fork();
     target.registerCell(count);
     target.set(count, 3);
-    hydrate(target, payload, { mode: 'force' });
+    hydrate(target, payload, { mode: "force" });
 
     expect(target.get(count)).toBe(9);
   });
 
-  it('hydrate ignores unknown stable IDs', () => {
-    const known = cell(0, { id: 'known_cell' });
+  it("hydrate ignores unknown stable IDs", () => {
+    const known = cell(0, { id: "known_cell" });
     const scope = createStore().fork();
     scope.set(known, 1);
 
     hydrate(scope, {
       version: 1,
-      scopeId: 'external_scope',
+      scopeId: "external_scope",
       values: {
         unknown_cell: 99,
       },
@@ -102,16 +102,16 @@ describe('serializer', () => {
     expect(scope.get(known)).toBe(1);
   });
 
-  it('payload size limit is enforced', () => {
-    const text = cell('x'.repeat(100), { id: 'text' });
+  it("payload size limit is enforced", () => {
+    const text = cell("x".repeat(100), { id: "text" });
     const scope = createStore().fork();
-    scope.set(text, 'x'.repeat(100));
+    scope.set(text, "x".repeat(100));
 
     expect(() => serialize(scope, { maxBytes: 20 })).toThrowError(/NS_SER_PAYLOAD_TOO_LARGE/);
   });
 
-  it('serialize works when Buffer global is unavailable', () => {
-    const count = cell(1, { id: 'no_buffer_count' });
+  it("serialize works when Buffer global is unavailable", () => {
+    const count = cell(1, { id: "no_buffer_count" });
     const scope = createStore().fork();
     scope.set(count, 2);
 
@@ -126,65 +126,65 @@ describe('serializer', () => {
     }
   });
 
-  it('escapeJsonForHtml escapes dangerous chars', () => {
+  it("escapeJsonForHtml escapes dangerous chars", () => {
     const escaped = escapeJsonForHtml('{"x":"<script>"}');
-    expect(escaped.includes('\\u003cscript\\u003e')).toBe(true);
+    expect(escaped.includes("\\u003cscript\\u003e")).toBe(true);
   });
 
-  it('hydrate rejects invalid payload shapes', () => {
+  it("hydrate rejects invalid payload shapes", () => {
     const scope = createStore().fork();
-    expect(() => hydrate(scope, 'bad_payload')).toThrowError(/NS_SER_INVALID_SCHEMA/);
+    expect(() => hydrate(scope, "bad_payload")).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
 
-  it('hydrate rejects malformed payload fields', () => {
+  it("hydrate rejects malformed payload fields", () => {
     const scope = createStore().fork();
 
-    expect(() => hydrate(scope, { version: '1', scopeId: 'x', values: {} })).toThrowError(/NS_SER_INVALID_SCHEMA/);
+    expect(() => hydrate(scope, { version: "1", scopeId: "x", values: {} })).toThrowError(/NS_SER_INVALID_SCHEMA/);
     expect(() => hydrate(scope, { version: 1, scopeId: 100, values: {} })).toThrowError(/NS_SER_INVALID_SCHEMA/);
-    expect(() => hydrate(scope, { version: 1, scopeId: 'x', values: [] })).toThrowError(/NS_SER_INVALID_SCHEMA/);
+    expect(() => hydrate(scope, { version: 1, scopeId: "x", values: [] })).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
 
-  it('hydrate rejects non-json value entries inside payload.values', () => {
+  it("hydrate rejects non-json value entries inside payload.values", () => {
     const scope = createStore().fork();
     expect(() =>
       hydrate(scope, {
         version: 1,
-        scopeId: 'x',
+        scopeId: "x",
         values: { bad: () => {} },
-      })
+      }),
     ).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
 
-  it('serialize with only option exports only targeted cells', () => {
-    const included = cell('in', { id: 'serialize_only_included' });
-    const excluded = cell('out', { id: 'serialize_only_excluded' });
+  it("serialize with only option exports only targeted cells", () => {
+    const included = cell("in", { id: "serialize_only_included" });
+    const excluded = cell("out", { id: "serialize_only_excluded" });
     const scope = createStore().fork();
-    scope.set(included, 'included');
-    scope.set(excluded, 'excluded');
+    scope.set(included, "included");
+    scope.set(excluded, "excluded");
 
     const payload = serialize(scope, { only: [included] });
 
-    expect(payload.values.serialize_only_included).toBe('included');
+    expect(payload.values.serialize_only_included).toBe("included");
     expect(payload.values.serialize_only_excluded).toBeUndefined();
   });
 
-  it('serialize ignores non-cell values and cells without stable IDs in only option', () => {
-    const noId = cell('x');
-    const withId = cell('ok', { id: 'serialize_only_with_id' });
+  it("serialize ignores non-cell values and cells without stable IDs in only option", () => {
+    const noId = cell("x");
+    const withId = cell("ok", { id: "serialize_only_with_id" });
     const scope = createStore().fork();
-    scope.set(noId, 'no-id');
-    scope.set(withId, 'yes-id');
+    scope.set(noId, "no-id");
+    scope.set(withId, "yes-id");
 
     const payload = serialize(scope, {
-      only: [withId, noId, { kind: 'event' } as any],
+      only: [withId, noId, { kind: "event" } as any],
     });
 
-    expect(payload.values.serialize_only_with_id).toBe('yes-id');
-    expect(Object.keys(payload.values)).toEqual(['serialize_only_with_id']);
+    expect(payload.values.serialize_only_with_id).toBe("yes-id");
+    expect(Object.keys(payload.values)).toEqual(["serialize_only_with_id"]);
   });
 
-  it('serialize works when both TextEncoder and Buffer are unavailable', () => {
-    const count = cell(1, { id: 'no_text_encoder_count' });
+  it("serialize works when both TextEncoder and Buffer are unavailable", () => {
+    const count = cell(1, { id: "no_text_encoder_count" });
     const scope = createStore().fork();
     scope.set(count, 2);
 
@@ -203,35 +203,35 @@ describe('serializer', () => {
     }
   });
 
-  it('serialize/hydrate reject invalid scope objects', () => {
-    expect(() => serialize(null as unknown as ReturnType<typeof createStore>['root'])).toThrowError(
-      /NS_SER_INVALID_SCOPE/
+  it("serialize/hydrate reject invalid scope objects", () => {
+    expect(() => serialize(null as unknown as ReturnType<typeof createStore>["root"])).toThrowError(
+      /NS_SER_INVALID_SCOPE/,
     );
-    expect(() => hydrate(null as unknown as ReturnType<typeof createStore>['root'], {})).toThrowError(
-      /NS_SER_INVALID_SCOPE/
+    expect(() => hydrate(null as unknown as ReturnType<typeof createStore>["root"], {})).toThrowError(
+      /NS_SER_INVALID_SCOPE/,
     );
   });
 
-  it('hydrate rejects invalid mode values', () => {
-    const count = cell(1, { id: 'invalid_mode_count' });
+  it("hydrate rejects invalid mode values", () => {
+    const count = cell(1, { id: "invalid_mode_count" });
     const source = createStore().fork();
     source.set(count, 2);
     const payload = serialize(source);
 
     const target = createStore().fork();
     target.registerCell(count);
-    expect(() =>
-      hydrate(target, payload, { mode: 'unexpected' as 'safe' })
-    ).toThrowError(/NS_SER_INVALID_HYDRATE_MODE/);
+    expect(() => hydrate(target, payload, { mode: "unexpected" as "safe" })).toThrowError(
+      /NS_SER_INVALID_HYDRATE_MODE/,
+    );
   });
 
-  it('hydrate supports payload migration', () => {
-    const count = cell(0, { id: 'hydrate_migrate_count' });
+  it("hydrate supports payload migration", () => {
+    const count = cell(0, { id: "hydrate_migrate_count" });
     const target = createStore().fork();
     target.registerCell(count);
     const legacyPayload = {
       version: 2,
-      scopeId: 'legacy',
+      scopeId: "legacy",
       values: { hydrate_migrate_count: 9 },
     };
 
@@ -245,23 +245,23 @@ describe('serializer', () => {
     expect(target.get(count)).toBe(9);
   });
 
-  it('hydrate rejects unsupported version without migrate', () => {
-    const count = cell(0, { id: 'hydrate_migrate_reject_count' });
+  it("hydrate rejects unsupported version without migrate", () => {
+    const count = cell(0, { id: "hydrate_migrate_reject_count" });
     const target = createStore().fork();
     target.registerCell(count);
 
     expect(() =>
       hydrate(target, {
         version: 2,
-        scopeId: 'legacy',
+        scopeId: "legacy",
         values: { hydrate_migrate_reject_count: 1 },
-      })
+      }),
     ).toThrowError(/NS_SER_UNSUPPORTED_VERSION/);
     expect(target.get(count)).toBe(0);
   });
 
-  it('persistToStorage and hydrateFromStorage roundtrip', () => {
-    const count = cell(0, { id: 'storage_count' });
+  it("persistToStorage and hydrateFromStorage roundtrip", () => {
+    const count = cell(0, { id: "storage_count" });
     const source = createStore().fork();
     source.set(count, 3);
 
@@ -273,19 +273,19 @@ describe('serializer', () => {
       },
     };
 
-    persistToStorage(source, 'scope:key', { storage });
+    persistToStorage(source, "scope:key", { storage });
     const target = createStore().fork();
     target.registerCell(count);
-    const loaded = hydrateFromStorage(target, 'scope:key', { storage });
+    const loaded = hydrateFromStorage(target, "scope:key", { storage });
 
     expect(loaded).not.toBeNull();
     expect(target.get(count)).toBe(3);
   });
 
-  it('autoPersistScope persists on commits with debounce', () => {
+  it("autoPersistScope persists on commits with debounce", () => {
     vi.useFakeTimers();
     try {
-      const count = cell(0, { id: 'auto_persist_count' });
+      const count = cell(0, { id: "auto_persist_count" });
       const scope = createStore().fork();
       const memory = new Map<string, string>();
       const storage = {
@@ -295,17 +295,17 @@ describe('serializer', () => {
         },
       };
 
-      const { unsubscribe } = autoPersistScope(scope, 'scope:auto', {
+      const { unsubscribe } = autoPersistScope(scope, "scope:auto", {
         storage,
         debounceMs: 20,
       });
 
       scope.set(count, 1);
       scope.set(count, 2);
-      expect(memory.has('scope:auto')).toBe(false);
+      expect(memory.has("scope:auto")).toBe(false);
 
       vi.advanceTimersByTime(20);
-      const persisted = memory.get('scope:auto');
+      const persisted = memory.get("scope:auto");
       expect(persisted).toBeTruthy();
       expect(JSON.parse(persisted as string).values.auto_persist_count).toBe(2);
 
@@ -315,8 +315,8 @@ describe('serializer', () => {
     }
   });
 
-  it('autoPersistScope flush writes immediately', () => {
-    const count = cell(0, { id: 'auto_persist_flush_count' });
+  it("autoPersistScope flush writes immediately", () => {
+    const count = cell(0, { id: "auto_persist_flush_count" });
     const scope = createStore().fork();
     const memory = new Map<string, string>();
     const storage = {
@@ -325,7 +325,7 @@ describe('serializer', () => {
         memory.set(key, value);
       },
     };
-    const { flush, unsubscribe } = autoPersistScope(scope, 'scope:auto:flush', {
+    const { flush, unsubscribe } = autoPersistScope(scope, "scope:auto:flush", {
       storage,
       debounceMs: 1000,
     });
@@ -335,26 +335,26 @@ describe('serializer', () => {
     unsubscribe();
   });
 
-  it('createMemoryStorage can seed and mutate values', () => {
-    const storage = createMemoryStorage({ a: '1' });
-    expect(storage.getItem('a')).toBe('1');
-    storage.setItem('b', '2');
-    expect(storage.getItem('b')).toBe('2');
+  it("createMemoryStorage can seed and mutate values", () => {
+    const storage = createMemoryStorage({ a: "1" });
+    expect(storage.getItem("a")).toBe("1");
+    storage.setItem("b", "2");
+    expect(storage.getItem("b")).toBe("2");
   });
 
-  it('autoPersistScope hydrateNow hydrates from existing storage payload', () => {
-    const count = cell(0, { id: 'auto_persist_hydrate_now_count' });
+  it("autoPersistScope hydrateNow hydrates from existing storage payload", () => {
+    const count = cell(0, { id: "auto_persist_hydrate_now_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
     const storage = createMemoryStorage();
 
     const source = createStore().fork();
     source.set(count, 11);
-    persistToStorage(source, 'scope:auto:hydrate', { storage });
+    persistToStorage(source, "scope:auto:hydrate", { storage });
 
-    const persistence = autoPersistScope(scope, 'scope:auto:hydrate', {
+    const persistence = autoPersistScope(scope, "scope:auto:hydrate", {
       storage,
-      mode: 'force',
+      mode: "force",
     });
     const loaded = persistence.hydrateNow();
     expect(loaded?.values.auto_persist_hydrate_now_count).toBe(11);
@@ -362,37 +362,37 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('persistToStorage/hydrateFromStorage support codec hooks', () => {
-    const count = cell(0, { id: 'codec_count' });
+  it("persistToStorage/hydrateFromStorage support codec hooks", () => {
+    const count = cell(0, { id: "codec_count" });
     const source = createStore().fork();
     source.set(count, 7);
     const storage = createMemoryStorage();
     const codec = {
-      encode: (raw: string) => Buffer.from(raw, 'utf8').toString('base64'),
-      decode: (encoded: string) => Buffer.from(encoded, 'base64').toString('utf8'),
+      encode: (raw: string) => Buffer.from(raw, "utf8").toString("base64"),
+      decode: (encoded: string) => Buffer.from(encoded, "base64").toString("utf8"),
     };
 
-    persistToStorage(source, 'scope:codec', { storage, codec });
-    const raw = storage.getItem('scope:codec');
+    persistToStorage(source, "scope:codec", { storage, codec });
+    const raw = storage.getItem("scope:codec");
     expect(raw).toBeTruthy();
     expect(raw?.includes('"values"')).toBe(false);
 
     const target = createStore().fork();
     target.registerCell(count);
-    hydrateFromStorage(target, 'scope:codec', { storage, codec });
+    hydrateFromStorage(target, "scope:codec", { storage, codec });
     expect(target.get(count)).toBe(7);
   });
 
-  it('autoPersistScope can merge external payloads on conflict', () => {
-    const a = cell(0, { id: 'merge_a' });
-    const b = cell(0, { id: 'merge_b' });
+  it("autoPersistScope can merge external payloads on conflict", () => {
+    const a = cell(0, { id: "merge_a" });
+    const b = cell(0, { id: "merge_b" });
     const scope = createStore().fork();
     scope.registerCell(a);
     scope.registerCell(b);
     const storage = createMemoryStorage();
-    const persistence = autoPersistScope(scope, 'scope:merge', {
+    const persistence = autoPersistScope(scope, "scope:merge", {
       storage,
-      conflictPolicy: 'merge',
+      conflictPolicy: "merge",
       mergePayloads: (localPayload, externalPayload) => {
         return {
           ...externalPayload,
@@ -409,7 +409,7 @@ describe('serializer', () => {
 
     const external = createStore().fork();
     external.set(b, 2);
-    persistToStorage(external, 'scope:merge', { storage });
+    persistToStorage(external, "scope:merge", { storage });
     const merged = persistence.hydrateNow();
 
     expect(merged).not.toBeNull();
@@ -418,13 +418,13 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('autoPersistScope hydrateNow applies merge policy for conflicting keys', () => {
-    const value = cell(0, { id: 'merge_conflict_value' });
+  it("autoPersistScope hydrateNow applies merge policy for conflicting keys", () => {
+    const value = cell(0, { id: "merge_conflict_value" });
     const scope = createStore().fork();
     const storage = createMemoryStorage();
-    const persistence = autoPersistScope(scope, 'scope:merge:hydrate-now', {
+    const persistence = autoPersistScope(scope, "scope:merge:hydrate-now", {
       storage,
-      conflictPolicy: 'merge',
+      conflictPolicy: "merge",
       mergePayloads: (localPayload, externalPayload) => ({
         ...externalPayload,
         values: {
@@ -439,7 +439,7 @@ describe('serializer', () => {
 
     const external = createStore().fork();
     external.set(value, 99);
-    persistToStorage(external, 'scope:merge:hydrate-now', { storage });
+    persistToStorage(external, "scope:merge:hydrate-now", { storage });
 
     const merged = persistence.hydrateNow();
     expect(merged?.values.merge_conflict_value).toBe(10);
@@ -447,28 +447,28 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('autoPersistScope throttleMs coalesces frequent writes', () => {
+  it("autoPersistScope throttleMs coalesces frequent writes", () => {
     vi.useFakeTimers();
     try {
-      const count = cell(0, { id: 'auto_persist_throttle_count' });
+      const count = cell(0, { id: "auto_persist_throttle_count" });
       const scope = createStore().fork();
       const storage = createMemoryStorage();
-      const persistence = autoPersistScope(scope, 'scope:throttle', {
+      const persistence = autoPersistScope(scope, "scope:throttle", {
         storage,
         debounceMs: 0,
         throttleMs: 30,
       });
 
       scope.set(count, 1);
-      const first = storage.getItem('scope:throttle');
+      const first = storage.getItem("scope:throttle");
       expect(first).toBeTruthy();
 
       scope.set(count, 2);
-      const stillFirst = storage.getItem('scope:throttle');
+      const stillFirst = storage.getItem("scope:throttle");
       expect(stillFirst).toBe(first);
 
       vi.advanceTimersByTime(30);
-      const second = storage.getItem('scope:throttle');
+      const second = storage.getItem("scope:throttle");
       expect(second).not.toBe(first);
       expect(JSON.parse(second as string).values.auto_persist_throttle_count).toBe(2);
       persistence.unsubscribe();
@@ -477,9 +477,9 @@ describe('serializer', () => {
     }
   });
 
-  it('autoPersistScope listens external updates and can prefer local on conflict', () => {
-    const local = cell(0, { id: 'external_local' });
-    const externalOnly = cell(0, { id: 'external_only' });
+  it("autoPersistScope listens external updates and can prefer local on conflict", () => {
+    const local = cell(0, { id: "external_local" });
+    const externalOnly = cell(0, { id: "external_only" });
     const scope = createStore().fork();
     const storage = createMemoryStorage();
     const listeners: Array<(event: unknown) => void> = [];
@@ -501,10 +501,10 @@ describe('serializer', () => {
 
     try {
       const onExternalHydrate = vi.fn();
-      const persistence = autoPersistScope(scope, 'scope:external', {
+      const persistence = autoPersistScope(scope, "scope:external", {
         storage,
         listenExternalUpdates: true,
-        conflictPolicy: 'prefer_local',
+        conflictPolicy: "prefer_local",
         debounceMs: 100,
         onExternalHydrate,
       });
@@ -512,17 +512,17 @@ describe('serializer', () => {
       scope.set(local, 10);
       const externalPayload = {
         version: 1,
-        scopeId: 'remote',
+        scopeId: "remote",
         values: {
           external_local: 1,
           external_only: 2,
         },
       };
-      storage.setItem('scope:external', JSON.stringify(externalPayload));
+      storage.setItem("scope:external", JSON.stringify(externalPayload));
 
       for (const listener of [...listeners]) {
         listener({
-          key: 'scope:external',
+          key: "scope:external",
           newValue: JSON.stringify(externalPayload),
           storageArea: storage,
         });
@@ -534,7 +534,7 @@ describe('serializer', () => {
       persistence.flush();
       for (const listener of [...listeners]) {
         listener({
-          key: 'scope:external',
+          key: "scope:external",
           newValue: JSON.stringify(externalPayload),
           storageArea: storage,
         });
@@ -549,7 +549,7 @@ describe('serializer', () => {
     }
   });
 
-  it('autoPersistScope reports external listener parse errors via onError', () => {
+  it("autoPersistScope reports external listener parse errors via onError", () => {
     const scope = createStore().fork();
     const storage = createMemoryStorage();
     const listeners: Array<(event: unknown) => void> = [];
@@ -570,15 +570,15 @@ describe('serializer', () => {
     };
     try {
       const onError = vi.fn();
-      const persistence = autoPersistScope(scope, 'scope:external:error', {
+      const persistence = autoPersistScope(scope, "scope:external:error", {
         storage,
         listenExternalUpdates: true,
         onError,
       });
       for (const listener of [...listeners]) {
         listener({
-          key: 'scope:external:error',
-          newValue: '{bad-json',
+          key: "scope:external:error",
+          newValue: "{bad-json",
           storageArea: storage,
         });
       }
@@ -590,8 +590,8 @@ describe('serializer', () => {
     }
   });
 
-  it('autoPersistScope does not call mergePayloads for invalid external payload', () => {
-    const value = cell(0, { id: 'scope_merge_invalid_external' });
+  it("autoPersistScope does not call mergePayloads for invalid external payload", () => {
+    const value = cell(0, { id: "scope_merge_invalid_external" });
     const scope = createStore().fork();
     const storage = createMemoryStorage();
     const listeners: Array<(event: unknown) => void> = [];
@@ -617,10 +617,10 @@ describe('serializer', () => {
         values: { ...localPayload.values, ...externalPayload.values },
       }));
       const onError = vi.fn();
-      const persistence = autoPersistScope(scope, 'scope:merge:invalid-external', {
+      const persistence = autoPersistScope(scope, "scope:merge:invalid-external", {
         storage,
         listenExternalUpdates: true,
-        conflictPolicy: 'merge',
+        conflictPolicy: "merge",
         mergePayloads,
         onError,
       });
@@ -628,8 +628,8 @@ describe('serializer', () => {
 
       for (const listener of [...listeners]) {
         listener({
-          key: 'scope:merge:invalid-external',
-          newValue: JSON.stringify({ version: 1, scopeId: 'external', values: 123 }),
+          key: "scope:merge:invalid-external",
+          newValue: JSON.stringify({ version: 1, scopeId: "external", values: 123 }),
           storageArea: storage,
         });
       }
@@ -644,12 +644,12 @@ describe('serializer', () => {
     }
   });
 
-  it('autoPersistScope hydrateNow returns null and calls onError for invalid payload', () => {
+  it("autoPersistScope hydrateNow returns null and calls onError for invalid payload", () => {
     const scope = createStore().fork();
-    const storage = createMemoryStorage({ 'scope:hydrate:error': '{bad-json' });
+    const storage = createMemoryStorage({ "scope:hydrate:error": "{bad-json" });
     const onError = vi.fn();
 
-    const persistence = autoPersistScope(scope, 'scope:hydrate:error', {
+    const persistence = autoPersistScope(scope, "scope:hydrate:error", {
       storage,
       onError,
     });
@@ -659,8 +659,8 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('persistToStorageAsync and hydrateFromStorageAsync roundtrip', async () => {
-    const count = cell(0, { id: 'async_storage_count' });
+  it("persistToStorageAsync and hydrateFromStorageAsync roundtrip", async () => {
+    const count = cell(0, { id: "async_storage_count" });
     const source = createStore().fork();
     source.set(count, 5);
 
@@ -674,17 +674,17 @@ describe('serializer', () => {
       },
     };
 
-    await persistToStorageAsync(source, 'scope:async:key', { storage });
+    await persistToStorageAsync(source, "scope:async:key", { storage });
     const target = createStore().fork();
     target.registerCell(count);
-    const loaded = await hydrateFromStorageAsync(target, 'scope:async:key', { storage });
+    const loaded = await hydrateFromStorageAsync(target, "scope:async:key", { storage });
 
     expect(loaded).not.toBeNull();
     expect(target.get(count)).toBe(5);
   });
 
-  it('autoPersistScopeAsync persists and hydrateNow works', async () => {
-    const count = cell(0, { id: 'auto_persist_async_count' });
+  it("autoPersistScopeAsync persists and hydrateNow works", async () => {
+    const count = cell(0, { id: "auto_persist_async_count" });
     const scope = createStore().fork();
     const memory = new Map<string, string>();
     const storage = {
@@ -696,25 +696,25 @@ describe('serializer', () => {
       },
     };
 
-    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async', {
+    const persistence = autoPersistScopeAsync(scope, "scope:auto:async", {
       storage,
       debounceMs: 0,
     });
 
     scope.set(count, 3);
     await persistence.flush();
-    expect(memory.has('scope:auto:async')).toBe(true);
+    expect(memory.has("scope:auto:async")).toBe(true);
 
     const next = createStore().fork();
     next.registerCell(count);
-    const loaded = await hydrateFromStorageAsync(next, 'scope:auto:async', { storage });
+    const loaded = await hydrateFromStorageAsync(next, "scope:auto:async", { storage });
     expect(loaded?.values.auto_persist_async_count).toBe(3);
     expect(next.get(count)).toBe(3);
     persistence.unsubscribe();
   });
 
-  it('autoPersistScopeAsync serializes concurrent flush calls', async () => {
-    const count = cell(0, { id: 'auto_persist_async_serialized_count' });
+  it("autoPersistScopeAsync serializes concurrent flush calls", async () => {
+    const count = cell(0, { id: "auto_persist_async_serialized_count" });
     const scope = createStore().fork();
     const memory = new Map<string, string>();
     const storage = {
@@ -727,7 +727,7 @@ describe('serializer', () => {
       },
     };
 
-    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:serial', {
+    const persistence = autoPersistScopeAsync(scope, "scope:auto:async:serial", {
       storage,
       debounceMs: 0,
     });
@@ -739,7 +739,7 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('autoPersistScopeAsync flush persists even when no pending write exists', async () => {
+  it("autoPersistScopeAsync flush persists even when no pending write exists", async () => {
     const scope = createStore().fork();
     const memory = new Map<string, string>();
     const storage = {
@@ -750,22 +750,22 @@ describe('serializer', () => {
         memory.set(key, value);
       },
     };
-    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:empty-flush', {
+    const persistence = autoPersistScopeAsync(scope, "scope:auto:async:empty-flush", {
       storage,
       debounceMs: 100,
     });
 
     const payload = await persistence.flush();
     expect(payload).not.toBeNull();
-    expect(memory.has('scope:auto:async:empty-flush')).toBe(true);
+    expect(memory.has("scope:auto:async:empty-flush")).toBe(true);
     persistence.unsubscribe();
   });
 
-  it('autoPersistScopeAsync hydrateNow returns null and calls onError on invalid payload', async () => {
+  it("autoPersistScopeAsync hydrateNow returns null and calls onError on invalid payload", async () => {
     const scope = createStore().fork();
-    const storage = createMemoryStorage({ 'scope:auto:async:hydrate:error': '{bad-json' });
+    const storage = createMemoryStorage({ "scope:auto:async:hydrate:error": "{bad-json" });
     const onError = vi.fn();
-    const persistence = autoPersistScopeAsync(scope, 'scope:auto:async:hydrate:error', {
+    const persistence = autoPersistScopeAsync(scope, "scope:auto:async:hydrate:error", {
       storage,
       onError,
     });
@@ -776,18 +776,20 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('autoPersistScopeAsync flush returns null (not rejected) when persist fails', async () => {
+  it("autoPersistScopeAsync flush returns null (not rejected) when persist fails", async () => {
     const scope = createStore().fork();
     let callCount = 0;
     const storage = {
-      async getItem() { return null; },
+      async getItem() {
+        return null;
+      },
       async setItem() {
         callCount++;
-        if (callCount <= 1) throw new Error('storage_fail');
+        if (callCount <= 1) throw new Error("storage_fail");
       },
     };
     const onError = vi.fn();
-    const persistence = autoPersistScopeAsync(scope, 'scope:async:error-chain', {
+    const persistence = autoPersistScopeAsync(scope, "scope:async:error-chain", {
       storage,
       debounceMs: 0,
       onError,
@@ -804,8 +806,8 @@ describe('serializer', () => {
     persistence.unsubscribe();
   });
 
-  it('autoPersistScopeAsync flush persists latest state after debounced change', async () => {
-    const count = cell(0, { id: 'async_flush_stale_count' });
+  it("autoPersistScopeAsync flush persists latest state after debounced change", async () => {
+    const count = cell(0, { id: "async_flush_stale_count" });
     const scope = createStore().fork();
     const memory = new Map<string, string>();
     const storage = {
@@ -817,7 +819,7 @@ describe('serializer', () => {
       },
     };
 
-    const persistence = autoPersistScopeAsync(scope, 'scope:async:flush-stale', {
+    const persistence = autoPersistScopeAsync(scope, "scope:async:flush-stale", {
       storage,
       debounceMs: 50,
     });
@@ -839,21 +841,21 @@ describe('serializer', () => {
 
   // --- Edge case tests ---
 
-  it('serialize handles emoji (4-byte UTF-8) in maxBytes calculation', () => {
-    const emoji = cell('😀', { id: 'emoji_cell' });
+  it("serialize handles emoji (4-byte UTF-8) in maxBytes calculation", () => {
+    const emoji = cell("😀", { id: "emoji_cell" });
     const scope = createStore().fork();
-    scope.set(emoji, '😀');
+    scope.set(emoji, "😀");
 
     // emoji is 4 bytes UTF-8, so a tight limit should reject
     expect(() => serialize(scope, { maxBytes: 10 })).toThrowError(/NS_SER_PAYLOAD_TOO_LARGE/);
 
     // generous limit should pass
     const payload = serialize(scope, { maxBytes: 500 });
-    expect(payload.values.emoji_cell).toBe('😀');
+    expect(payload.values.emoji_cell).toBe("😀");
   });
 
-  it('isJsonValue rejects NaN and Infinity', () => {
-    const nanCell = cell<number>(0, { id: 'nan_serialize_cell' });
+  it("isJsonValue rejects NaN and Infinity", () => {
+    const nanCell = cell<number>(0, { id: "nan_serialize_cell" });
     const scope = createStore().fork();
     scope.set(nanCell, NaN);
 
@@ -863,100 +865,104 @@ describe('serializer', () => {
     expect(() => serialize(scope)).toThrowError(/NS_SER_NON_JSON_VALUE/);
   });
 
-  it('isJsonValue accepts nested arrays and objects', () => {
-    const nested = cell<unknown>(null, { id: 'nested_json_cell' });
+  it("isJsonValue accepts nested arrays and objects", () => {
+    const nested = cell<unknown>(null, { id: "nested_json_cell" });
     const scope = createStore().fork();
-    scope.set(nested, { a: [1, { b: [true, null, 'x'] }] });
+    scope.set(nested, { a: [1, { b: [true, null, "x"] }] });
 
     const payload = serialize(scope);
-    expect(payload.values.nested_json_cell).toEqual({ a: [1, { b: [true, null, 'x'] }] });
+    expect(payload.values.nested_json_cell).toEqual({ a: [1, { b: [true, null, "x"] }] });
   });
 
-  it('hydrateFromStorage returns null for empty string in storage', () => {
-    const count = cell(0, { id: 'empty_string_storage_count' });
+  it("hydrateFromStorage returns null for empty string in storage", () => {
+    const count = cell(0, { id: "empty_string_storage_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
-    const storage = createMemoryStorage({ 'scope:empty': '' });
+    const storage = createMemoryStorage({ "scope:empty": "" });
 
-    const result = hydrateFromStorage(scope, 'scope:empty', { storage });
+    const result = hydrateFromStorage(scope, "scope:empty", { storage });
     expect(result).toBeNull();
   });
 
-  it('hydrateFromStorage returns null when key is absent', () => {
-    const count = cell(0, { id: 'missing_key_storage_count' });
+  it("hydrateFromStorage returns null when key is absent", () => {
+    const count = cell(0, { id: "missing_key_storage_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
     const storage = createMemoryStorage();
 
-    const result = hydrateFromStorage(scope, 'scope:missing', { storage });
+    const result = hydrateFromStorage(scope, "scope:missing", { storage });
     expect(result).toBeNull();
   });
 
-  it('createMemoryStorage handles empty string key', () => {
+  it("createMemoryStorage handles empty string key", () => {
     const storage = createMemoryStorage();
-    storage.setItem('', 'value');
-    expect(storage.getItem('')).toBe('value');
+    storage.setItem("", "value");
+    expect(storage.getItem("")).toBe("value");
   });
 
-  it('escapeJsonForHtml is safe for double-escaping', () => {
+  it("escapeJsonForHtml is safe for double-escaping", () => {
     const first = escapeJsonForHtml('{"x":"<script>"}');
     const second = escapeJsonForHtml(first);
     // Each pass escapes independently; no crash
     expect(second).toBeTruthy();
-    expect(second.includes('<')).toBe(false);
+    expect(second.includes("<")).toBe(false);
   });
 
-  it('persistToStorage throws when storage.setItem throws', () => {
-    const count = cell(0, { id: 'storage_setitem_throw_count' });
+  it("persistToStorage throws when storage.setItem throws", () => {
+    const count = cell(0, { id: "storage_setitem_throw_count" });
     const scope = createStore().fork();
     scope.set(count, 1);
     const storage = {
       getItem: () => null,
-      setItem: () => { throw new Error('storage_full'); },
+      setItem: () => {
+        throw new Error("storage_full");
+      },
     };
 
-    expect(() => persistToStorage(scope, 'scope:fail', { storage })).toThrowError('storage_full');
+    expect(() => persistToStorage(scope, "scope:fail", { storage })).toThrowError("storage_full");
   });
 
-  it('autoPersistScope unsubscribe stops listening to scope changes', () => {
+  it("autoPersistScope unsubscribe stops listening to scope changes", () => {
     vi.useFakeTimers();
     try {
-      const count = cell(0, { id: 'auto_persist_unsub_stop_count' });
+      const count = cell(0, { id: "auto_persist_unsub_stop_count" });
       const scope = createStore().fork();
       const storage = createMemoryStorage();
-      const { unsubscribe, flush } = autoPersistScope(scope, 'scope:unsub', {
+      const { unsubscribe, flush } = autoPersistScope(scope, "scope:unsub", {
         storage,
         debounceMs: 10,
       });
 
       scope.set(count, 1);
       flush();
-      const first = storage.getItem('scope:unsub');
+      const first = storage.getItem("scope:unsub");
 
       unsubscribe();
       scope.set(count, 2);
       vi.advanceTimersByTime(100);
 
       // Storage should not have been updated after unsubscribe
-      expect(storage.getItem('scope:unsub')).toBe(first);
+      expect(storage.getItem("scope:unsub")).toBe(first);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('hydrate with migrate that produces invalid schema throws', () => {
+  it("hydrate with migrate that produces invalid schema throws", () => {
     const scope = createStore().fork();
-    const payload = { version: 2, scopeId: 'x', values: { a: 1 } };
+    const payload = { version: 2, scopeId: "x", values: { a: 1 } };
 
-    expect(() => hydrate(scope, payload, {
-      migrate: () => ({ version: 'bad' as any, scopeId: 'x', values: {} }),
-    })).toThrowError(/NS_SER_INVALID_SCHEMA/);
+    expect(() =>
+      hydrate(scope, payload, {
+        migrate: () => ({ version: "bad" as any, scopeId: "x", values: {} }),
+      }),
+    ).toThrowError(/NS_SER_INVALID_SCHEMA/);
   });
 
-  describe('per-cell custom serializer', () => {
-    it('serialize uses cell serializer to convert value', () => {
-      const dateCell = cell(new Date('2024-01-01T00:00:00Z'), {
-        id: 'custom_ser_date',
+  describe("per-cell custom serializer", () => {
+    it("serialize uses cell serializer to convert value", () => {
+      const dateCell = cell(new Date("2024-01-01T00:00:00Z"), {
+        id: "custom_ser_date",
         serializer: {
           serialize: (d: Date) => d.toISOString(),
           deserialize: (s: unknown) => new Date(s as string),
@@ -968,12 +974,12 @@ describe('serializer', () => {
       scope.registerCell(dateCell);
 
       const payload = serialize(scope);
-      expect(payload.values['custom_ser_date']).toBe('2024-01-01T00:00:00.000Z');
+      expect(payload.values["custom_ser_date"]).toBe("2024-01-01T00:00:00.000Z");
     });
 
-    it('hydrate uses cell serializer to restore value', () => {
-      const dateCell = cell(new Date('2000-01-01'), {
-        id: 'custom_deser_date',
+    it("hydrate uses cell serializer to restore value", () => {
+      const dateCell = cell(new Date("2000-01-01"), {
+        id: "custom_deser_date",
         serializer: {
           serialize: (d: Date) => d.toISOString(),
           deserialize: (s: unknown) => new Date(s as string),
@@ -987,22 +993,22 @@ describe('serializer', () => {
       const payload = {
         version: 1,
         scopeId: scope.id,
-        values: { 'custom_deser_date': '2024-06-15T12:00:00.000Z' },
+        values: { custom_deser_date: "2024-06-15T12:00:00.000Z" },
       };
 
       hydrate(scope, payload);
       const result = scope.get(dateCell);
       expect(result).toBeInstanceOf(Date);
-      expect(result.toISOString()).toBe('2024-06-15T12:00:00.000Z');
+      expect(result.toISOString()).toBe("2024-06-15T12:00:00.000Z");
     });
 
-    it('validate rejects invalid values during hydrate', () => {
+    it("validate rejects invalid values during hydrate", () => {
       const dateCell = cell(new Date(), {
-        id: 'custom_validate_date',
+        id: "custom_validate_date",
         serializer: {
           serialize: (d: Date) => d.toISOString(),
           deserialize: (s: unknown) => new Date(s as string),
-          validate: (v: unknown) => typeof v === 'string' && !isNaN(Date.parse(v as string)),
+          validate: (v: unknown) => typeof v === "string" && !isNaN(Date.parse(v as string)),
         },
       });
 
@@ -1013,7 +1019,7 @@ describe('serializer', () => {
       const payload = {
         version: 1,
         scopeId: scope.id,
-        values: { 'custom_validate_date': 'not-a-date' },
+        values: { custom_validate_date: "not-a-date" },
       };
 
       // Should skip the invalid cell without throwing
@@ -1022,20 +1028,20 @@ describe('serializer', () => {
       expect(scope.get(dateCell)).toBeInstanceOf(Date);
     });
 
-    it('cells without custom serializer work as before', () => {
-      const name = cell('hello', { id: 'custom_ser_normal' });
+    it("cells without custom serializer work as before", () => {
+      const name = cell("hello", { id: "custom_ser_normal" });
       const store = createStore();
       const scope = store.root;
       scope.registerCell(name);
-      scope.set(name, 'world');
+      scope.set(name, "world");
 
       const payload = serialize(scope);
-      expect(payload.values['custom_ser_normal']).toBe('world');
+      expect(payload.values["custom_ser_normal"]).toBe("world");
     });
 
-    it('serialize with Map/Set via custom serializer', () => {
-      const tags = cell(new Set(['a', 'b']), {
-        id: 'custom_ser_set',
+    it("serialize with Map/Set via custom serializer", () => {
+      const tags = cell(new Set(["a", "b"]), {
+        id: "custom_ser_set",
         serializer: {
           serialize: (s: Set<string>) => [...s],
           deserialize: (raw: unknown) => new Set(raw as string[]),
@@ -1047,7 +1053,7 @@ describe('serializer', () => {
       scope.registerCell(tags);
 
       const payload = serialize(scope);
-      expect(payload.values['custom_ser_set']).toEqual(['a', 'b']);
+      expect(payload.values["custom_ser_set"]).toEqual(["a", "b"]);
 
       // Round-trip
       const scope2 = store.fork();
@@ -1055,7 +1061,7 @@ describe('serializer', () => {
       hydrate(scope2, payload);
       const restored = scope2.get(tags);
       expect(restored).toBeInstanceOf(Set);
-      expect([...restored]).toEqual(['a', 'b']);
+      expect([...restored]).toEqual(["a", "b"]);
     });
   });
 });
