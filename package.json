@@ -42,21 +42,24 @@
     "samples:all": "npm run samples:build && node samples/dist/pure.js && node samples/dist/react.js"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
-    "@types/node": "^25.5.0",
-    "@types/react": "^19.2.14",
-    "@playwright/test": "^1.58.2",
+    "@biomejs/biome": "^2.4.12",
+    "@playwright/test": "^1.59.1",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
     "@vitejs/plugin-react": "^6.0.1",
-    "@vitest/coverage-v8": "^4.1.2",
-    "jsdom": "^29.0.1",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "@vitest/coverage-v8": "^4.1.4",
+    "jsdom": "^29.0.2",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
     "rspress": "^1.47.1",
     "tsup": "^8.5.1",
-    "typedoc": "^0.28.18",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.3",
-    "vitest": "^4.1.2"
+    "typedoc": "^0.28.19",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.8",
+    "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "format": "^0.2.2"
   }
 }

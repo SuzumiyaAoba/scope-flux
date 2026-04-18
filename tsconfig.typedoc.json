@@ -10,15 +10,6 @@
       "@suzumiyaaoba/scope-flux-inspect": ["./packages/inspect/src/index.ts"]
     }
   },
-  "include": [
-    "packages/*/src/**/*.ts",
-    "packages/*/src/**/*.tsx"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "docs-site/**/*",
-    "website/**/*",
-    "samples/**/*"
-  ]
+  "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "docs-site/**/*", "website/**/*", "samples/**/*"]
 }

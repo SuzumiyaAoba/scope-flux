@@ -1,11 +1,20 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from "vitest";
 
-import { cell, computed, createStore, event } from '@suzumiyaaoba/scope-flux-core';
-import { connectDevtools, createReduxDevtoolsAdapter, createTimeTraveler, enableHMR, exportDependencyGraph, inspect, mountInspectPanel, profileScope } from '../src/index.js';
+import { cell, computed, createStore, event } from "@suzumiyaaoba/scope-flux-core";
+import {
+  connectDevtools,
+  createReduxDevtoolsAdapter,
+  createTimeTraveler,
+  enableHMR,
+  exportDependencyGraph,
+  inspect,
+  mountInspectPanel,
+  profileScope,
+} from "../src/index.js";
 
-describe('inspect', () => {
-  it('captures set diffs as inspect records', () => {
-    const count = cell(0, { id: 'inspect_count', debugName: 'count' });
+describe("inspect", () => {
+  it("captures set diffs as inspect records", () => {
+    const count = cell(0, { id: "inspect_count", debugName: "count" });
     const scope = createStore().fork();
     const records: Array<{ diffs: Array<{ prev: unknown; next: unknown }> }> = [];
 
@@ -25,8 +34,8 @@ describe('inspect', () => {
     expect(records[0].diffs[0].next).toBe(2);
   });
 
-  it('can skip sampling when sampleRate is zero', () => {
-    const count = cell(0, { id: 'inspect_sample_count' });
+  it("can skip sampling when sampleRate is zero", () => {
+    const count = cell(0, { id: "inspect_sample_count" });
     const scope = createStore().fork();
 
     const onRecord = vi.fn();
@@ -42,8 +51,8 @@ describe('inspect', () => {
     expect(onRecord).not.toHaveBeenCalled();
   });
 
-  it('clamps sampleRate greater than one to one', () => {
-    const count = cell(0, { id: 'inspect_sample_clamp_count' });
+  it("clamps sampleRate greater than one to one", () => {
+    const count = cell(0, { id: "inspect_sample_clamp_count" });
     const scope = createStore().fork();
     const onRecord = vi.fn();
 
@@ -58,11 +67,11 @@ describe('inspect', () => {
     expect(onRecord).toHaveBeenCalledTimes(1);
   });
 
-  it('skips records when random value is above sampleRate', () => {
-    const count = cell(0, { id: 'inspect_sample_random_count' });
+  it("skips records when random value is above sampleRate", () => {
+    const count = cell(0, { id: "inspect_sample_random_count" });
     const scope = createStore().fork();
     const onRecord = vi.fn();
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.99);
 
     try {
       const unsub = inspect({
@@ -80,9 +89,9 @@ describe('inspect', () => {
     expect(onRecord).not.toHaveBeenCalled();
   });
 
-  it('connectDevtools initializes and sends updates', () => {
-    const count = cell(0, { id: 'inspect_devtools_count' });
-    const ping = event<number>({ debugName: 'ping' });
+  it("connectDevtools initializes and sends updates", () => {
+    const count = cell(0, { id: "inspect_devtools_count" });
+    const ping = event<number>({ debugName: "ping" });
     const scope = createStore().fork();
 
     scope.on(ping, (payload, s) => {
@@ -110,7 +119,7 @@ describe('inspect', () => {
     expect(latestState.inspect_devtools_count).toBe(5);
   });
 
-  it('redux devtools adapter forwards calls when extension exists', () => {
+  it("redux devtools adapter forwards calls when extension exists", () => {
     const init = vi.fn();
     const send = vi.fn();
     const unsubscribe = vi.fn();
@@ -123,35 +132,35 @@ describe('inspect', () => {
           unsubscribe,
         }),
       },
-      name: 'scope-flux-test',
+      name: "scope-flux-test",
     });
 
     adapter.init({ a: 1 });
-    adapter.send({ type: 'set:x' }, { x: 2 });
+    adapter.send({ type: "set:x" }, { x: 2 });
     adapter.disconnect();
 
     expect(init).toHaveBeenCalledWith({ a: 1 });
-    expect(send).toHaveBeenCalledWith({ type: 'set:x' }, { x: 2 });
+    expect(send).toHaveBeenCalledWith({ type: "set:x" }, { x: 2 });
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('redux devtools adapter becomes no-op when extension is missing', () => {
+  it("redux devtools adapter becomes no-op when extension is missing", () => {
     const adapter = createReduxDevtoolsAdapter({ extension: undefined });
 
     expect(() => adapter.init({})).not.toThrow();
-    expect(() => adapter.send({ type: 'x' }, {})).not.toThrow();
+    expect(() => adapter.send({ type: "x" }, {})).not.toThrow();
     expect(() => adapter.disconnect()).not.toThrow();
   });
 
-  it('connectDevtools applies jump_to_state from adapter subscription', () => {
-    const count = cell(0, { id: 'inspect_jump_count' });
+  it("connectDevtools applies jump_to_state from adapter subscription", () => {
+    const count = cell(0, { id: "inspect_jump_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
-    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    let receive!: (message: { type: "jump_to_state"; state: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "jump_to_state"; state: unknown }) => void) => {
         receive = listener;
         return () => {
           // no-op
@@ -160,21 +169,21 @@ describe('inspect', () => {
     };
 
     const unsub = connectDevtools({ scope, adapter });
-    receive({ type: 'jump_to_state', state: { inspect_jump_count: 7 } });
+    receive({ type: "jump_to_state", state: { inspect_jump_count: 7 } });
 
     expect(scope.get(count)).toBe(7);
     unsub();
   });
 
-  it('connectDevtools applies jump_to_state by debugName when id is missing', () => {
-    const byName = cell(0, { debugName: 'debug_only_cell' });
+  it("connectDevtools applies jump_to_state by debugName when id is missing", () => {
+    const byName = cell(0, { debugName: "debug_only_cell" });
     const scope = createStore().fork();
     scope.registerCell(byName);
-    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    let receive!: (message: { type: "jump_to_state"; state: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "jump_to_state"; state: unknown }) => void) => {
         receive = listener;
         return () => {
           // no-op
@@ -183,22 +192,22 @@ describe('inspect', () => {
     };
 
     const unsub = connectDevtools({ scope, adapter });
-    receive({ type: 'jump_to_state', state: { debug_only_cell: 4 } });
+    receive({ type: "jump_to_state", state: { debug_only_cell: 4 } });
     expect(scope.get(byName)).toBe(4);
     unsub();
   });
 
-  it('connectDevtools resolves cell via resolveUnit before id/debugName fallback', () => {
-    const target = cell(0, { id: 'inspect_resolve_target', debugName: 'resolve_target' });
-    const distractor = cell(0, { id: 'inspect_resolve_key', debugName: 'inspect_resolve_key' });
+  it("connectDevtools resolves cell via resolveUnit before id/debugName fallback", () => {
+    const target = cell(0, { id: "inspect_resolve_target", debugName: "resolve_target" });
+    const distractor = cell(0, { id: "inspect_resolve_key", debugName: "inspect_resolve_key" });
     const scope = createStore().fork();
     scope.registerCell(target);
     scope.registerCell(distractor);
-    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    let receive!: (message: { type: "jump_to_state"; state: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "jump_to_state"; state: unknown }) => void) => {
         receive = listener;
         return () => {};
       },
@@ -207,24 +216,24 @@ describe('inspect', () => {
     const unsub = connectDevtools({
       scope,
       adapter,
-      resolveUnit: (key) => (key === 'inspect_resolve_key' ? target : undefined),
+      resolveUnit: (key) => (key === "inspect_resolve_key" ? target : undefined),
     });
-    receive({ type: 'jump_to_state', state: { inspect_resolve_key: 9 } });
+    receive({ type: "jump_to_state", state: { inspect_resolve_key: 9 } });
 
     expect(scope.get(target)).toBe(9);
     expect(scope.get(distractor)).toBe(0);
     unsub();
   });
 
-  it('connectDevtools falls back to id/debugName when resolveUnit returns undefined', () => {
-    const count = cell(0, { id: 'inspect_resolve_fallback' });
+  it("connectDevtools falls back to id/debugName when resolveUnit returns undefined", () => {
+    const count = cell(0, { id: "inspect_resolve_fallback" });
     const scope = createStore().fork();
     scope.registerCell(count);
-    let receive!: (message: { type: 'jump_to_state'; state: unknown }) => void;
+    let receive!: (message: { type: "jump_to_state"; state: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'jump_to_state'; state: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "jump_to_state"; state: unknown }) => void) => {
         receive = listener;
         return () => {};
       },
@@ -235,19 +244,19 @@ describe('inspect', () => {
       adapter,
       resolveUnit: () => undefined,
     });
-    receive({ type: 'jump_to_state', state: { inspect_resolve_fallback: 6 } });
+    receive({ type: "jump_to_state", state: { inspect_resolve_fallback: 6 } });
     expect(scope.get(count)).toBe(6);
     unsub();
   });
 
-  it('connectDevtools reset applies provided snapshot', () => {
-    const count = cell(5, { id: 'inspect_reset_count' });
+  it("connectDevtools reset applies provided snapshot", () => {
+    const count = cell(5, { id: "inspect_reset_count" });
     const scope = createStore().fork();
-    let receive!: (message: { type: 'reset'; state?: unknown }) => void;
+    let receive!: (message: { type: "reset"; state?: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'reset'; state?: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "reset"; state?: unknown }) => void) => {
         receive = listener;
         return () => {
           // no-op
@@ -259,12 +268,12 @@ describe('inspect', () => {
     scope.set(count, 10);
     expect(scope.get(count)).toBe(10);
 
-    receive({ type: 'reset', state: { inspect_reset_count: 5 } });
+    receive({ type: "reset", state: { inspect_reset_count: 5 } });
     expect(scope.get(count)).toBe(5);
     unsub();
   });
 
-  it('redux devtools adapter normalizes DISPATCH JUMP_TO_STATE', () => {
+  it("redux devtools adapter normalizes DISPATCH JUMP_TO_STATE", () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
       extension: {
@@ -282,19 +291,19 @@ describe('inspect', () => {
     const onMessage = vi.fn();
     adapter.subscribe?.(onMessage);
     forwarded?.({
-      type: 'DISPATCH',
-      payload: { type: 'JUMP_TO_STATE' },
+      type: "DISPATCH",
+      payload: { type: "JUMP_TO_STATE" },
       state: '{"count":2}',
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      type: 'jump_to_state',
+      type: "jump_to_state",
       state: { count: 2 },
       nextLiftedState: undefined,
     });
   });
 
-  it('redux devtools adapter normalizes DISPATCH IMPORT_STATE with lifted state', () => {
+  it("redux devtools adapter normalizes DISPATCH IMPORT_STATE with lifted state", () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
       extension: {
@@ -312,22 +321,22 @@ describe('inspect', () => {
     const onMessage = vi.fn();
     adapter.subscribe?.(onMessage);
     forwarded?.({
-      type: 'DISPATCH',
+      type: "DISPATCH",
       payload: {
-        type: 'IMPORT_STATE',
+        type: "IMPORT_STATE",
         nextLiftedState: '{"computedStates":[{"state":{"inspect_import_count":8}}]}',
       },
       state: '{"inspect_import_count":1}',
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      type: 'import_state',
+      type: "import_state",
       state: { inspect_import_count: 1 },
       nextLiftedState: { computedStates: [{ state: { inspect_import_count: 8 } }] },
     });
   });
 
-  it('redux devtools adapter normalizes STATE message', () => {
+  it("redux devtools adapter normalizes STATE message", () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
       extension: {
@@ -345,18 +354,18 @@ describe('inspect', () => {
     const onMessage = vi.fn();
     adapter.subscribe?.(onMessage);
     forwarded?.({
-      type: 'STATE',
+      type: "STATE",
       state: '{"count":3}',
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      type: 'jump_to_state',
+      type: "jump_to_state",
       state: { count: 3 },
       nextLiftedState: undefined,
     });
   });
 
-  it('redux devtools adapter normalizes ACTION payload message', () => {
+  it("redux devtools adapter normalizes ACTION payload message", () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
       extension: {
@@ -374,18 +383,18 @@ describe('inspect', () => {
     const onMessage = vi.fn();
     adapter.subscribe?.(onMessage);
     forwarded?.({
-      type: 'ACTION',
+      type: "ACTION",
       payload: '{"type":"reset","state":{"count":0}}',
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      type: 'reset',
+      type: "reset",
       state: { count: 0 },
       nextLiftedState: undefined,
     });
   });
 
-  it('redux devtools adapter forwards lowercase message as-is', () => {
+  it("redux devtools adapter forwards lowercase message as-is", () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
       extension: {
@@ -403,19 +412,19 @@ describe('inspect', () => {
     const onMessage = vi.fn();
     adapter.subscribe?.(onMessage);
     forwarded?.({
-      type: 'rollback',
+      type: "rollback",
       state: '{"count":4}',
       nextLiftedState: '{"x":1}',
     });
 
     expect(onMessage).toHaveBeenCalledWith({
-      type: 'rollback',
+      type: "rollback",
       state: { count: 4 },
       nextLiftedState: { x: 1 },
     });
   });
 
-  it('redux devtools adapter subscribe returns no-op when extension does not provide subscribe', () => {
+  it("redux devtools adapter subscribe returns no-op when extension does not provide subscribe", () => {
     const adapter = createReduxDevtoolsAdapter({
       extension: {
         connect: () => ({
@@ -428,7 +437,7 @@ describe('inspect', () => {
     expect(() => adapter.subscribe?.(() => {})).not.toThrow();
   });
 
-  it('redux devtools adapter ignores non-object and unsupported messages', () => {
+  it("redux devtools adapter ignores non-object and unsupported messages", () => {
     let forwarded: ((message: unknown) => void) | undefined;
     const adapter = createReduxDevtoolsAdapter({
       extension: {
@@ -445,30 +454,30 @@ describe('inspect', () => {
 
     const onMessage = vi.fn();
     adapter.subscribe?.(onMessage);
-    forwarded?.('not-an-object');
+    forwarded?.("not-an-object");
     forwarded?.({
-      type: 'DISPATCH',
-      payload: { type: 'UNKNOWN_ACTION' },
-      state: '{}',
+      type: "DISPATCH",
+      payload: { type: "UNKNOWN_ACTION" },
+      state: "{}",
     });
     forwarded?.({
-      type: 'ACTION',
+      type: "ACTION",
       payload: '{"type":"unknown_action"}',
     });
 
     expect(onMessage).not.toHaveBeenCalled();
   });
 
-  it('connectDevtools reports adapter errors via onError', () => {
-    const count = cell(0, { id: 'inspect_on_error_count' });
+  it("connectDevtools reports adapter errors via onError", () => {
+    const count = cell(0, { id: "inspect_on_error_count" });
     const scope = createStore().fork();
     const onError = vi.fn();
     const adapter = {
       init: () => {
-        throw new Error('init_fail');
+        throw new Error("init_fail");
       },
       send: () => {
-        throw new Error('send_fail');
+        throw new Error("send_fail");
       },
     };
 
@@ -483,13 +492,13 @@ describe('inspect', () => {
     unsub();
   });
 
-  it('connectDevtools reports unsupported inbound message', () => {
+  it("connectDevtools reports unsupported inbound message", () => {
     const scope = createStore().fork();
-    let receive!: (message: { type: 'import_state'; state?: unknown }) => void;
+    let receive!: (message: { type: "import_state"; state?: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'import_state'; state?: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "import_state"; state?: unknown }) => void) => {
         receive = listener;
         return () => {};
       },
@@ -500,20 +509,20 @@ describe('inspect', () => {
       adapter,
       onUnsupportedMessage,
     });
-    receive({ type: 'import_state', state: 'invalid' });
+    receive({ type: "import_state", state: "invalid" });
     expect(onUnsupportedMessage).toHaveBeenCalled();
     unsub();
   });
 
-  it('connectDevtools import_state applies latest computedStates snapshot', () => {
-    const count = cell(0, { id: 'inspect_import_apply_count' });
+  it("connectDevtools import_state applies latest computedStates snapshot", () => {
+    const count = cell(0, { id: "inspect_import_apply_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
-    let receive!: (message: { type: 'import_state'; nextLiftedState?: unknown }) => void;
+    let receive!: (message: { type: "import_state"; nextLiftedState?: unknown }) => void;
     const adapter = {
       init: vi.fn(),
       send: vi.fn(),
-      subscribe: (listener: (message: { type: 'import_state'; nextLiftedState?: unknown }) => void) => {
+      subscribe: (listener: (message: { type: "import_state"; nextLiftedState?: unknown }) => void) => {
         receive = listener;
         return () => {};
       },
@@ -521,20 +530,17 @@ describe('inspect', () => {
 
     const unsub = connectDevtools({ scope, adapter });
     receive({
-      type: 'import_state',
+      type: "import_state",
       nextLiftedState: {
-        computedStates: [
-          { state: { inspect_import_apply_count: 3 } },
-          { state: { inspect_import_apply_count: 9 } },
-        ],
+        computedStates: [{ state: { inspect_import_apply_count: 3 } }, { state: { inspect_import_apply_count: 9 } }],
       },
     });
     expect(scope.get(count)).toBe(9);
     unsub();
   });
 
-  it('connectDevtools handles adapter.send() throwing repeatedly', () => {
-    const count = cell(0, { id: 'inspect_send_error_count' });
+  it("connectDevtools handles adapter.send() throwing repeatedly", () => {
+    const count = cell(0, { id: "inspect_send_error_count" });
     const scope = createStore().fork();
     const onError = vi.fn();
     let sendCallCount = 0;
@@ -554,8 +560,8 @@ describe('inspect', () => {
     unsub();
   });
 
-  it('connectDevtools works with send-only adapter (no subscribe)', () => {
-    const count = cell(0, { id: 'inspect_send_only_count' });
+  it("connectDevtools works with send-only adapter (no subscribe)", () => {
+    const count = cell(0, { id: "inspect_send_only_count" });
     const scope = createStore().fork();
     const adapter = {
       init: vi.fn(),
@@ -569,8 +575,8 @@ describe('inspect', () => {
     unsub();
   });
 
-  it('inspect with trace=false omits parentId', () => {
-    const count = cell(0, { id: 'inspect_no_trace_count' });
+  it("inspect with trace=false omits parentId", () => {
+    const count = cell(0, { id: "inspect_no_trace_count" });
     const scope = createStore().fork();
     const records: any[] = [];
 
@@ -587,8 +593,8 @@ describe('inspect', () => {
     expect(records[0].trace.parentId).toBeUndefined();
   });
 
-  it('inspect captures event records with empty diffs', () => {
-    const ping = event<number>({ debugName: 'inspect_event_diff_ping' });
+  it("inspect captures event records with empty diffs", () => {
+    const ping = event<number>({ debugName: "inspect_event_diff_ping" });
     const scope = createStore().fork();
     const records: any[] = [];
 
@@ -600,13 +606,13 @@ describe('inspect', () => {
     scope.emit(ping, 42);
     unsub();
 
-    const eventRecords = records.filter((r: any) => r.trace.kind === 'event');
+    const eventRecords = records.filter((r: any) => r.trace.kind === "event");
     expect(eventRecords.length).toBeGreaterThan(0);
     expect(eventRecords[0].diffs).toHaveLength(0);
   });
 
-  it('connectDevtools applies jump_to_action like jump_to_state', () => {
-    const count = cell(0, { id: 'inspect_jump_action_count' });
+  it("connectDevtools applies jump_to_action like jump_to_state", () => {
+    const count = cell(0, { id: "inspect_jump_action_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
     let receive!: (message: { type: string; state?: unknown }) => void;
@@ -620,13 +626,13 @@ describe('inspect', () => {
     };
 
     const unsub = connectDevtools({ scope, adapter });
-    receive({ type: 'jump_to_action', state: { inspect_jump_action_count: 12 } });
+    receive({ type: "jump_to_action", state: { inspect_jump_action_count: 12 } });
     expect(scope.get(count)).toBe(12);
     unsub();
   });
 
-  it('applySnapshot skips keys that match no registered cell', () => {
-    const count = cell(0, { id: 'inspect_snapshot_unknown_count' });
+  it("applySnapshot skips keys that match no registered cell", () => {
+    const count = cell(0, { id: "inspect_snapshot_unknown_count" });
     const scope = createStore().fork();
     scope.registerCell(count);
     let receive!: (message: { type: string; state?: unknown }) => void;
@@ -641,7 +647,7 @@ describe('inspect', () => {
 
     const unsub = connectDevtools({ scope, adapter });
     receive({
-      type: 'jump_to_state',
+      type: "jump_to_state",
       state: {
         inspect_snapshot_unknown_count: 5,
         nonexistent_key: 99,
@@ -651,17 +657,17 @@ describe('inspect', () => {
     unsub();
   });
 
-  it('mountInspectPanel renders incoming records', () => {
-    const count = cell(0, { id: 'inspect_panel_count' });
+  it("mountInspectPanel renders incoming records", () => {
+    const count = cell(0, { id: "inspect_panel_count" });
     const scope = createStore().fork();
     const originalDocument = (globalThis as { document?: unknown }).document;
 
     const makeElement = () => {
       const children: any[] = [];
       return {
-        className: '',
-        textContent: '',
-        innerHTML: '',
+        className: "",
+        textContent: "",
+        innerHTML: "",
         children,
         appendChild(node: unknown) {
           children.push(node);
@@ -679,11 +685,11 @@ describe('inspect', () => {
 
     try {
       const panel = mountInspectPanel({ scope, target });
-      scope.set(count, 1, { reason: 'panel_test' });
+      scope.set(count, 1, { reason: "panel_test" });
 
       const records = panel.getRecords();
       expect(records).toHaveLength(1);
-      expect(records[0].trace.reason).toBe('panel_test');
+      expect(records[0].trace.reason).toBe("panel_test");
 
       panel.clear();
       expect(panel.getRecords()).toHaveLength(0);
@@ -693,11 +699,11 @@ describe('inspect', () => {
     }
   });
 
-  describe('exportDependencyGraph', () => {
-    it('exports nodes and edges for cells and computed', () => {
-      const a = cell(1, { id: 'graph_a', debugName: 'a' });
-      const b = cell(2, { id: 'graph_b', debugName: 'b' });
-      const sum = computed([a, b], (x, y) => x + y, { debugName: 'sum' });
+  describe("exportDependencyGraph", () => {
+    it("exports nodes and edges for cells and computed", () => {
+      const a = cell(1, { id: "graph_a", debugName: "a" });
+      const b = cell(2, { id: "graph_b", debugName: "b" });
+      const sum = computed([a, b], (x, y) => x + y, { debugName: "sum" });
 
       const scope = createStore().fork();
       // Access computed to register it
@@ -709,49 +715,49 @@ describe('inspect', () => {
       expect(graph.edges).toHaveLength(2);
 
       const nodeIds = graph.nodes.map((n) => n.name);
-      expect(nodeIds).toContain('a');
-      expect(nodeIds).toContain('b');
-      expect(nodeIds).toContain('sum');
+      expect(nodeIds).toContain("a");
+      expect(nodeIds).toContain("b");
+      expect(nodeIds).toContain("sum");
 
       // Edges from a -> sum and b -> sum
       for (const edge of graph.edges) {
-        expect(edge.to).toBe('sum');
-        expect(['a', 'b']).toContain(edge.from);
+        expect(edge.to).toBe("sum");
+        expect(["a", "b"]).toContain(edge.from);
       }
     });
 
-    it('exports in DOT format', () => {
-      const a = cell(1, { id: 'graph_dot_a', debugName: 'a' });
-      const doubled = computed([a], (v) => v * 2, { debugName: 'doubled' });
+    it("exports in DOT format", () => {
+      const a = cell(1, { id: "graph_dot_a", debugName: "a" });
+      const doubled = computed([a], (v) => v * 2, { debugName: "doubled" });
 
       const scope = createStore().fork();
       scope.get(doubled);
 
-      const dot = exportDependencyGraph(scope, [a], [doubled], { format: 'dot' });
+      const dot = exportDependencyGraph(scope, [a], [doubled], { format: "dot" });
 
-      expect(typeof dot).toBe('string');
-      expect(dot).toContain('digraph');
-      expect(dot).toContain('a');
-      expect(dot).toContain('doubled');
+      expect(typeof dot).toBe("string");
+      expect(dot).toContain("digraph");
+      expect(dot).toContain("a");
+      expect(dot).toContain("doubled");
     });
 
-    it('exports in mermaid format', () => {
-      const a = cell(1, { id: 'graph_mermaid_a', debugName: 'a' });
-      const doubled = computed([a], (v) => v * 2, { debugName: 'doubled' });
+    it("exports in mermaid format", () => {
+      const a = cell(1, { id: "graph_mermaid_a", debugName: "a" });
+      const doubled = computed([a], (v) => v * 2, { debugName: "doubled" });
 
       const scope = createStore().fork();
       scope.get(doubled);
 
-      const mermaid = exportDependencyGraph(scope, [a], [doubled], { format: 'mermaid' });
+      const mermaid = exportDependencyGraph(scope, [a], [doubled], { format: "mermaid" });
 
-      expect(typeof mermaid).toBe('string');
-      expect(mermaid).toContain('graph TD');
+      expect(typeof mermaid).toBe("string");
+      expect(mermaid).toContain("graph TD");
     });
   });
 
-  describe('profileScope', () => {
-    it('tracks set operations', () => {
-      const a = cell(0, { id: 'prof_a', debugName: 'a' });
+  describe("profileScope", () => {
+    it("tracks set operations", () => {
+      const a = cell(0, { id: "prof_a", debugName: "a" });
       const scope = createStore().fork();
 
       const profiler = profileScope(scope);
@@ -764,14 +770,14 @@ describe('inspect', () => {
       profiler.stop();
 
       expect(report.sets.length).toBeGreaterThan(0);
-      const aReport = report.sets.find((s) => s.unitName === 'a');
+      const aReport = report.sets.find((s) => s.unitName === "a");
       expect(aReport).toBeDefined();
       expect(aReport!.count).toBe(3);
     });
 
-    it('tracks computed evaluation timing', () => {
-      const a = cell(1, { id: 'prof_comp_a', debugName: 'a' });
-      const doubled = computed([a], (v) => v * 2, { debugName: 'doubled' });
+    it("tracks computed evaluation timing", () => {
+      const a = cell(1, { id: "prof_comp_a", debugName: "a" });
+      const doubled = computed([a], (v) => v * 2, { debugName: "doubled" });
 
       const scope = createStore().fork();
       const profiler = profileScope(scope);
@@ -786,8 +792,8 @@ describe('inspect', () => {
       expect(report.sets.length).toBeGreaterThan(0);
     });
 
-    it('stops tracking after stop()', () => {
-      const a = cell(0, { id: 'prof_stop_a', debugName: 'a' });
+    it("stops tracking after stop()", () => {
+      const a = cell(0, { id: "prof_stop_a", debugName: "a" });
       const scope = createStore().fork();
 
       const profiler = profileScope(scope);
@@ -796,14 +802,14 @@ describe('inspect', () => {
       scope.set(a, 2);
 
       const report = profiler.getReport();
-      const aReport = report.sets.find((s) => s.unitName === 'a');
+      const aReport = report.sets.find((s) => s.unitName === "a");
       expect(aReport!.count).toBe(1);
     });
   });
 
-  describe('createTimeTraveler', () => {
-    it('captures snapshots on each commit', () => {
-      const a = cell(0, { id: 'tt_a', debugName: 'a' });
+  describe("createTimeTraveler", () => {
+    it("captures snapshots on each commit", () => {
+      const a = cell(0, { id: "tt_a", debugName: "a" });
       const scope = createStore().fork();
 
       const traveler = createTimeTraveler(scope);
@@ -817,8 +823,8 @@ describe('inspect', () => {
       traveler.stop();
     });
 
-    it('stepBack restores previous state', () => {
-      const a = cell(0, { id: 'tt_step_a', debugName: 'a' });
+    it("stepBack restores previous state", () => {
+      const a = cell(0, { id: "tt_step_a", debugName: "a" });
       const scope = createStore().fork();
 
       const traveler = createTimeTraveler(scope);
@@ -835,8 +841,8 @@ describe('inspect', () => {
       traveler.stop();
     });
 
-    it('stepForward restores next state', () => {
-      const a = cell(0, { id: 'tt_fwd_a', debugName: 'a' });
+    it("stepForward restores next state", () => {
+      const a = cell(0, { id: "tt_fwd_a", debugName: "a" });
       const scope = createStore().fork();
 
       const traveler = createTimeTraveler(scope);
@@ -857,8 +863,8 @@ describe('inspect', () => {
       traveler.stop();
     });
 
-    it('jumpTo restores specific snapshot', () => {
-      const a = cell(0, { id: 'tt_jump_a', debugName: 'a' });
+    it("jumpTo restores specific snapshot", () => {
+      const a = cell(0, { id: "tt_jump_a", debugName: "a" });
       const scope = createStore().fork();
 
       const traveler = createTimeTraveler(scope);
@@ -876,8 +882,8 @@ describe('inspect', () => {
       traveler.stop();
     });
 
-    it('respects maxSnapshots limit', () => {
-      const a = cell(0, { id: 'tt_max_a', debugName: 'a' });
+    it("respects maxSnapshots limit", () => {
+      const a = cell(0, { id: "tt_max_a", debugName: "a" });
       const scope = createStore().fork();
 
       const traveler = createTimeTraveler(scope, { maxSnapshots: 3 });
@@ -893,8 +899,8 @@ describe('inspect', () => {
       traveler.stop();
     });
 
-    it('getCurrentIndex returns current position', () => {
-      const a = cell(0, { id: 'tt_idx_a', debugName: 'a' });
+    it("getCurrentIndex returns current position", () => {
+      const a = cell(0, { id: "tt_idx_a", debugName: "a" });
       const scope = createStore().fork();
 
       const traveler = createTimeTraveler(scope);
@@ -911,10 +917,10 @@ describe('inspect', () => {
     });
   });
 
-  describe('enableHMR', () => {
-    it('preserves state across simulated HMR dispose/accept cycle', () => {
-      const a = cell(10, { id: 'hmr_a' });
-      const b = cell(20, { id: 'hmr_b' });
+  describe("enableHMR", () => {
+    it("preserves state across simulated HMR dispose/accept cycle", () => {
+      const a = cell(10, { id: "hmr_a" });
+      const b = cell(20, { id: "hmr_b" });
 
       const scope = createStore().fork();
       scope.set(a, 42);
@@ -960,20 +966,22 @@ describe('inspect', () => {
       expect(newScope.get(b)).toBe(99);
     });
 
-    it('respects exclude option', () => {
-      const a = cell(10, { id: 'hmr_exc_a' });
-      const ephemeral = cell('temp', { id: 'hmr_exc_eph' });
+    it("respects exclude option", () => {
+      const a = cell(10, { id: "hmr_exc_a" });
+      const ephemeral = cell("temp", { id: "hmr_exc_eph" });
 
       const scope = createStore().fork();
       scope.set(a, 42);
-      scope.set(ephemeral, 'modified');
+      scope.set(ephemeral, "modified");
 
       let disposeCallback: ((data: Record<string, unknown>) => void) | null = null;
       const hotData: Record<string, unknown> = {};
 
       const hot = {
         data: hotData,
-        dispose(cb: (data: Record<string, unknown>) => void) { disposeCallback = cb; },
+        dispose(cb: (data: Record<string, unknown>) => void) {
+          disposeCallback = cb;
+        },
         accept() {},
       };
 
@@ -991,7 +999,7 @@ describe('inspect', () => {
       enableHMR(newScope, hotAfter, { exclude: [ephemeral] });
 
       expect(newScope.get(a)).toBe(42);
-      expect(newScope.get(ephemeral)).toBe('temp'); // Not restored — kept default
+      expect(newScope.get(ephemeral)).toBe("temp"); // Not restored — kept default
     });
   });
 });

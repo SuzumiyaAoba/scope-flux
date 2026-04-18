@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
-import React, { act } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import React, { act } from "react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { cell, computed, createStore, effect, event, asyncComputed, type Cell, type EffectStatus } from '@suzumiyaaoba/scope-flux-core';
+import {
+  cell,
+  computed,
+  createStore,
+  effect,
+  event,
+  asyncComputed,
+  type Cell,
+  type EffectStatus,
+} from "@suzumiyaaoba/scope-flux-core";
 import {
   useCell,
   StoreProvider,
@@ -23,7 +32,7 @@ import {
   useAutoCleanupEffect,
   collectStreamState,
   applyStreamChunk,
-} from '../src/index.js';
+} from "../src/index.js";
 
 afterEach(() => {
   cleanup();
@@ -31,9 +40,9 @@ afterEach(() => {
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('react bridge', () => {
-  it('throws when StoreProvider is missing', () => {
-    const count = cell(0, { id: 'react_missing_provider_count' });
+describe("react bridge", () => {
+  it("throws when StoreProvider is missing", () => {
+    const count = cell(0, { id: "react_missing_provider_count" });
 
     function App(): React.JSX.Element {
       const value = useUnit(count);
@@ -43,8 +52,8 @@ describe('react bridge', () => {
     expect(() => render(<App />)).toThrowError(/NS_REACT_SCOPE_NOT_FOUND/);
   });
 
-  it('useUnit selector avoids rerender when selected value is unchanged', () => {
-    const state = cell({ a: 1, b: 1 }, { id: 'react_selector_state' });
+  it("useUnit selector avoids rerender when selected value is unchanged", () => {
+    const state = cell({ a: 1, b: 1 }, { id: "react_selector_state" });
     const scope = createStore().fork();
     let renders = 0;
 
@@ -57,7 +66,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <Viewer />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     act(() => {
@@ -71,9 +80,9 @@ describe('react bridge', () => {
     expect(renders).toBe(2);
   });
 
-  it('useUnit accepts computed unit and ignores unrelated updates', () => {
-    const count = cell(1, { id: 'react_computed_count' });
-    const other = cell(0, { id: 'react_computed_other' });
+  it("useUnit accepts computed unit and ignores unrelated updates", () => {
+    const count = cell(1, { id: "react_computed_count" });
+    const other = cell(0, { id: "react_computed_other" });
     const doubled = computed([count], (v) => v * 2);
     const scope = createStore().fork();
     let renders = 0;
@@ -88,7 +97,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <Viewer />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     expect(seen).toBe(2);
@@ -106,9 +115,9 @@ describe('react bridge', () => {
     expect(renders).toBe(2);
   });
 
-  it('useAction dispatches event updates', () => {
-    const inc = event<number>({ debugName: 'react_inc' });
-    const count = cell(0, { id: 'react_action_count' });
+  it("useAction dispatches event updates", () => {
+    const inc = event<number>({ debugName: "react_inc" });
+    const count = cell(0, { id: "react_action_count" });
     const scope = createStore().fork();
 
     scope.on(inc, (payload, s) => {
@@ -126,7 +135,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     act(() => {
@@ -136,8 +145,8 @@ describe('react bridge', () => {
     expect(scope.get(count)).toBe(3);
   });
 
-  it('useAction defaults priority to urgent', () => {
-    const ping = event<void>({ debugName: 'react_default_priority_event' });
+  it("useAction defaults priority to urgent", () => {
+    const ping = event<void>({ debugName: "react_default_priority_event" });
     const scope = createStore().fork();
     let fire!: () => void;
     const commits: Array<{ priority: string }> = [];
@@ -151,17 +160,17 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     act(() => {
       fire();
     });
-    expect(commits[0].priority).toBe('urgent');
+    expect(commits[0].priority).toBe("urgent");
   });
 
-  it('useEffectAction runs effect and updates state', async () => {
-    const count = cell(0, { id: 'react_effect_count' });
+  it("useEffectAction runs effect and updates state", async () => {
+    const count = cell(0, { id: "react_effect_count" });
     const setCountFx = effect<number, number>(async (payload, { scope }) => {
       scope.set(count, payload);
       return payload;
@@ -179,7 +188,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     let result = 0;
@@ -190,7 +199,7 @@ describe('react bridge', () => {
     expect(scope.get(count)).toBe(7);
   });
 
-  it('useEffectAction defaults priority to urgent', async () => {
+  it("useEffectAction defaults priority to urgent", async () => {
     const fx = effect<void, void>(async () => {});
     const scope = createStore().fork();
     let run!: () => Promise<void>;
@@ -205,18 +214,18 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     await act(async () => {
       await run();
     });
-    const effectCommit = commits.find((c) => c.changes[0]?.kind === 'effect');
-    expect(effectCommit?.priority).toBe('urgent');
+    const effectCommit = commits.find((c) => c.changes[0]?.kind === "effect");
+    expect(effectCommit?.priority).toBe("urgent");
   });
 
-  it('useCellAction with transition updates buffered value before commit', () => {
-    const count = cell(0, { id: 'react_buffer_count' });
+  it("useCellAction with transition updates buffered value before commit", () => {
+    const count = cell(0, { id: "react_buffer_count" });
     const scope = createStore().fork();
 
     let setBuffered!: (next: number | ((prev: number) => number)) => void;
@@ -225,7 +234,7 @@ describe('react bridge', () => {
     let committedSeen = -1;
 
     function App(): React.JSX.Element {
-      setBuffered = useCellAction(count, { priority: 'transition' });
+      setBuffered = useCellAction(count, { priority: "transition" });
       flush = useFlushBuffered();
       bufferedSeen = useBufferedUnit(count);
       committedSeen = useUnit(count);
@@ -239,7 +248,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     act(() => {
@@ -258,8 +267,8 @@ describe('react bridge', () => {
     expect(committedSeen).toBe(5);
   });
 
-  it('useCell returns value and setter tuple', () => {
-    const count = cell(0, { id: 'react_use_cell_count' });
+  it("useCell returns value and setter tuple", () => {
+    const count = cell(0, { id: "react_use_cell_count" });
     const scope = createStore().fork();
 
     let setCount!: (next: number | ((prev: number) => number)) => void;
@@ -275,7 +284,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     expect(seen).toBe(0);
@@ -288,8 +297,8 @@ describe('react bridge', () => {
     expect(seen).toBe(3);
   });
 
-  it('useSetCell returns a stable setter without reading value', () => {
-    const count = cell(0, { id: 'react_use_set_cell_count' });
+  it("useSetCell returns a stable setter without reading value", () => {
+    const count = cell(0, { id: "react_use_set_cell_count" });
     const scope = createStore().fork();
     let setCount!: (next: number | ((prev: number) => number)) => void;
     let renders = 0;
@@ -303,7 +312,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(renders).toBe(1);
 
@@ -314,7 +323,7 @@ describe('react bridge', () => {
     expect(renders).toBe(1);
   });
 
-  it('useHydrateUnits hydrates id-less cells before first read', () => {
+  it("useHydrateUnits hydrates id-less cells before first read", () => {
     const count = cell(0);
     const scope = createStore().fork();
 
@@ -327,14 +336,14 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
-    expect(screen.getByText('5')).toBeTruthy();
+    expect(screen.getByText("5")).toBeTruthy();
     expect(scope.get(count)).toBe(5);
   });
 
-  it('useHydrateUnits hydrates each unit only once by default', () => {
+  it("useHydrateUnits hydrates each unit only once by default", () => {
     const count = cell(0);
     const scope = createStore().fork();
 
@@ -346,7 +355,7 @@ describe('react bridge', () => {
     const { rerender } = render(
       <StoreProvider scope={scope}>
         <App value={1} />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     expect(scope.get(count)).toBe(1);
@@ -359,12 +368,12 @@ describe('react bridge', () => {
     rerender(
       <StoreProvider scope={scope}>
         <App value={2} />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(scope.get(count)).toBe(9);
   });
 
-  it('useHydrateUnits force option reapplies values', () => {
+  it("useHydrateUnits force option reapplies values", () => {
     const count = cell(0);
     const scope = createStore().fork();
 
@@ -376,19 +385,19 @@ describe('react bridge', () => {
     const { rerender } = render(
       <StoreProvider scope={scope}>
         <App value={1} />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(scope.get(count)).toBe(1);
 
     rerender(
       <StoreProvider scope={scope}>
         <App value={2} />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(scope.get(count)).toBe(2);
   });
 
-  it('useHydrateUnits does not break when seed toggles between empty and non-empty', () => {
+  it("useHydrateUnits does not break when seed toggles between empty and non-empty", () => {
     const count = cell(0);
     const scope = createStore().fork();
 
@@ -401,7 +410,7 @@ describe('react bridge', () => {
     const { rerender } = render(
       <StoreProvider scope={scope}>
         <App items={[[count, 10]]} />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(scope.get(count)).toBe(10);
 
@@ -409,7 +418,7 @@ describe('react bridge', () => {
     rerender(
       <StoreProvider scope={scope}>
         <App items={[]} />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(scope.get(count)).toBe(10);
 
@@ -417,11 +426,11 @@ describe('react bridge', () => {
     rerender(
       <StoreProvider scope={scope}>
         <App items={[[count, 20]]} />
-      </StoreProvider>
+      </StoreProvider>,
     );
   });
 
-  it('useHydrateUnits treats function values as plain values', () => {
+  it("useHydrateUnits treats function values as plain values", () => {
     const fnCell = cell<() => number>(() => 0);
     const scope = createStore().fork();
 
@@ -434,21 +443,21 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     expect(scope.get(fnCell)()).toBe(123);
-    expect(screen.getByText('123')).toBeTruthy();
+    expect(screen.getByText("123")).toBeTruthy();
   });
 
-  it('useEffectStatus getSnapshot updates snapshotRef on value change', async () => {
+  it("useEffectStatus getSnapshot updates snapshotRef on value change", async () => {
     // Verifies that useExternalSelected's getSnapshot updates its internal
     // snapshot reference when the value changes, satisfying the
     // useSyncExternalStore contract: consecutive getSnapshot calls without
     // store changes must return the same reference.
     const scope = createStore().fork();
     const fx = effect<void, number>(async () => 42);
-    const counter = cell(0, { id: 'react_status_snapshot_stability' });
+    const counter = cell(0, { id: "react_status_snapshot_stability" });
     const statusRefs: Array<EffectStatus<number>> = [];
 
     function App(): React.JSX.Element {
@@ -461,7 +470,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     // Run and complete the effect — status transitions from
@@ -484,7 +493,7 @@ describe('react bridge', () => {
     expect(statusRefs[statusRefs.length - 1]).toBe(postEffectStatus);
   });
 
-  it('useEffectStatus reflects effect lifecycle', async () => {
+  it("useEffectStatus reflects effect lifecycle", async () => {
     const scope = createStore().fork();
     let release!: () => void;
     const fx = effect<void, number>(() => {
@@ -508,7 +517,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     let promise!: Promise<number>;
@@ -526,7 +535,7 @@ describe('react bridge', () => {
     expect(lastResult).toBe(9);
   });
 
-  it('useAsyncEffectAction exposes run/cancel/status', async () => {
+  it("useAsyncEffectAction exposes run/cancel/status", async () => {
     const scope = createStore().fork();
     const fx = effect<void, number>(() => {
       return new Promise<number>((resolve) => {
@@ -544,7 +553,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     let promise!: Promise<number>;
@@ -559,10 +568,10 @@ describe('react bridge', () => {
       api.cancel();
       await Promise.resolve();
     });
-    await expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(promise).rejects.toMatchObject({ name: "AbortError" });
   });
 
-  it('useSuspenseEffectAction read throws pending promise and returns resolved value', async () => {
+  it("useSuspenseEffectAction read throws pending promise and returns resolved value", async () => {
     const scope = createStore().fork();
     let release!: () => void;
     const fx = effect<void, number>(() => {
@@ -581,7 +590,7 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     let promise!: Promise<number>;
@@ -605,21 +614,17 @@ describe('react bridge', () => {
     expect(api.read()).toBe(11);
   });
 
-  it('supports user interaction flow with buffered input and flush button', () => {
-    const query = cell('', { id: 'react_user_flow_query' });
+  it("supports user interaction flow with buffered input and flush button", () => {
+    const query = cell("", { id: "react_user_flow_query" });
     const scope = createStore().fork();
 
     function App(): React.JSX.Element {
       const value = useBufferedUnit(query);
-      const setValue = useCellAction(query, { priority: 'transition' });
+      const setValue = useCellAction(query, { priority: "transition" });
       const flush = useFlushBuffered();
       return (
         <div>
-          <input
-            aria-label="query"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
+          <input aria-label="query" value={value} onChange={(e) => setValue(e.target.value)} />
           <button onClick={flush}>commit</button>
         </div>
       );
@@ -628,22 +633,22 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <App />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
-    fireEvent.change(screen.getByLabelText('query'), { target: { value: 'abc' } });
-    expect(scope.get(query)).toBe('');
-    fireEvent.click(screen.getByText('commit'));
-    expect(scope.get(query)).toBe('abc');
+    fireEvent.change(screen.getByLabelText("query"), { target: { value: "abc" } });
+    expect(scope.get(query)).toBe("");
+    fireEvent.click(screen.getByText("commit"));
+    expect(scope.get(query)).toBe("abc");
   });
 
-  it('useBufferedUnit re-subscribes when unit prop changes', () => {
-    const a = cell(0, { id: 'react_buffer_switch_a' });
-    const b = cell(0, { id: 'react_buffer_switch_b' });
+  it("useBufferedUnit re-subscribes when unit prop changes", () => {
+    const a = cell(0, { id: "react_buffer_switch_a" });
+    const b = cell(0, { id: "react_buffer_switch_b" });
     const scope = createStore().fork();
 
-    function App({ active }: { active: 'a' | 'b' }): React.JSX.Element {
-      const unit = active === 'a' ? a : b;
+    function App({ active }: { active: "a" | "b" }): React.JSX.Element {
+      const unit = active === "a" ? a : b;
       const value = useBufferedUnit(unit);
       return <span data-testid="value">{value}</span>;
     }
@@ -651,70 +656,70 @@ describe('react bridge', () => {
     const view = render(
       <StoreProvider scope={scope}>
         <App active="a" />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     act(() => {
       scope.set(a, 1);
     });
-    expect(screen.getByTestId('value').textContent).toBe('1');
+    expect(screen.getByTestId("value").textContent).toBe("1");
 
     view.rerender(
       <StoreProvider scope={scope}>
         <App active="b" />
-      </StoreProvider>
+      </StoreProvider>,
     );
 
     act(() => {
       scope.set(a, 2);
     });
-    expect(screen.getByTestId('value').textContent).toBe('0');
+    expect(screen.getByTestId("value").textContent).toBe("0");
 
     act(() => {
       scope.set(b, 3);
     });
-    expect(screen.getByTestId('value').textContent).toBe('3');
+    expect(screen.getByTestId("value").textContent).toBe("3");
   });
 
-  describe('shallowEqual', () => {
-    it('returns true for identical references', () => {
+  describe("shallowEqual", () => {
+    it("returns true for identical references", () => {
       const obj = { a: 1 };
       expect(shallowEqual(obj, obj)).toBe(true);
     });
 
-    it('returns true for objects with same keys and values', () => {
-      expect(shallowEqual({ a: 1, b: 'x' }, { a: 1, b: 'x' })).toBe(true);
+    it("returns true for objects with same keys and values", () => {
+      expect(shallowEqual({ a: 1, b: "x" }, { a: 1, b: "x" })).toBe(true);
     });
 
-    it('returns false for different values', () => {
+    it("returns false for different values", () => {
       expect(shallowEqual({ a: 1 }, { a: 2 })).toBe(false);
     });
 
-    it('returns false for different number of keys', () => {
+    it("returns false for different number of keys", () => {
       expect(shallowEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
     });
 
-    it('returns true for equal arrays', () => {
+    it("returns true for equal arrays", () => {
       expect(shallowEqual([1, 2, 3], [1, 2, 3])).toBe(true);
     });
 
-    it('returns false for different arrays', () => {
+    it("returns false for different arrays", () => {
       expect(shallowEqual([1, 2], [1, 3])).toBe(false);
     });
 
-    it('returns true for primitives', () => {
+    it("returns true for primitives", () => {
       expect(shallowEqual(42, 42)).toBe(true);
-      expect(shallowEqual('a', 'a')).toBe(true);
+      expect(shallowEqual("a", "a")).toBe(true);
     });
 
-    it('handles null and undefined', () => {
+    it("handles null and undefined", () => {
       expect(shallowEqual(null, null)).toBe(true);
       expect(shallowEqual(null, undefined)).toBe(false);
     });
   });
 
-  it('useUnit with selector and shallowEqual prevents re-renders for equivalent objects', () => {
-    const user = cell({ name: 'John', age: 30, extra: 'x' }, { id: 'shallow_user' });
+  it("useUnit with selector and shallowEqual prevents re-renders for equivalent objects", () => {
+    const user = cell({ name: "John", age: 30, extra: "x" }, { id: "shallow_user" });
     const store = createStore();
     const scope = store.root;
     let renderCount = 0;
@@ -728,40 +733,40 @@ describe('react bridge', () => {
     render(
       <StoreProvider scope={scope}>
         <NameDisplay />
-      </StoreProvider>
+      </StoreProvider>,
     );
     expect(renderCount).toBe(1);
-    expect(screen.getByTestId('name').textContent).toBe('John');
+    expect(screen.getByTestId("name").textContent).toBe("John");
 
     // Change a non-selected field — should NOT re-render
     act(() => {
-      scope.set(user, { name: 'John', age: 31, extra: 'y' });
+      scope.set(user, { name: "John", age: 31, extra: "y" });
     });
     expect(renderCount).toBe(1);
 
     // Change the selected field — should re-render
     act(() => {
-      scope.set(user, { name: 'Jane', age: 31, extra: 'y' });
+      scope.set(user, { name: "Jane", age: 31, extra: "y" });
     });
     expect(renderCount).toBe(2);
-    expect(screen.getByTestId('name').textContent).toBe('Jane');
+    expect(screen.getByTestId("name").textContent).toBe("Jane");
   });
 
-  describe('useAutoCleanupEffect', () => {
-    it('cancels effect on unmount', async () => {
+  describe("useAutoCleanupEffect", () => {
+    it("cancels effect on unmount", async () => {
       let started = 0;
       let completed = 0;
       const fx = effect(async (_: void, { signal }) => {
         started++;
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(resolve, 100);
-          signal.addEventListener('abort', () => {
+          signal.addEventListener("abort", () => {
             clearTimeout(timer);
-            reject(new Error('AbortError'));
+            reject(new Error("AbortError"));
           });
         });
         completed++;
-        return 'done';
+        return "done";
       });
 
       const store = createStore();
@@ -779,7 +784,7 @@ describe('react bridge', () => {
       const { unmount } = render(
         <StoreProvider scope={scope}>
           <TestComp />
-        </StoreProvider>
+        </StoreProvider>,
       );
 
       expect(started).toBe(1);
@@ -793,8 +798,8 @@ describe('react bridge', () => {
       expect(completed).toBe(0); // effect was cancelled
     });
 
-    it('returns run and cancel functions', () => {
-      const fx = effect(async (_: string) => 'result');
+    it("returns run and cancel functions", () => {
+      const fx = effect(async (_: string) => "result");
       const store = createStore();
       const scope = store.root;
 
@@ -803,8 +808,12 @@ describe('react bridge', () => {
         return (
           <div>
             <span data-testid="running">{status.running}</span>
-            <button data-testid="run" onClick={() => run('test')}>Run</button>
-            <button data-testid="cancel" onClick={() => cancel()}>Cancel</button>
+            <button data-testid="run" onClick={() => run("test")}>
+              Run
+            </button>
+            <button data-testid="cancel" onClick={() => cancel()}>
+              Cancel
+            </button>
           </div>
         );
       }
@@ -812,17 +821,17 @@ describe('react bridge', () => {
       render(
         <StoreProvider scope={scope}>
           <TestComp />
-        </StoreProvider>
+        </StoreProvider>,
       );
 
-      expect(screen.getByTestId('running').textContent).toBe('0');
+      expect(screen.getByTestId("running").textContent).toBe("0");
     });
   });
 
-  describe('useSuspenseUnit', () => {
-    it('suspends while async computed is pending then shows resolved value', async () => {
+  describe("useSuspenseUnit", () => {
+    it("suspends while async computed is pending then shows resolved value", async () => {
       let resolvePromise: (v: string) => void;
-      const id = cell(1, { id: 'suspense_unit_id_1' });
+      const id = cell(1, { id: "suspense_unit_id_1" });
       const user = asyncComputed(
         [id],
         async (userId) => {
@@ -830,7 +839,7 @@ describe('react bridge', () => {
             resolvePromise = resolve;
           });
         },
-        { id: 'suspense_unit_user_1' },
+        { id: "suspense_unit_user_1" },
       );
 
       function Inner() {
@@ -849,25 +858,27 @@ describe('react bridge', () => {
       );
 
       // Should show loading fallback
-      expect(screen.getByTestId('loading').textContent).toBe('Loading');
+      expect(screen.getByTestId("loading").textContent).toBe("Loading");
 
       // Resolve the async computed
       await act(async () => {
-        resolvePromise!('Alice');
+        resolvePromise!("Alice");
         // Wait for microtask
         await new Promise((r) => setTimeout(r, 10));
       });
 
       // Should now show resolved value
-      expect(screen.getByTestId('value').textContent).toBe('Alice');
+      expect(screen.getByTestId("value").textContent).toBe("Alice");
     });
 
-    it('throws error when async computed is rejected', async () => {
-      const id = cell(1, { id: 'suspense_unit_id_2' });
+    it("throws error when async computed is rejected", async () => {
+      const id = cell(1, { id: "suspense_unit_id_2" });
       const failing = asyncComputed(
         [id],
-        async () => { throw new Error('load failed'); },
-        { id: 'suspense_unit_fail_1' },
+        async () => {
+          throw new Error("load failed");
+        },
+        { id: "suspense_unit_fail_1" },
       );
 
       function Inner() {
@@ -903,64 +914,62 @@ describe('react bridge', () => {
         await new Promise((r) => setTimeout(r, 10));
       });
 
-      expect(screen.getByTestId('error').textContent).toBe('load failed');
+      expect(screen.getByTestId("error").textContent).toBe("load failed");
     });
   });
 
-  describe('SSR streaming utilities', () => {
-    it('collectStreamState captures cell state as serializable chunks', () => {
-      const a = cell(1, { id: 'stream_a' });
-      const b = cell('hello', { id: 'stream_b' });
+  describe("SSR streaming utilities", () => {
+    it("collectStreamState captures cell state as serializable chunks", () => {
+      const a = cell(1, { id: "stream_a" });
+      const b = cell("hello", { id: "stream_b" });
 
       const scope = createStore().fork();
       scope.set(a, 42);
-      scope.set(b, 'world');
+      scope.set(b, "world");
 
       const chunks = collectStreamState(scope, [a, b]);
 
       expect(chunks).toEqual([
-        { id: 'stream_a', value: 42 },
-        { id: 'stream_b', value: 'world' },
+        { id: "stream_a", value: 42 },
+        { id: "stream_b", value: "world" },
       ]);
     });
 
-    it('collectStreamState skips cells without id', () => {
-      const a = cell(1, { id: 'stream_with_id' });
+    it("collectStreamState skips cells without id", () => {
+      const a = cell(1, { id: "stream_with_id" });
       const noId = cell(2);
 
       const scope = createStore().fork();
 
       const chunks = collectStreamState(scope, [a, noId]);
 
-      expect(chunks).toEqual([
-        { id: 'stream_with_id', value: 1 },
-      ]);
+      expect(chunks).toEqual([{ id: "stream_with_id", value: 1 }]);
     });
 
-    it('applyStreamChunk restores cell state by id', () => {
-      const a = cell(0, { id: 'stream_apply_a' });
-      const b = cell('', { id: 'stream_apply_b' });
+    it("applyStreamChunk restores cell state by id", () => {
+      const a = cell(0, { id: "stream_apply_a" });
+      const b = cell("", { id: "stream_apply_b" });
 
       const scope = createStore().fork();
 
       applyStreamChunk(scope, [
-        { id: 'stream_apply_a', value: 100 },
-        { id: 'stream_apply_b', value: 'restored' },
+        { id: "stream_apply_a", value: 100 },
+        { id: "stream_apply_b", value: "restored" },
       ]);
 
       expect(scope.get(a)).toBe(100);
-      expect(scope.get(b)).toBe('restored');
+      expect(scope.get(b)).toBe("restored");
     });
 
-    it('applyStreamChunk skips unknown cell ids gracefully', () => {
-      const a = cell(0, { id: 'stream_skip_a' });
+    it("applyStreamChunk skips unknown cell ids gracefully", () => {
+      const a = cell(0, { id: "stream_skip_a" });
 
       const scope = createStore().fork();
 
       // Should not throw
       applyStreamChunk(scope, [
-        { id: 'stream_skip_a', value: 55 },
-        { id: 'nonexistent_cell', value: 'ignored' },
+        { id: "stream_skip_a", value: 55 },
+        { id: "nonexistent_cell", value: "ignored" },
       ]);
 
       expect(scope.get(a)).toBe(55);

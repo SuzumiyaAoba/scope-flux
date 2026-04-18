@@ -1,31 +1,31 @@
-import type { Cell, Priority, Scope, UpdateOptions, ValueBox } from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Priority, Scope, UpdateOptions, ValueBox } from "@suzumiyaaoba/scope-flux-core";
 
 type AnyCell = Cell<unknown>;
 
 function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function isValueBox<T>(value: unknown): value is ValueBox<T> {
-  return isObject(value) && '__scopeFluxValue' in value;
+  return isObject(value) && "__scopeFluxValue" in value;
 }
 
 export interface PendingBufferedUpdate {
   cell: AnyCell;
   value: unknown;
-  priority: Exclude<Priority, 'urgent'>;
+  priority: Exclude<Priority, "urgent">;
   reason?: string;
 }
 
 export interface SchedulerOptions {
   scope: Scope;
-  autoFlush?: false | 'microtask' | 'timeout' | 'animationFrame' | 'idle';
+  autoFlush?: false | "microtask" | "timeout" | "animationFrame" | "idle";
   autoFlushDelayMs?: number;
 }
 
 export class Scheduler {
   private readonly scope: Scope;
-  private readonly autoFlush: NonNullable<SchedulerOptions['autoFlush']>;
+  private readonly autoFlush: NonNullable<SchedulerOptions["autoFlush"]>;
   private readonly autoFlushDelayMs: number;
   private readonly pendingByCell = new Map<AnyCell, PendingBufferedUpdate>();
   private readonly bufferedSubscribers = new Set<() => void>();
@@ -50,15 +50,11 @@ export class Scheduler {
     return this.scope.get(cell);
   }
 
-  public set<T>(
-    cell: Cell<T>,
-    next: T | ((prev: T) => T) | ValueBox<T>,
-    options: UpdateOptions = {}
-  ): void {
+  public set<T>(cell: Cell<T>, next: T | ((prev: T) => T) | ValueBox<T>, options: UpdateOptions = {}): void {
     const anyCell = cell as AnyCell;
-    const priority = options.priority ?? 'urgent';
+    const priority = options.priority ?? "urgent";
 
-    if (priority === 'urgent') {
+    if (priority === "urgent") {
       this.scope.set(cell, next, options);
       if (this.pendingByCell.has(anyCell)) {
         this.pendingByCell.delete(anyCell);
@@ -70,9 +66,9 @@ export class Scheduler {
     const prev = this.getBuffered<T>(cell);
     const value = isValueBox<T>(next)
       ? next.__scopeFluxValue
-      : typeof next === 'function'
-        ? typeof cell.init === 'function'
-          ? next as T
+      : typeof next === "function"
+        ? typeof cell.init === "function"
+          ? (next as T)
           : (next as (prev: T) => T)(prev)
         : next;
 
@@ -96,7 +92,7 @@ export class Scheduler {
     idle: 0,
   };
 
-  public escalate<T>(cell: Cell<T>, newPriority: Exclude<Priority, 'urgent'>): void {
+  public escalate<T>(cell: Cell<T>, newPriority: Exclude<Priority, "urgent">): void {
     const anyCell = cell as AnyCell;
     const pending = this.pendingByCell.get(anyCell);
     if (!pending) return;
@@ -106,7 +102,9 @@ export class Scheduler {
     }
   }
 
-  public flushBuffered(options: { reason?: string; cells?: Cell<any>[]; priority?: Exclude<Priority, 'urgent'> } = {}): void {
+  public flushBuffered(
+    options: { reason?: string; cells?: Cell<any>[]; priority?: Exclude<Priority, "urgent"> } = {},
+  ): void {
     this._clearScheduledAutoFlush();
     if (this.pendingByCell.size === 0) {
       return;
@@ -150,8 +148,8 @@ export class Scheduler {
       this.scope.batch(() => {
         for (const update of updates) {
           this.scope.set(update.cell as Cell<unknown>, update.value, {
-            priority: 'urgent',
-            reason: options.reason ?? update.reason ?? 'scheduler.flushBuffered',
+            priority: "urgent",
+            reason: options.reason ?? update.reason ?? "scheduler.flushBuffered",
           });
         }
       });
@@ -211,19 +209,19 @@ export class Scheduler {
       this.flushBuffered({ reason: `scheduler.autoFlush.${this.autoFlush}` });
     };
 
-    if (this.autoFlush === 'microtask') {
+    if (this.autoFlush === "microtask") {
       queueMicrotask(flushIfScheduled);
       return;
     }
 
-    if (this.autoFlush === 'timeout') {
+    if (this.autoFlush === "timeout") {
       setTimeout(flushIfScheduled, this.autoFlushDelayMs);
       return;
     }
 
-    if (this.autoFlush === 'animationFrame') {
+    if (this.autoFlush === "animationFrame") {
       const raf = (globalThis as { requestAnimationFrame?: (cb: () => void) => unknown }).requestAnimationFrame;
-      if (typeof raf === 'function') {
+      if (typeof raf === "function") {
         raf(flushIfScheduled);
       } else {
         setTimeout(flushIfScheduled, Math.max(16, this.autoFlushDelayMs));
@@ -231,9 +229,11 @@ export class Scheduler {
       return;
     }
 
-    if (this.autoFlush === 'idle') {
-      const requestIdle = (globalThis as { requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => unknown }).requestIdleCallback;
-      if (typeof requestIdle === 'function') {
+    if (this.autoFlush === "idle") {
+      const requestIdle = (
+        globalThis as { requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => unknown }
+      ).requestIdleCallback;
+      if (typeof requestIdle === "function") {
         requestIdle(flushIfScheduled, { timeout: Math.max(1, this.autoFlushDelayMs || 50) });
       } else {
         setTimeout(flushIfScheduled, this.autoFlushDelayMs || 50);

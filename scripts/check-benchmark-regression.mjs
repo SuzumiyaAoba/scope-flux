@@ -1,20 +1,20 @@
-import { execSync } from 'node:child_process';
+import { execSync } from "node:child_process";
 
-const iterations = Number(process.env.BENCH_ITERATIONS ?? '6000');
-const derivedWidth = Number(process.env.BENCH_DERIVED_WIDTH ?? '300');
-const minOpsPerSec = Number(process.env.BENCH_MIN_OPS_PER_SEC ?? '2000');
+const iterations = Number(process.env.BENCH_ITERATIONS ?? "6000");
+const derivedWidth = Number(process.env.BENCH_DERIVED_WIDTH ?? "300");
+const minOpsPerSec = Number(process.env.BENCH_MIN_OPS_PER_SEC ?? "2000");
 
 const command = `node packages/benchmark/dist/run.js --iterations=${iterations} --derived-width=${derivedWidth}`;
 const output = execSync(command, {
-  encoding: 'utf8',
-  stdio: ['ignore', 'pipe', 'pipe'],
+  encoding: "utf8",
+  stdio: ["ignore", "pipe", "pipe"],
 });
 
 process.stdout.write(output);
 
-const lines = output.split('\n').filter((line) => line.includes('ops/sec='));
+const lines = output.split("\n").filter((line) => line.includes("ops/sec="));
 if (lines.length === 0) {
-  throw new Error('NS_BENCH_OUTPUT_PARSE_FAILED');
+  throw new Error("NS_BENCH_OUTPUT_PARSE_FAILED");
 }
 
 for (const line of lines) {

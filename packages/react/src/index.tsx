@@ -1,7 +1,18 @@
-import { asValue, getCellById } from '@suzumiyaaoba/scope-flux-core';
-import type { AsyncComputed, AsyncComputedResult, Cell, Computed, Effect, EffectStatus, Event, Priority, Scope, SeedInput } from '@suzumiyaaoba/scope-flux-core';
-import { createScheduler, type Scheduler } from '@suzumiyaaoba/scope-flux-scheduler';
-import type React from 'react';
+import { asValue, getCellById } from "@suzumiyaaoba/scope-flux-core";
+import type {
+  AsyncComputed,
+  AsyncComputedResult,
+  Cell,
+  Computed,
+  Effect,
+  EffectStatus,
+  Event,
+  Priority,
+  Scope,
+  SeedInput,
+} from "@suzumiyaaoba/scope-flux-core";
+import { createScheduler, type Scheduler } from "@suzumiyaaoba/scope-flux-scheduler";
+import type React from "react";
 import {
   createContext,
   type ReactNode,
@@ -11,11 +22,11 @@ import {
   useMemo,
   useRef,
   useSyncExternalStore,
-} from 'react';
+} from "react";
 
 export function shallowEqual<T>(a: T, b: T): boolean {
   if (Object.is(a, b)) return true;
-  if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
+  if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) return false;
   const keysA = Object.keys(a as object);
   const keysB = Object.keys(b as object);
   if (keysA.length !== keysB.length) return false;
@@ -54,7 +65,7 @@ export function StoreProvider({ scope, scheduler, children }: StoreProviderProps
 function useStoreContext(): StoreContextValue {
   const value = useContext(StoreContext);
   if (!value) {
-    throw new Error('NS_REACT_SCOPE_NOT_FOUND');
+    throw new Error("NS_REACT_SCOPE_NOT_FOUND");
   }
   return value;
 }
@@ -108,7 +119,7 @@ function useExternalSelected<T>(options: {
         }
       });
     },
-    [subscribeFn]
+    [subscribeFn],
   );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -141,12 +152,12 @@ export function useUnit<T>(unit: Cell<T> | Computed<T>): T;
 export function useUnit<T, S>(
   unit: Cell<T> | Computed<T>,
   selector: (value: T) => S,
-  options?: { equality?: (a: S, b: S) => boolean }
+  options?: { equality?: (a: S, b: S) => boolean },
 ): S;
 export function useUnit<T, S>(
   unit: Cell<T> | Computed<T>,
   selector?: (value: T) => S,
-  options?: { equality?: (a: S, b: S) => boolean }
+  options?: { equality?: (a: S, b: S) => boolean },
 ): T | S {
   const scope = useScope();
 
@@ -154,27 +165,22 @@ export function useUnit<T, S>(
     (onStoreChange: () => void) => {
       return scope.subscribeUnit(unit, onStoreChange);
     },
-    [scope, unit]
+    [scope, unit],
   );
 
-  return useSelectedUnit(
-    () => scope.get(unit),
-    subscribe,
-    selector,
-    options?.equality,
-  );
+  return useSelectedUnit(() => scope.get(unit), subscribe, selector, options?.equality);
 }
 
 export function useBufferedUnit<T>(unit: Cell<T>): T;
 export function useBufferedUnit<T, S>(
   unit: Cell<T>,
   selector: (value: T) => S,
-  options?: { equality?: (a: S, b: S) => boolean }
+  options?: { equality?: (a: S, b: S) => boolean },
 ): S;
 export function useBufferedUnit<T, S>(
   unit: Cell<T>,
   selector?: (value: T) => S,
-  options?: { equality?: (a: S, b: S) => boolean }
+  options?: { equality?: (a: S, b: S) => boolean },
 ): T | S {
   const scope = useScope();
   const scheduler = useScheduler();
@@ -188,50 +194,44 @@ export function useBufferedUnit<T, S>(
         unsubBuffered();
       };
     },
-    [scope, scheduler, unit]
+    [scope, scheduler, unit],
   );
 
-  return useSelectedUnit(
-    () => scheduler.getBuffered<T>(unit),
-    subscribe,
-    selector,
-    options?.equality,
-  );
+  return useSelectedUnit(() => scheduler.getBuffered<T>(unit), subscribe, selector, options?.equality);
 }
 
 export function useCellAction<T>(
   cell: Cell<T>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): (next: T | ((prev: T) => T)) => void {
   const scope = useScope();
   const scheduler = useScheduler();
-  const priority = options?.priority ?? 'urgent';
+  const priority = options?.priority ?? "urgent";
   const reasonRef = useRef(options?.reason);
   reasonRef.current = options?.reason;
 
   return useMemo(
-    () =>
-      (next: T | ((prev: T) => T)) => {
-        if (priority === 'urgent') {
-          scope.set(cell, next, {
-            priority,
-            reason: reasonRef.current,
-          });
-          return;
-        }
-
-        scheduler.set(cell, next, {
+    () => (next: T | ((prev: T) => T)) => {
+      if (priority === "urgent") {
+        scope.set(cell, next, {
           priority,
           reason: reasonRef.current,
         });
-      },
-    [scope, scheduler, cell, priority]
+        return;
+      }
+
+      scheduler.set(cell, next, {
+        priority,
+        reason: reasonRef.current,
+      });
+    },
+    [scope, scheduler, cell, priority],
   );
 }
 
 export function useCell<T>(
   cell: Cell<T>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): [T, (next: T | ((prev: T) => T)) => void] {
   const value = useUnit(cell);
   const setValue = useCellAction(cell, options);
@@ -240,7 +240,7 @@ export function useCell<T>(
 
 export function useSetCell<T>(
   cell: Cell<T>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): (next: T | ((prev: T) => T)) => void {
   return useCellAction(cell, options);
 }
@@ -252,31 +252,30 @@ export function useFlushBuffered(): () => void {
 
 export function useAction<P>(
   unitEvent: Event<P>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): (payload: P) => void {
   const scope = useScope();
-  const priority = options?.priority ?? 'urgent';
+  const priority = options?.priority ?? "urgent";
   const reasonRef = useRef(options?.reason);
   reasonRef.current = options?.reason;
 
   return useMemo(
-    () =>
-      (payload: P) => {
-        scope.emit(unitEvent, payload, {
-          priority,
-          reason: reasonRef.current,
-        });
-      },
-    [scope, unitEvent, priority]
+    () => (payload: P) => {
+      scope.emit(unitEvent, payload, {
+        priority,
+        reason: reasonRef.current,
+      });
+    },
+    [scope, unitEvent, priority],
   );
 }
 
 export function useEffectAction<P, R>(
   unitEffect: Effect<P, R>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): (payload: P) => Promise<R> {
   const scope = useScope();
-  const priority = options?.priority ?? 'urgent';
+  const priority = options?.priority ?? "urgent";
   const reasonRef = useRef(options?.reason);
   reasonRef.current = options?.reason;
 
@@ -288,7 +287,7 @@ export function useEffectAction<P, R>(
           reason: reasonRef.current,
         });
       },
-    [scope, unitEffect, priority]
+    [scope, unitEffect, priority],
   );
 }
 
@@ -307,7 +306,7 @@ export function useEffectStatus<P, R>(unitEffect: Effect<P, R>): EffectStatus<R>
   const scope = useScope();
   const subscribe = useCallback(
     (onStoreChange: () => void) => scope.subscribeEffectStatus(unitEffect, onStoreChange),
-    [scope, unitEffect]
+    [scope, unitEffect],
   );
   return useExternalSelected({
     getValue: () => scope.getEffectStatus(unitEffect),
@@ -318,7 +317,7 @@ export function useEffectStatus<P, R>(unitEffect: Effect<P, R>): EffectStatus<R>
 
 export function useAsyncEffectAction<P, R>(
   unitEffect: Effect<P, R>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): {
   run: (payload: P) => Promise<R>;
   cancel: () => void;
@@ -339,7 +338,7 @@ export function useAsyncEffectAction<P, R>(
 
 export function useSuspenseEffectAction<P, R>(
   unitEffect: Effect<P, R>,
-  options?: { priority?: Priority; reason?: string }
+  options?: { priority?: Priority; reason?: string },
 ): {
   run: (payload: P) => Promise<R>;
   cancel: () => void;
@@ -351,18 +350,17 @@ export function useSuspenseEffectAction<P, R>(
   const inFlightRef = useRef<Promise<R> | null>(null);
   const runBase = useEffectAction(unitEffect, options);
   const run = useMemo(
-    () =>
-      (payload: P) => {
-        const current = runBase(payload);
-        inFlightRef.current = current;
-        void current.finally(() => {
-          if (inFlightRef.current === current) {
-            inFlightRef.current = null;
-          }
-        });
-        return current;
-      },
-    [runBase]
+    () => (payload: P) => {
+      const current = runBase(payload);
+      inFlightRef.current = current;
+      void current.finally(() => {
+        if (inFlightRef.current === current) {
+          inFlightRef.current = null;
+        }
+      });
+      return current;
+    },
+    [runBase],
   );
   const cancel = useCallback(() => {
     scope.cancelEffect(unitEffect);
@@ -404,13 +402,13 @@ export function useHydrateUnits(seed: SeedInput, options?: { force?: boolean }):
     }
     scope.batch(() => {
       for (const [unit, value] of entries) {
-        if (!unit || unit.kind !== 'cell') {
-          throw new Error('NS_CORE_INVALID_UPDATE');
+        if (!unit || unit.kind !== "cell") {
+          throw new Error("NS_CORE_INVALID_UPDATE");
         }
         if (!forceApply && seenUnits.has(unit)) {
           continue;
         }
-        scope.set(unit, asValue(value), { priority: 'urgent', reason: 'hydrate' });
+        scope.set(unit, asValue(value), { priority: "urgent", reason: "hydrate" });
         if (unit.meta?.id) {
           scope.markHydrated(unit.meta.id);
         }
@@ -448,12 +446,12 @@ export function useSuspenseUnit<T>(unit: AsyncComputed<T>): T {
   // Trigger evaluation
   const result = scope.get(unit);
 
-  if (result.status === 'fulfilled') {
+  if (result.status === "fulfilled") {
     suspensePromiseCache.delete(unit as AsyncComputed<unknown>);
     return result.value;
   }
 
-  if (result.status === 'rejected') {
+  if (result.status === "rejected") {
     suspensePromiseCache.delete(unit as AsyncComputed<unknown>);
     throw result.error;
   }
@@ -464,7 +462,7 @@ export function useSuspenseUnit<T>(unit: AsyncComputed<T>): T {
     promise = new Promise<void>((resolve) => {
       const unsub = scope.subscribe(() => {
         const r = scope.get(unit);
-        if (r.status !== 'pending') {
+        if (r.status !== "pending") {
           unsub();
           resolve();
         }
@@ -519,7 +517,7 @@ export function applyStreamChunk(scope: Scope, chunks: StreamChunk[]): void {
     for (const chunk of chunks) {
       const c = scope.getRegisteredCellById(chunk.id) ?? getCellById(chunk.id);
       if (!c) continue;
-      scope.set(c, chunk.value, { priority: 'urgent', reason: 'stream-hydrate' });
+      scope.set(c, chunk.value, { priority: "urgent", reason: "stream-hydrate" });
     }
   });
 }

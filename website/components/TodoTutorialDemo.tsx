@@ -1,7 +1,13 @@
-import { useEffect, useMemo } from 'react';
-import { cell, computed, createStore, type Cell } from '@suzumiyaaoba/scope-flux-core';
-import { StoreProvider, useBufferedUnit, useCellAction, useFlushBuffered, useUnit } from '@suzumiyaaoba/scope-flux-react';
-import './TodoTutorialDemo.css';
+import { useEffect, useMemo } from "react";
+import { cell, computed, createStore, type Cell } from "@suzumiyaaoba/scope-flux-core";
+import {
+  StoreProvider,
+  useBufferedUnit,
+  useCellAction,
+  useFlushBuffered,
+  useUnit,
+} from "@suzumiyaaoba/scope-flux-react";
+import "./TodoTutorialDemo.css";
 
 type Todo = {
   id: string;
@@ -9,10 +15,10 @@ type Todo = {
   done: boolean;
 };
 
-const CELL_ID_TODOS = 'tutorial_embed_todos';
-const CELL_ID_DRAFT = 'tutorial_embed_draft';
-const CELL_ID_FILTER = 'tutorial_embed_filter';
-const STORAGE_KEY = 'scope-flux:tutorial-embed';
+const CELL_ID_TODOS = "tutorial_embed_todos";
+const CELL_ID_DRAFT = "tutorial_embed_draft";
+const CELL_ID_FILTER = "tutorial_embed_filter";
+const STORAGE_KEY = "scope-flux:tutorial-embed";
 
 function getOrCreateCell<T>(id: string, init: T): Cell<T> {
   const g = globalThis as { __scopeFluxTutorialCells?: Map<string, Cell<unknown>> };
@@ -29,12 +35,12 @@ function getOrCreateCell<T>(id: string, init: T): Cell<T> {
 }
 
 const todosCell = getOrCreateCell<Todo[]>(CELL_ID_TODOS, []);
-const draftCell = getOrCreateCell<string>(CELL_ID_DRAFT, '');
-const filterCell = getOrCreateCell<'all' | 'active' | 'done'>(CELL_ID_FILTER, 'all');
+const draftCell = getOrCreateCell<string>(CELL_ID_DRAFT, "");
+const filterCell = getOrCreateCell<"all" | "active" | "done">(CELL_ID_FILTER, "all");
 
 const visibleTodos = computed([todosCell, filterCell], (todos, filter) => {
-  if (filter === 'active') return todos.filter((todo) => !todo.done);
-  if (filter === 'done') return todos.filter((todo) => todo.done);
+  if (filter === "active") return todos.filter((todo) => !todo.done);
+  if (filter === "done") return todos.filter((todo) => todo.done);
   return todos;
 });
 
@@ -44,11 +50,11 @@ let hydrated = false;
 type PersistedState = {
   todos: Todo[];
   draft: string;
-  filter: 'all' | 'active' | 'done';
+  filter: "all" | "active" | "done";
 };
 
 function hydrateOnce(): void {
-  if (hydrated || typeof window === 'undefined') {
+  if (hydrated || typeof window === "undefined") {
     return;
   }
   hydrated = true;
@@ -60,13 +66,13 @@ function hydrateOnce(): void {
     }
     const data = JSON.parse(raw) as Partial<PersistedState>;
     if (Array.isArray(data.todos)) {
-      scope.set(todosCell, data.todos, { reason: 'tutorial.hydrate' });
+      scope.set(todosCell, data.todos, { reason: "tutorial.hydrate" });
     }
-    if (typeof data.draft === 'string') {
-      scope.set(draftCell, data.draft, { reason: 'tutorial.hydrate' });
+    if (typeof data.draft === "string") {
+      scope.set(draftCell, data.draft, { reason: "tutorial.hydrate" });
     }
-    if (data.filter === 'all' || data.filter === 'active' || data.filter === 'done') {
-      scope.set(filterCell, data.filter, { reason: 'tutorial.hydrate' });
+    if (data.filter === "all" || data.filter === "active" || data.filter === "done") {
+      scope.set(filterCell, data.filter, { reason: "tutorial.hydrate" });
     }
   } catch {
     // ignore invalid local payload for tutorial demo
@@ -74,7 +80,7 @@ function hydrateOnce(): void {
 }
 
 function persist(): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return;
   }
   const payload: PersistedState = {
@@ -86,25 +92,25 @@ function persist(): void {
 }
 
 function resetDemo(): void {
-  scope.set(todosCell, [], { reason: 'tutorial.reset' });
-  scope.set(draftCell, '', { reason: 'tutorial.reset' });
-  scope.set(filterCell, 'all', { reason: 'tutorial.reset' });
-  if (typeof window !== 'undefined') {
+  scope.set(todosCell, [], { reason: "tutorial.reset" });
+  scope.set(draftCell, "", { reason: "tutorial.reset" });
+  scope.set(filterCell, "all", { reason: "tutorial.reset" });
+  if (typeof window !== "undefined") {
     window.localStorage.removeItem(STORAGE_KEY);
   }
 }
 
 function TodoAppBody(): React.JSX.Element {
   const draft = useBufferedUnit(draftCell);
-  const setDraft = useCellAction(draftCell, { priority: 'transition', reason: 'tutorial.typing' });
+  const setDraft = useCellAction(draftCell, { priority: "transition", reason: "tutorial.typing" });
   const flush = useFlushBuffered();
 
   const filter = useUnit(filterCell);
-  const setFilter = useCellAction(filterCell, { reason: 'tutorial.filter' });
+  const setFilter = useCellAction(filterCell, { reason: "tutorial.filter" });
 
   const allTodos = useUnit(todosCell);
   const todos = useUnit(visibleTodos);
-  const setTodos = useCellAction(todosCell, { reason: 'tutorial.todos' });
+  const setTodos = useCellAction(todosCell, { reason: "tutorial.todos" });
 
   const summary = useMemo(() => {
     const done = allTodos.filter((todo) => todo.done).length;
@@ -117,9 +123,10 @@ function TodoAppBody(): React.JSX.Element {
     if (!text) {
       return;
     }
-    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`;
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`;
     setTodos((prev) => [...prev, { id, text, done: false }]);
-    setDraft('');
+    setDraft("");
     flush();
   };
 
@@ -135,7 +142,8 @@ function TodoAppBody(): React.JSX.Element {
     <div className="todo-demo">
       <h3 className="todo-demo__title">Embedded Todo Demo</h3>
       <p className="todo-demo__lead">
-        This demo uses <code>cell</code>, <code>computed</code>, <code>StoreProvider</code>, and React hooks from scope-flux.
+        This demo uses <code>cell</code>, <code>computed</code>, <code>StoreProvider</code>, and React hooks from
+        scope-flux.
       </p>
 
       <div className="todo-demo__input-row">
@@ -147,11 +155,13 @@ function TodoAppBody(): React.JSX.Element {
           onBlur={() => flush()}
           placeholder="Add todo..."
         />
-        <button data-testid="todo-add" className="todo-demo__button todo-demo__button--primary" onClick={onAdd}>Add</button>
+        <button data-testid="todo-add" className="todo-demo__button todo-demo__button--primary" onClick={onAdd}>
+          Add
+        </button>
       </div>
 
       <div className="todo-demo__filter-row">
-        {(['all', 'active', 'done'] as const).map((value) => (
+        {(["all", "active", "done"] as const).map((value) => (
           <button
             data-testid={`todo-filter-${value}`}
             className="todo-demo__button"
@@ -162,17 +172,27 @@ function TodoAppBody(): React.JSX.Element {
             {value}
           </button>
         ))}
-        <button data-testid="todo-reset" className="todo-demo__button todo-demo__button--ghost" onClick={resetDemo}>Reset</button>
+        <button data-testid="todo-reset" className="todo-demo__button todo-demo__button--ghost" onClick={resetDemo}>
+          Reset
+        </button>
       </div>
 
       <div className="todo-demo__summary" data-testid="todo-summary">
-        <span className="todo-demo__badge" data-testid="todo-total">Total: {summary.total}</span>
-        <span className="todo-demo__badge" data-testid="todo-active">Active: {summary.active}</span>
-        <span className="todo-demo__badge" data-testid="todo-done">Done: {summary.done}</span>
+        <span className="todo-demo__badge" data-testid="todo-total">
+          Total: {summary.total}
+        </span>
+        <span className="todo-demo__badge" data-testid="todo-active">
+          Active: {summary.active}
+        </span>
+        <span className="todo-demo__badge" data-testid="todo-done">
+          Done: {summary.done}
+        </span>
       </div>
 
       {todos.length === 0 ? (
-        <p data-testid="todo-empty" className="todo-demo__empty">No todos yet.</p>
+        <p data-testid="todo-empty" className="todo-demo__empty">
+          No todos yet.
+        </p>
       ) : (
         <ul className="todo-demo__list">
           {todos.map((todo) => (
@@ -185,7 +205,7 @@ function TodoAppBody(): React.JSX.Element {
                   checked={todo.done}
                   onChange={() => toggle(todo.id)}
                 />
-                <span className={todo.done ? 'todo-demo__text todo-demo__text--done' : 'todo-demo__text'}>
+                <span className={todo.done ? "todo-demo__text todo-demo__text--done" : "todo-demo__text"}>
                   {todo.text}
                 </span>
               </label>

@@ -1,12 +1,6 @@
-import type { Cell, Scope } from '@suzumiyaaoba/scope-flux-core';
+import type { Cell, Scope } from "@suzumiyaaoba/scope-flux-core";
 
-export type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | { [k: string]: JsonValue };
+export type JsonValue = null | boolean | number | string | JsonValue[] | { [k: string]: JsonValue };
 
 export interface SerializedScope {
   version: number;
@@ -14,7 +8,7 @@ export interface SerializedScope {
   values: Record<string, JsonValue>;
   meta?: {
     createdAt?: string;
-    source?: 'ssr' | 'persist' | 'test';
+    source?: "ssr" | "persist" | "test";
   };
 }
 
@@ -24,7 +18,7 @@ export interface SerializeOptions {
 }
 
 export interface HydrateOptions {
-  mode?: 'safe' | 'force';
+  mode?: "safe" | "force";
   migrate?: (payload: SerializedScope) => SerializedScope;
 }
 
@@ -66,22 +60,19 @@ export interface HydrateFromAsyncStorageOptions extends HydrateOptions {
 export interface AutoPersistOptions extends PersistToStorageOptions {
   debounceMs?: number;
   throttleMs?: number;
-  mode?: 'safe' | 'force';
+  mode?: "safe" | "force";
   migrate?: (payload: SerializedScope) => SerializedScope;
   listenExternalUpdates?: boolean;
   onExternalHydrate?: (payload: SerializedScope) => void;
-  conflictPolicy?: 'prefer_external' | 'prefer_local' | 'merge';
-  mergePayloads?: (
-    localPayload: SerializedScope,
-    externalPayload: SerializedScope
-  ) => SerializedScope;
+  conflictPolicy?: "prefer_external" | "prefer_local" | "merge";
+  mergePayloads?: (localPayload: SerializedScope, externalPayload: SerializedScope) => SerializedScope;
   onError?: (error: unknown) => void;
 }
 
 export interface AutoPersistAsyncOptions extends PersistToAsyncStorageOptions {
   debounceMs?: number;
   throttleMs?: number;
-  mode?: 'safe' | 'force';
+  mode?: "safe" | "force";
   migrate?: (payload: SerializedScope) => SerializedScope;
   onError?: (error: unknown) => void;
 }
@@ -111,8 +102,8 @@ function isJsonValue(value: unknown): value is JsonValue {
     return true;
   }
   const t = typeof value;
-  if (t === 'string' || t === 'number' || t === 'boolean') {
-    return t === 'number' ? Number.isFinite(value) : true;
+  if (t === "string" || t === "number" || t === "boolean") {
+    return t === "number" ? Number.isFinite(value) : true;
   }
   if (Array.isArray(value)) {
     return value.every(isJsonValue);
@@ -124,23 +115,23 @@ function isJsonValue(value: unknown): value is JsonValue {
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function assertScope(scope: Scope): void {
-  if (!scope || typeof scope.get !== 'function' || typeof scope.set !== 'function') {
-    throw new Error('NS_SER_INVALID_SCOPE');
+  if (!scope || typeof scope.get !== "function" || typeof scope.set !== "function") {
+    throw new Error("NS_SER_INVALID_SCOPE");
   }
 }
 
-const _textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : undefined;
+const _textEncoder = typeof TextEncoder !== "undefined" ? new TextEncoder() : undefined;
 
 function utf8ByteLength(value: string): number {
   if (_textEncoder) {
     return _textEncoder.encode(value).byteLength;
   }
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.byteLength(value, 'utf8');
+  if (typeof Buffer !== "undefined") {
+    return Buffer.byteLength(value, "utf8");
   }
 
   // Manual UTF-8 byte length for runtimes without TextEncoder/Buffer.
@@ -151,10 +142,13 @@ function utf8ByteLength(value: string): number {
     else if (code <= 0x7ff) bytes += 2;
     else if (code >= 0xd800 && code <= 0xdbff) {
       const next = i + 1 < value.length ? value.charCodeAt(i + 1) : 0;
-      if (next >= 0xdc00 && next <= 0xdfff) { bytes += 4; i++; }
-      else { bytes += 3; }
-    }
-    else bytes += 3;
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        i++;
+      } else {
+        bytes += 3;
+      }
+    } else bytes += 3;
   }
   return bytes;
 }
@@ -169,7 +163,7 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
   const values: Record<string, JsonValue> = {};
 
   for (const unit of cells) {
-    if (!unit || unit.kind !== 'cell') {
+    if (!unit || unit.kind !== "cell") {
       continue;
     }
 
@@ -200,7 +194,7 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
   const encoded = JSON.stringify(payload);
   const bytes = utf8ByteLength(encoded);
   if (bytes > maxBytes) {
-    throw new Error('NS_SER_PAYLOAD_TOO_LARGE');
+    throw new Error("NS_SER_PAYLOAD_TOO_LARGE");
   }
 
   return payload;
@@ -208,24 +202,24 @@ export function serialize(scope: Scope, opts: SerializeOptions = {}): Serialized
 
 function validatePayload(payload: unknown): asserts payload is SerializedScope {
   if (!isObject(payload)) {
-    throw new Error('NS_SER_INVALID_SCHEMA');
+    throw new Error("NS_SER_INVALID_SCHEMA");
   }
 
-  if (typeof payload.version !== 'number' || !Number.isInteger(payload.version) || payload.version <= 0) {
-    throw new Error('NS_SER_INVALID_SCHEMA');
+  if (typeof payload.version !== "number" || !Number.isInteger(payload.version) || payload.version <= 0) {
+    throw new Error("NS_SER_INVALID_SCHEMA");
   }
 
-  if (typeof payload.scopeId !== 'string') {
-    throw new Error('NS_SER_INVALID_SCHEMA');
+  if (typeof payload.scopeId !== "string") {
+    throw new Error("NS_SER_INVALID_SCHEMA");
   }
 
   if (!isObject(payload.values)) {
-    throw new Error('NS_SER_INVALID_SCHEMA');
+    throw new Error("NS_SER_INVALID_SCHEMA");
   }
 
   for (const [id, value] of Object.entries(payload.values)) {
-    if (typeof id !== 'string' || !isJsonValue(value)) {
-      throw new Error('NS_SER_INVALID_SCHEMA');
+    if (typeof id !== "string" || !isJsonValue(value)) {
+      throw new Error("NS_SER_INVALID_SCHEMA");
     }
   }
 }
@@ -242,13 +236,13 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
     sourcePayload = opts.migrate(sourcePayload);
     validatePayload(sourcePayload);
     if (sourcePayload.version !== 1) {
-      throw new Error('NS_SER_MIGRATE_TARGET_VERSION_REQUIRED');
+      throw new Error("NS_SER_MIGRATE_TARGET_VERSION_REQUIRED");
     }
   }
 
-  const mode = opts.mode ?? 'safe';
-  if (mode !== 'safe' && mode !== 'force') {
-    throw new Error('NS_SER_INVALID_HYDRATE_MODE');
+  const mode = opts.mode ?? "safe";
+  if (mode !== "safe" && mode !== "force") {
+    throw new Error("NS_SER_INVALID_HYDRATE_MODE");
   }
 
   scope.batch(() => {
@@ -258,7 +252,7 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
         continue;
       }
 
-      if (mode !== 'force' && scope.isHydrated(id)) {
+      if (mode !== "force" && scope.isHydrated(id)) {
         continue;
       }
 
@@ -266,9 +260,9 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
         if (cellUnit.serializer.validate && !cellUnit.serializer.validate(value)) {
           continue; // skip invalid values
         }
-        scope.set(cellUnit, cellUnit.serializer.deserialize(value), { reason: 'hydrate', priority: 'urgent' });
+        scope.set(cellUnit, cellUnit.serializer.deserialize(value), { reason: "hydrate", priority: "urgent" });
       } else {
-        scope.set(cellUnit, value, { reason: 'hydrate', priority: 'urgent' });
+        scope.set(cellUnit, value, { reason: "hydrate", priority: "urgent" });
       }
       scope.markHydrated(id);
     }
@@ -276,11 +270,11 @@ export function hydrate(scope: Scope, payload: unknown, opts: HydrateOptions = {
 }
 
 const escapeMap: Record<string, string> = {
-  '<': '\\u003c',
-  '>': '\\u003e',
-  '&': '\\u0026',
-  '\u2028': '\\u2028',
-  '\u2029': '\\u2029',
+  "<": "\\u003c",
+  ">": "\\u003e",
+  "&": "\\u0026",
+  "\u2028": "\\u2028",
+  "\u2029": "\\u2029",
 };
 
 export function escapeJsonForHtml(json: string): string {
@@ -294,7 +288,7 @@ function resolveStorage(storage?: StorageLike): StorageLike {
 
   const candidate = (globalThis as { localStorage?: StorageLike }).localStorage;
   if (!candidate) {
-    throw new Error('NS_SER_STORAGE_UNAVAILABLE');
+    throw new Error("NS_SER_STORAGE_UNAVAILABLE");
   }
   return candidate;
 }
@@ -306,16 +300,12 @@ function resolveAsyncStorage(storage?: AsyncStorageLike): AsyncStorageLike {
 
   const candidate = (globalThis as { localStorage?: StorageLike }).localStorage;
   if (!candidate) {
-    throw new Error('NS_SER_STORAGE_UNAVAILABLE');
+    throw new Error("NS_SER_STORAGE_UNAVAILABLE");
   }
   return candidate;
 }
 
-export function persistToStorage(
-  scope: Scope,
-  key: string,
-  options: PersistToStorageOptions = {}
-): SerializedScope {
+export function persistToStorage(scope: Scope, key: string, options: PersistToStorageOptions = {}): SerializedScope {
   const payload = serialize(scope, options);
   const storage = resolveStorage(options.storage);
   const rawJson = JSON.stringify(payload);
@@ -326,7 +316,7 @@ export function persistToStorage(
 export function hydrateFromStorage(
   scope: Scope,
   key: string,
-  options: HydrateFromStorageOptions = {}
+  options: HydrateFromStorageOptions = {},
 ): SerializedScope | null {
   const storage = resolveStorage(options.storage);
   const raw = storage.getItem(key);
@@ -337,7 +327,7 @@ export function hydrateFromStorage(
   try {
     parsed = JSON.parse(decodeStorageValue(raw, options.codec));
   } catch {
-    throw new Error('NS_SER_INVALID_STORAGE_PAYLOAD');
+    throw new Error("NS_SER_INVALID_STORAGE_PAYLOAD");
   }
   hydrate(scope, parsed, options);
   return parsed as SerializedScope;
@@ -346,7 +336,7 @@ export function hydrateFromStorage(
 export async function persistToStorageAsync(
   scope: Scope,
   key: string,
-  options: PersistToAsyncStorageOptions = {}
+  options: PersistToAsyncStorageOptions = {},
 ): Promise<SerializedScope> {
   const payload = serialize(scope, options);
   const storage = resolveAsyncStorage(options.storage);
@@ -358,7 +348,7 @@ export async function persistToStorageAsync(
 export async function hydrateFromStorageAsync(
   scope: Scope,
   key: string,
-  options: HydrateFromAsyncStorageOptions = {}
+  options: HydrateFromAsyncStorageOptions = {},
 ): Promise<SerializedScope | null> {
   const storage = resolveAsyncStorage(options.storage);
   const raw = await Promise.resolve(storage.getItem(key));
@@ -369,7 +359,7 @@ export async function hydrateFromStorageAsync(
   try {
     parsed = JSON.parse(decodeStorageValue(raw, options.codec));
   } catch {
-    throw new Error('NS_SER_INVALID_STORAGE_PAYLOAD');
+    throw new Error("NS_SER_INVALID_STORAGE_PAYLOAD");
   }
   hydrate(scope, parsed, options);
   return parsed as SerializedScope;
@@ -378,7 +368,7 @@ export async function hydrateFromStorageAsync(
 export function autoPersistScope(
   scope: Scope,
   key: string,
-  options: AutoPersistOptions = {}
+  options: AutoPersistOptions = {},
 ): {
   unsubscribe: () => void;
   flush: () => SerializedScope | null;
@@ -388,11 +378,11 @@ export function autoPersistScope(
   const storage = resolveStorage(options.storage);
   const debounceMs = Math.max(0, options.debounceMs ?? 0);
   const throttleMs = Math.max(0, options.throttleMs ?? 0);
-  const conflictPolicy = options.conflictPolicy ?? 'prefer_external';
+  const conflictPolicy = options.conflictPolicy ?? "prefer_external";
   let lastPersistAt = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let localDirty = false;
-  let lastPersistedEncoded = '';
+  let lastPersistedEncoded = "";
   let applyingExternal = false;
 
   const clearTimer = () => {
@@ -417,7 +407,7 @@ export function autoPersistScope(
   };
 
   const resolvePayloadForHydration = (externalPayload: SerializedScope): SerializedScope => {
-    if (conflictPolicy === 'merge' && options.mergePayloads) {
+    if (conflictPolicy === "merge" && options.mergePayloads) {
       const localPayload = serialize(scope, options);
       return options.mergePayloads(localPayload, externalPayload);
     }
@@ -459,17 +449,11 @@ export function autoPersistScope(
 
   if (options.listenExternalUpdates) {
     const g = globalThis as {
-      addEventListener?: (
-        type: string,
-        listener: (event: unknown) => void
-      ) => void;
-      removeEventListener?: (
-        type: string,
-        listener: (event: unknown) => void
-      ) => void;
+      addEventListener?: (type: string, listener: (event: unknown) => void) => void;
+      removeEventListener?: (type: string, listener: (event: unknown) => void) => void;
     };
 
-    if (typeof g.addEventListener === 'function' && typeof g.removeEventListener === 'function') {
+    if (typeof g.addEventListener === "function" && typeof g.removeEventListener === "function") {
       const onStorage = (event: unknown) => {
         const e = event as {
           key?: string | null;
@@ -485,7 +469,7 @@ export function autoPersistScope(
         if (e.newValue === lastPersistedEncoded) {
           return;
         }
-        if (conflictPolicy === 'prefer_local' && (localDirty || !!timer)) {
+        if (conflictPolicy === "prefer_local" && (localDirty || !!timer)) {
           return;
         }
         try {
@@ -495,7 +479,7 @@ export function autoPersistScope(
           applyingExternal = true;
           try {
             hydrate(scope, payloadToHydrate, {
-              mode: options.mode ?? 'force',
+              mode: options.mode ?? "force",
               migrate: options.migrate,
             });
           } finally {
@@ -508,9 +492,9 @@ export function autoPersistScope(
         }
       };
 
-      g.addEventListener('storage', onStorage);
+      g.addEventListener("storage", onStorage);
       unsubscribeExternal = () => {
-        g.removeEventListener?.('storage', onStorage);
+        g.removeEventListener?.("storage", onStorage);
       };
     }
   }
@@ -534,7 +518,7 @@ export function autoPersistScope(
         const parsed = parseStoredPayload(raw);
         const payloadToHydrate = resolvePayloadForHydration(parsed);
         hydrate(scope, payloadToHydrate, {
-          mode: options.mode ?? 'force',
+          mode: options.mode ?? "force",
           migrate: options.migrate,
         });
         options.onExternalHydrate?.(payloadToHydrate);
@@ -550,7 +534,7 @@ export function autoPersistScope(
 export function autoPersistScopeAsync(
   scope: Scope,
   key: string,
-  options: AutoPersistAsyncOptions = {}
+  options: AutoPersistAsyncOptions = {},
 ): {
   unsubscribe: () => void;
   flush: () => Promise<SerializedScope | null>;

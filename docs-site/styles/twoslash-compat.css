@@ -1,9 +1,9 @@
-.twoslash [classname~='twoslash-hover'] {
+.twoslash [classname~="twoslash-hover"] {
   position: relative;
 }
 
-.twoslash [classname~='twoslash-hover']::after {
-  content: '';
+.twoslash [classname~="twoslash-hover"]::after {
+  content: "";
   position: absolute;
   bottom: -3px;
   left: 0;
@@ -13,15 +13,15 @@
   transition: opacity 0.3s ease;
 }
 
-.twoslash:hover [classname~='twoslash-hover']::after {
+.twoslash:hover [classname~="twoslash-hover"]::after {
   opacity: 0.4;
 }
 
-.twoslash [classname~='twoslash-popup-trigger'] {
+.twoslash [classname~="twoslash-popup-trigger"] {
   position: relative;
 }
 
-.twoslash [classname~='twoslash-popup-container'] {
+.twoslash [classname~="twoslash-popup-container"] {
   position: absolute;
   opacity: 0;
   visibility: hidden;
@@ -29,22 +29,22 @@
   z-index: var(--twoslash-popup-z-index, 50);
 }
 
-.twoslash [classname~='twoslash-popup-container'][data-initialized] {
+.twoslash [classname~="twoslash-popup-container"][data-initialized] {
   display: block;
 }
 
-.twoslash [classname~='twoslash-popup-container'][data-state='show'],
-.twoslash [classname~='twoslash-popup-container'][data-always='true'] {
+.twoslash [classname~="twoslash-popup-container"][data-state="show"],
+.twoslash [classname~="twoslash-popup-container"][data-always="true"] {
   opacity: 1;
   visibility: visible;
 }
 
-.twoslash [classname~='twoslash-popup-container'][data-state='hidden'] {
+.twoslash [classname~="twoslash-popup-container"][data-state="hidden"] {
   opacity: 0;
   visibility: hidden;
 }
 
-.twoslash [classname~='twoslash-popup-inner'] {
+.twoslash [classname~="twoslash-popup-inner"] {
   background: var(--twoslash-popup-bg, var(--rp-c-bg));
   color: var(--twoslash-popup-color, var(--rp-c-text-1));
   border: 1px solid var(--twoslash-border-color, var(--rp-c-divider));
@@ -52,9 +52,9 @@
   box-shadow: var(--twoslash-popup-shadow, rgba(0, 0, 0, 0.08) 0px 1px 4px);
 }
 
-.twoslash [classname~='twoslash-popup-code'],
-.twoslash [classname~='twoslash-popup-docs'],
-.twoslash [classname~='twoslash-popup-error'] {
+.twoslash [classname~="twoslash-popup-code"],
+.twoslash [classname~="twoslash-popup-docs"],
+.twoslash [classname~="twoslash-popup-error"] {
   background: var(--twoslash-popup-bg, var(--rp-c-bg));
   color: var(--twoslash-popup-color, var(--rp-c-text-1));
 }
